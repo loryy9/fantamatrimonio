@@ -13,25 +13,46 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TYPE challenge_type AS ENUM ('photo', 'hunt', 'vote', 'quiz');
 
 -- ────────────────────────────────────────────────────────────
+-- TABLE: events
+-- Ogni evento e' un matrimonio indipendente. Tutto il resto
+-- (users, challenges) e' scoped a un event_id.
+-- ────────────────────────────────────────────────────────────
+
+CREATE TABLE events (
+    id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    spouse1_name  TEXT        NOT NULL,
+    spouse2_name  TEXT        NOT NULL,
+    enable_timer  BOOLEAN     NOT NULL DEFAULT FALSE,
+    start_time    TIMESTAMPTZ,
+    end_time      TIMESTAMPTZ,
+    invite_code   TEXT        NOT NULL UNIQUE,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_events_invite_code ON events (invite_code);
+
+-- ────────────────────────────────────────────────────────────
 -- TABLE: users
 -- Autenticazione custom: nome + cognome + parola personale
 -- ────────────────────────────────────────────────────────────
 
 CREATE TABLE users (
     id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id     UUID        NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    role         TEXT        NOT NULL DEFAULT 'guest' CHECK (role IN ('guest', 'couple')),
     first_name   TEXT        NOT NULL,
     last_name    TEXT        NOT NULL,
     secret_word  TEXT        NOT NULL,   -- salvata in chiaro (non è una password)
     total_points INTEGER     NOT NULL DEFAULT 0,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    -- Identità univoca: stesse credenziali = stesso account da qualsiasi device
-    CONSTRAINT uq_user_identity UNIQUE (first_name, last_name, secret_word)
+    -- Identità univoca all'interno di un evento: stesse credenziali = stesso account
+    CONSTRAINT uq_user_identity_per_event UNIQUE (event_id, first_name, last_name, secret_word)
 );
 
 -- Indice per velocizzare il lookup al login
 CREATE INDEX idx_users_identity
-    ON users (first_name, last_name, secret_word);
+    ON users (event_id, first_name, last_name, secret_word);
 
 -- ────────────────────────────────────────────────────────────
 -- TABLE: challenges
@@ -40,6 +61,7 @@ CREATE INDEX idx_users_identity
 
 CREATE TABLE challenges (
     id             SERIAL         PRIMARY KEY,
+    event_id       UUID           NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     title          TEXT           NOT NULL,
     description    TEXT           NOT NULL,
     points         INTEGER        NOT NULL CHECK (points >= 0),
@@ -121,7 +143,7 @@ DECLARE
 BEGIN
     IF TG_OP = 'INSERT' THEN
         SELECT points INTO pts FROM challenges WHERE id = NEW.challenge_id;
-        UPDATE users SET total_points = total_points + pts WHERE id = NEW.user_id;
+        UPDATE users SET total_points = total_points + COALESCE(pts, 0) WHERE id = NEW.user_id;
         RETURN NEW;
 
     ELSIF TG_OP = 'UPDATE' THEN
@@ -132,13 +154,18 @@ BEGIN
         SELECT points INTO pts     FROM challenges WHERE id = NEW.challenge_id;
         SELECT points INTO old_pts FROM challenges WHERE id = OLD.challenge_id;
         UPDATE users
-            SET total_points = total_points - old_pts + pts
+            SET total_points = total_points - COALESCE(old_pts, 0) + COALESCE(pts, 0)
             WHERE id = NEW.user_id;
         RETURN NEW;
 
     ELSIF TG_OP = 'DELETE' THEN
+        -- COALESCE(pts, 0): durante la cascade-delete di un intero evento,
+        -- la riga challenges puo' essere gia' stata rimossa (events -> challenges
+        -- -> user_submissions e' la stessa cascade di events -> users), quindi
+        -- questo SELECT puo' non trovare nulla. In quel caso non c'e' nulla da
+        -- sottrarre: l'utente stesso sta per essere cascade-eliminato comunque.
         SELECT points INTO pts FROM challenges WHERE id = OLD.challenge_id;
-        UPDATE users SET total_points = total_points - pts WHERE id = OLD.user_id;
+        UPDATE users SET total_points = total_points - COALESCE(pts, 0) WHERE id = OLD.user_id;
         RETURN OLD;
     END IF;
 END;
@@ -163,109 +190,9 @@ CREATE TABLE sessions (
 CREATE INDEX idx_sessions_user_id ON sessions (user_id);
 
 -- ────────────────────────────────────────────────────────────
--- DATI INIZIALI: challenge di esempio
--- ⚠ Personalizza correct_answer e vote_options prima dell'evento!
+-- Nessun dato di esempio: eventi e challenge vengono creati
+-- dagli sposi tramite l'app (POST /api/events, POST /api/challenges).
 -- ────────────────────────────────────────────────────────────
-
-INSERT INTO challenges (title, description, points, type, active, correct_answer, vote_options) VALUES
-
--- Gallery della festa
-(
-    'Gallery della festa',
-    'Scatta una foto della festa e condividila con tutti gli invitati!',
-    10,
-    'photo',
-    TRUE,
-    NULL,
-    NULL
-),
-
--- Missioni caccia fotografica
-(
-    'Il brindisi del tavolo',
-    'Cattura il momento in cui il tuo tavolo alza i calici insieme. Tutti devono essere nel frame!',
-    5,
-    'hunt',
-    TRUE,
-    NULL,
-    NULL
-),
-(
-    'La risata più bella',
-    'Fotografa una risata genuina e contagiosa. Più è spontanea, meglio è!',
-    5,
-    'hunt',
-    TRUE,
-    NULL,
-    NULL
-),
-(
-    'Il ballo più scatenato',
-    'Immortala chi si sta divertendo di più sulla pista da ballo.',
-    5,
-    'hunt',
-    TRUE,
-    NULL,
-    NULL
-),
-(
-    'Gli sposi che si baciano',
-    'Cogli il momento: un bacio degli sposi, spontaneo o provocato dagli invitati.',
-    5,
-    'hunt',
-    TRUE,
-    NULL,
-    NULL
-),
-(
-    'Il dettaglio decorativo più bello',
-    'Trova e fotografa il dettaglio decorativo del matrimonio che ti ha colpito di più.',
-    5,
-    'hunt',
-    TRUE,
-    NULL,
-    NULL
-),
-
--- Vota il momento più bello
-(
-    'Vota il momento più bello',
-    'Qual è stato il momento più emozionante finora? Vota il tuo preferito!',
-    3,
-    'vote',
-    TRUE,
-    NULL,
-    '["Il primo bacio da sposi", "Il taglio della torta", "Il primo ballo", "L''ingresso in sala"]'::jsonb
-),
-
--- Quiz sugli sposi (⚠ personalizza le risposte corrette!)
-(
-    'Dove si sono conosciuti gli sposi?',
-    'Sai dove si sono incontrati per la prima volta?',
-    4,
-    'quiz',
-    TRUE,
-    'università',
-    NULL
-),
-(
-    'Quanti anni stavano insieme prima del matrimonio?',
-    'Da quanto tempo stavano insieme prima di sposarsi?',
-    4,
-    'quiz',
-    TRUE,
-    '3',
-    NULL
-),
-(
-    'Qual è la canzone del primo ballo?',
-    'Indovina la canzone scelta dagli sposi per il primo ballo.',
-    4,
-    'quiz',
-    TRUE,
-    'perfect',
-    NULL
-);
 
 -- ────────────────────────────────────────────────────────────
 -- RIEPILOGO TABELLE:

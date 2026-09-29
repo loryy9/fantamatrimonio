@@ -25,23 +25,26 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
 _PHOTO_CHALLENGE_CACHE = {}
 
 
-def _get_photo_challenge(award_points: bool) -> dict | None:
-    cache_key = "award" if award_points else "no_award"
+def _get_photo_challenge(award_points: bool, event_id) -> dict | None:
+    cache_key = f"{event_id}:{'award' if award_points else 'no_award'}"
     if cache_key in _PHOTO_CHALLENGE_CACHE:
         return _PHOTO_CHALLENGE_CACHE[cache_key]
 
     if award_points:
         photo_challenge = db.query_one(
-            "SELECT * FROM challenges WHERE type = 'photo' AND points > 0 AND active = TRUE ORDER BY id ASC LIMIT 1"
+            "SELECT * FROM challenges WHERE type = 'photo' AND points > 0 AND active = TRUE AND event_id = %s ORDER BY id ASC LIMIT 1",
+            (event_id,),
         )
     else:
         photo_challenge = db.query_one(
-            "SELECT * FROM challenges WHERE type = 'photo' AND points = 0 AND active = TRUE ORDER BY id ASC LIMIT 1"
+            "SELECT * FROM challenges WHERE type = 'photo' AND points = 0 AND active = TRUE AND event_id = %s ORDER BY id ASC LIMIT 1",
+            (event_id,),
         )
 
     if not photo_challenge:
         photo_challenge = db.query_one(
-            "SELECT * FROM challenges WHERE type = 'photo' AND active = TRUE ORDER BY id ASC LIMIT 1"
+            "SELECT * FROM challenges WHERE type = 'photo' AND active = TRUE AND event_id = %s ORDER BY id ASC LIMIT 1",
+            (event_id,),
         )
 
     if photo_challenge:
@@ -50,11 +53,22 @@ def _get_photo_challenge(award_points: bool) -> dict | None:
     return photo_challenge
 
 
-def _get_active_challenge(challenge_id: int, expected_type: str) -> dict:
-    """Helper: recupera la challenge e valida che sia attiva e del tipo corretto."""
+def invalidate_photo_challenge_cache(event_id) -> None:
+    """
+    Da chiamare ogni volta che una challenge dell'evento viene creata,
+    modificata o eliminata: la cache sopra assume che le photo-challenge
+    siano stabili, il che non e' piu' vero ora che la coppia puo' cambiarle
+    in qualsiasi momento tramite POST/PATCH/DELETE /api/challenges.
+    """
+    for key in (f"{event_id}:award", f"{event_id}:no_award"):
+        _PHOTO_CHALLENGE_CACHE.pop(key, None)
+
+
+def _get_active_challenge(challenge_id: int, expected_type: str, event_id) -> dict:
+    """Helper: recupera la challenge (scoped all'evento) e valida attiva/tipo."""
     c = db.query_one(
-        "SELECT * FROM challenges WHERE id = %s AND active = TRUE",
-        (challenge_id,),
+        "SELECT * FROM challenges WHERE id = %s AND active = TRUE AND event_id = %s",
+        (challenge_id, event_id),
     )
     if not c:
         raise HTTPException(status_code=404, detail="Sfida non trovata o non attiva.")
@@ -93,7 +107,7 @@ async def upload_gallery_photo(
     """
     Carica una singola foto nella gallery.
     """
-    photo_challenge = _get_photo_challenge(award_points)
+    photo_challenge = _get_photo_challenge(award_points, current_user["event_id"])
     if not photo_challenge:
         raise HTTPException(status_code=404, detail="Gallery non disponibile.")
 
@@ -139,7 +153,7 @@ async def upload_multiple_gallery_photos(
     if len(files) > 10:
         raise HTTPException(status_code=400, detail="Puoi caricare al massimo 10 foto alla volta.")
 
-    photo_challenge = _get_photo_challenge(award_points)
+    photo_challenge = _get_photo_challenge(award_points, current_user["event_id"])
     if not photo_challenge:
         raise HTTPException(status_code=404, detail="Gallery non disponibile.")
 
@@ -233,7 +247,7 @@ async def submit_hunt_photo(
     Invia la foto per una missione della caccia fotografica.
     Ogni missione può essere completata una sola volta per utente.
     """
-    challenge = _get_active_challenge(challenge_id, "hunt")
+    challenge = _get_active_challenge(challenge_id, "hunt", current_user["event_id"])
 
     # Controlla se l'utente ha già completato questa missione
     already_done = db.query_one(
@@ -291,7 +305,7 @@ def submit_vote(
     if not chosen_opt:
         raise HTTPException(status_code=422, detail="Inserisci una risposta valida prima di inviare.")
 
-    challenge = _get_active_challenge(challenge_id, "vote")
+    challenge = _get_active_challenge(challenge_id, "vote", current_user["event_id"])
 
     # Controlla se esiste già un voto
     existing = db.query_one(
@@ -338,7 +352,7 @@ def submit_quiz(
     """
     Risponde a una domanda del quiz. Una sola risposta per utente.
     """
-    challenge = _get_active_challenge(challenge_id, "quiz")
+    challenge = _get_active_challenge(challenge_id, "quiz", current_user["event_id"])
 
     # Controlla se ha già risposto
     already = db.query_one(
@@ -372,9 +386,9 @@ def submit_quiz(
 # ── GALLERY PUBBLICA ─────────────────────────────────────────────────────────
 
 @router.get("/gallery")
-def get_gallery():
+def get_gallery(current_user: dict = Depends(get_current_user)):
     """
-    Ritorna tutte le foto caricate con nome dell'invitato.
+    Ritorna tutte le foto caricate nell'evento corrente con nome dell'invitato.
     """
     photos = db.query(
         """
@@ -392,8 +406,10 @@ def get_gallery():
         JOIN challenges c ON c.id = s.challenge_id
         WHERE c.type IN ('photo', 'hunt')
           AND s.image_url IS NOT NULL
+          AND c.event_id = %s
         ORDER BY s.created_at DESC
-        """
+        """,
+        (current_user["event_id"],),
     )
     return [
         {

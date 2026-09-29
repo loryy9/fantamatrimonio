@@ -18,9 +18,42 @@ def run_tests():
     print(">> AVVIO TEST COMPLETO ASSEGNAZIONE PUNTI FANTA MATRIMONIO")
     print("=" * 60)
 
+    # Bootstrap: un evento fresco parte senza challenge (Spec A: niente piu'
+    # seed data in schema.sql, le challenge le crea la coppia via API).
+    # Ricreiamo qui l'equivalente delle vecchie challenge seed, cosi' i test
+    # sotto (che assumono punti specifici: foto=10, caccia=5, ecc.) restano validi.
+    _bootstrap = client.post("/api/events", json={
+        "spouse1_name": "Test1", "spouse2_name": "Test2", "enable_timer": False,
+        "couple_first_name": "bootstrap", "couple_last_name": "couple", "couple_secret_word": "bootstrap",
+    }).json()
+    _invite_code = _bootstrap["invite_code"]
+    _couple_headers = {"Authorization": f"Bearer {_bootstrap['token']}"}
+
+    client.post("/api/challenges", json={
+        "title": "Gallery della festa", "description": "d", "points": 10, "type": "photo",
+    }, headers=_couple_headers)
+    client.post("/api/challenges", json={
+        "title": "Il brindisi del tavolo", "description": "d", "points": 5, "type": "hunt",
+    }, headers=_couple_headers)
+    client.post("/api/challenges", json={
+        "title": "Domanda sbagliata di proposito", "description": "d", "points": 4, "type": "quiz",
+        "correct_answer": "risposta_corretta_1",
+    }, headers=_couple_headers)
+    client.post("/api/challenges", json={
+        "title": "Domanda con risposta corretta", "description": "d", "points": 4, "type": "quiz",
+        "correct_answer": "risposta_corretta_2",
+    }, headers=_couple_headers)
+    client.post("/api/challenges", json={
+        "title": "Vota il momento più bello", "description": "d", "points": 3, "type": "vote",
+        "vote_options": ["Opzione 1", "Opzione 2"],
+    }, headers=_couple_headers)
+
     # 1. Verifica consistenza sfide nel DB
     print("\n[TEST 1] Verifica configurazione punti sfide nel DB...")
-    challenges = db.query("SELECT id, title, points, type, correct_answer FROM challenges WHERE active = TRUE")
+    challenges = db.query(
+        "SELECT id, title, points, type, correct_answer FROM challenges WHERE active = TRUE AND event_id = %s",
+        (_bootstrap["event"]["id"],),
+    )
     photo_challenge = next((c for c in challenges if c["type"] == "photo"), None)
     assert photo_challenge is not None, "Sfida photo mancante!"
     assert photo_challenge["points"] == 10, f"I punti della sfida photo sono {photo_challenge['points']}, attesi 10!"
@@ -39,6 +72,7 @@ def run_tests():
 
     print(f"\n[TEST 2] Registrazione e Login per utente di test: {test_first} {test_last}...")
     login_res = client.post("/api/auth/login", json={
+        "invite_code": _invite_code,
         "first_name": test_first,
         "last_name": test_last,
         "secret_word": test_secret
@@ -179,6 +213,7 @@ def run_tests():
         # Pulizia utente di test e relative submissions dal DB
         print("\n[CLEANUP] Rimozione dati di test dal DB...")
         db.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        db.execute("DELETE FROM events WHERE id = %s", (_bootstrap["event"]["id"],))
         print("  [OK] Cleanup completato con successo.")
 
     print("\n" + "=" * 60)

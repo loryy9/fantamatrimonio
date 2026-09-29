@@ -33,6 +33,14 @@ def _get_conn():
         _pool.putconn(conn)
 
 
+@contextmanager
+def transaction():
+    """Cursore RealDict per piu' statement nella stessa transazione atomica."""
+    with _get_conn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            yield cur
+
+
 def query(sql: str, params=None) -> list[dict]:
     """SELECT che ritorna tutte le righe come lista di dict."""
     with _get_conn() as conn:

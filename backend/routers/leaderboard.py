@@ -1,7 +1,7 @@
 """
 Rotte per la classifica.
-GET /api/leaderboard            → classifica generale
-GET /api/leaderboard/{user_id}  → dettaglio punti per utente
+GET /api/leaderboard            -> classifica dell'evento corrente
+GET /api/leaderboard/{user_id}  -> dettaglio punti per utente (stesso evento)
 """
 from fastapi import APIRouter, HTTPException, Depends
 import db
@@ -11,17 +11,19 @@ router = APIRouter(prefix="/api/leaderboard", tags=["leaderboard"])
 
 
 @router.get("")
-def leaderboard():
+def leaderboard(current_user: dict = Depends(get_current_user)):
     """
-    Classifica generale di tutti gli invitati, ordinata per punti decrescenti.
-    Endpoint pubblico (usato anche dal polling ogni 8-10 sec).
+    Classifica dell'evento corrente, ordinata per punti decrescenti.
+    Richiede autenticazione: la classifica non deve mai trapelare tra eventi diversi.
     """
     users = db.query(
         """
         SELECT id, first_name, last_name, total_points
         FROM users
+        WHERE event_id = %s
         ORDER BY total_points DESC, first_name ASC
-        """
+        """,
+        (current_user["event_id"],),
     )
     return [
         {
@@ -39,27 +41,19 @@ def leaderboard():
 @router.get("/{user_id}")
 def user_detail(user_id: str, current_user: dict = Depends(get_current_user)):
     """
-    Dettaglio punti di un singolo utente: breakdown per tipo di challenge.
-    Richiede autenticazione (chiunque può vedere il dettaglio di chiunque).
+    Dettaglio punti di un utente dello stesso evento: breakdown per tipo di challenge.
+    404 se l'utente non esiste o appartiene a un evento diverso.
     """
     user = db.query_one(
-        "SELECT id, first_name, last_name, total_points FROM users WHERE id = %s",
-        (user_id,),
+        "SELECT id, first_name, last_name, total_points FROM users WHERE id = %s AND event_id = %s",
+        (user_id, current_user["event_id"]),
     )
     if not user:
         raise HTTPException(status_code=404, detail="Utente non trovato.")
 
-    # Breakdown per tipo
     breakdown = db.query(
         """
-        SELECT
-            s.id,
-            c.type,
-            c.title,
-            c.points,
-            s.answer_text,
-            s.image_url,
-            s.created_at
+        SELECT s.id, c.type, c.title, c.points, s.answer_text, s.image_url, s.created_at
         FROM user_submissions s
         JOIN challenges c ON c.id = s.challenge_id
         WHERE s.user_id = %s
@@ -68,7 +62,6 @@ def user_detail(user_id: str, current_user: dict = Depends(get_current_user)):
         (user_id,),
     )
 
-    # Calcola punti per tipo
     points_by_type: dict[str, int] = {}
     for row in breakdown:
         t = row["type"]
@@ -101,4 +94,3 @@ def user_detail(user_id: str, current_user: dict = Depends(get_current_user)):
             for r in breakdown
         ],
     }
-

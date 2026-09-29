@@ -1,3 +1,5 @@
+import { appState } from './state.svelte.js';
+
 /**
  * Timer management for wedding game start and end countdowns.
  * Configured via Vite environment variables:
@@ -71,16 +73,20 @@ class EventTimer {
     }
   }
 
+  // Per-event configuration (multi-tenant) wins over the build-time env vars.
   get isEnabled() {
+    if (appState.event) return !!appState.event.enable_timer;
     const envVal = import.meta.env.VITE_ENABLE_TIMER;
     return envVal === 'true' || envVal === '1' || envVal === true;
   }
 
   get startDate() {
+    if (appState.event) return appState.event.start_time ? new Date(appState.event.start_time) : null;
     return parseTimeToDate(import.meta.env.VITE_START_TIME);
   }
 
   get endDate() {
+    if (appState.event) return appState.event.end_time ? new Date(appState.event.end_time) : null;
     return parseTimeToDate(import.meta.env.VITE_END_TIME);
   }
 

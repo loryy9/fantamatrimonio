@@ -2,8 +2,18 @@ import { api } from './api.js';
 import { fireCelebration } from './confetti.js';
 import { formatName } from './formatters.js';
 
+function readAuthView() {
+  if (new URLSearchParams(window.location.search).get('code')) return 'join';
+  if (window.location.hash === '#/crea') return 'create';
+  if (window.location.hash === '#/entra') return 'join';
+  return 'entry';
+}
+
 class AppState {
+  authView = $state(readAuthView()); // 'entry' | 'join' | 'create'
+  pendingInvite = $state(null); // invite code shown right after creating an event
   user = $state(null);
+  event = $state(null);
   token = $state(localStorage.getItem('fm_auth_token') || null);
   isLoadingAuth = $state(true);
   activeTab = $state('home');
@@ -72,6 +82,7 @@ class AppState {
       try {
         const res = await api.getMe();
         this.setUser(res.user);
+        this.event = res.event || null;
         await this.loadInitialData();
         this.startPolling();
       } catch (err) {
@@ -82,11 +93,41 @@ class AppState {
     this.isLoadingAuth = false;
   }
 
-  async login(firstName, lastName, secretWord) {
+  setAuthView(view) {
+    this.authView = view;
+    const hash = view === 'create' ? '#/crea' : view === 'join' ? '#/entra' : '';
+    history.replaceState(null, '', window.location.pathname + window.location.search + hash);
+    window.scrollTo({ top: 0 });
+  }
+
+  async createEvent(payload) {
     try {
-      const res = await api.login(firstName, lastName, secretWord);
+      const res = await api.createEvent(payload);
+      this.token = res.token;
+      localStorage.setItem('fm_auth_token', res.token);
+      this.setUser(res.user);
+      this.event = res.event || null;
+      this.pendingInvite = res.invite_code;
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  async finishOnboarding() {
+    this.pendingInvite = null;
+    history.replaceState(null, '', window.location.pathname);
+    await this.loadInitialData();
+    this.startPolling();
+    this.activeTab = 'home';
+  }
+
+  async login(inviteCode, firstName, lastName, secretWord) {
+    try {
+      const res = await api.login(inviteCode, firstName, lastName, secretWord);
       this.token = res.token;
       this.setUser(res.user);
+      this.event = res.event || null;
       localStorage.setItem('fm_auth_token', res.token);
 
       const storageKey = `fm_logged_in_before_${this.user.id}`;
@@ -113,6 +154,7 @@ class AppState {
   logout() {
     this.token = null;
     this.setUser(null);
+    this.event = null;
     this.challenges = [];
     this.mySubmissions = [];
     this.leaderboard = [];
@@ -140,6 +182,7 @@ class AppState {
         this.showToast(`Hai guadagnato +${diff} punti! 🏆`, 'success', diff);
       }
       this.setUser(res.user);
+      this.event = res.event || this.event;
     } catch (err) {
       console.error('Failed to refresh user', err);
     }

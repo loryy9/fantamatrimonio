@@ -35,7 +35,7 @@
       <!-- Header -->
       <div class="modal-header">
         <button class="close-x-btn" onclick={handleDismiss} title="Chiudi" aria-label="Chiudi istruzioni">
-          ✕
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
 
         <div class="modal-rings-icon">
@@ -55,7 +55,7 @@
         <!-- Intro text -->
         <p class="intro-text">
           Durante la festa potrete completare sfide divertenti, rispondere a quiz e guadagnare punti.
-          <strong>Al termine, i primi 3 sul podio riceveranno fantastici premi! 🏆</strong>
+          <strong>Al termine, i primi 3 sul podio riceveranno fantastici premi!</strong>
         </p>
 
         <!-- Timing Banner -->
@@ -82,7 +82,9 @@
           <div class="rules-label">Come si guadagnano punti:</div>
           <div class="rules-list">
             <div class="rule-item">
-              <div class="rule-icon photo-icon">📸</div>
+              <div class="rule-icon photo-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+              </div>
               <div class="rule-text">
                 <strong>Galleria Condivisa</strong>
                 <span>Scatta selfie e foto della festa per condividerle (+10 PT cad.).</span>
@@ -90,7 +92,9 @@
             </div>
 
             <div class="rule-item">
-              <div class="rule-icon hunt-icon">🗺️</div>
+              <div class="rule-icon hunt-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>
+              </div>
               <div class="rule-text">
                 <strong>Caccia al Tesoro</strong>
                 <span>Trova gli indizi, cerca gli invitati giusti e scatta la foto richiesta.</span>
@@ -98,7 +102,9 @@
             </div>
 
             <div class="rule-item">
-              <div class="rule-icon quiz-icon">💡</div>
+              <div class="rule-icon quiz-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
               <div class="rule-text">
                 <strong>Quiz sugli Sposi</strong>
                 <span>Dimostra quanto conosci bene gli sposi (+30 PT per risposta esatta).</span>
@@ -106,7 +112,9 @@
             </div>
 
             <div class="rule-item">
-              <div class="rule-icon vote-icon">✍️</div>
+              <div class="rule-icon vote-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </div>
               <div class="rule-text">
                 <strong>Momenti Migliori</strong>
                 <span>Scrivi e condividi i tuoi ricordi ed emozioni più belli (+3 PT).</span>
@@ -119,7 +127,7 @@
       <!-- Action Button Footer (Sticky & always visible) -->
       <div class="modal-footer">
         <button class="btn btn-gold btn-block confirm-btn" onclick={handleDismiss}>
-          Ho capito, iniziamo! ✨
+          Ho capito, iniziamo!
         </button>
       </div>
     </div>
@@ -292,9 +300,34 @@
   }
 
   .rule-icon {
-    font-size: 1.15rem;
-    line-height: 1;
-    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .rule-icon.photo-icon {
+    background: rgba(212, 132, 154, 0.15);
+    color: var(--rose-primary);
+  }
+
+  .rule-icon.hunt-icon {
+    background: rgba(201, 169, 110, 0.15);
+    color: var(--gold-dark);
+  }
+
+  .rule-icon.quiz-icon {
+    background: rgba(142, 68, 173, 0.12);
+    color: #8e44ad;
+  }
+
+  .rule-icon.vote-icon {
+    background: rgba(232, 160, 180, 0.15);
+    color: var(--rose-primary);
   }
 
   .rule-text {

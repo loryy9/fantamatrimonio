@@ -161,3 +161,66 @@ def get_my_invite_code(current_user: dict = Depends(get_current_user)):
     if not event:
         raise HTTPException(status_code=404, detail="Evento non trovato.")
     return {"invite_code": event["invite_code"]}
+
+
+@router.get("/me/stats")
+def get_my_event_stats(current_user: dict = Depends(get_current_couple)):
+    """Statistiche per gli sposi: invitati registrati, foto caricate, quiz e momenti completati."""
+    event_id = current_user["event_id"]
+    guests_count = (db.query_one(
+        "SELECT COUNT(*) AS count FROM users WHERE event_id = %s AND role = 'guest'",
+        (event_id,)
+    ) or {}).get("count", 0)
+
+    photos_count = (db.query_one(
+        """
+        SELECT COUNT(s.*) AS count FROM user_submissions s
+        JOIN challenges c ON c.id = s.challenge_id
+        WHERE c.event_id = %s AND c.type IN ('photo', 'hunt') AND s.image_url IS NOT NULL
+        """,
+        (event_id,)
+    ) or {}).get("count", 0)
+
+    quiz_count = (db.query_one(
+        """
+        SELECT COUNT(s.*) AS count FROM user_submissions s
+        JOIN challenges c ON c.id = s.challenge_id
+        WHERE c.event_id = %s AND c.type = 'quiz'
+        """,
+        (event_id,)
+    ) or {}).get("count", 0)
+
+    moments_count = (db.query_one(
+        """
+        SELECT COUNT(s.*) AS count FROM user_submissions s
+        JOIN challenges c ON c.id = s.challenge_id
+        WHERE c.event_id = %s AND c.type = 'vote'
+        """,
+        (event_id,)
+    ) or {}).get("count", 0)
+
+    return {
+        "guests_count": guests_count,
+        "photos_count": photos_count,
+        "quiz_count": quiz_count,
+        "moments_count": moments_count
+    }
+
+
+@router.delete("/me")
+def cancel_and_delete_my_event(current_user: dict = Depends(get_current_couple)):
+    """
+    Consente agli sposi di annullare la creazione o eliminare definitivamente
+    il loro matrimonio e tutti i record associati dal database (CASCADE).
+    """
+    event_id = current_user["event_id"]
+    event = db.query_one("SELECT id, spouse1_name, spouse2_name, invite_code FROM events WHERE id = %s", (event_id,))
+    if not event:
+        raise HTTPException(status_code=404, detail="Matrimonio non trovato.")
+
+    db.execute("DELETE FROM events WHERE id = %s", (event_id,))
+    return {
+        "success": True,
+        "message": f"Matrimonio di {event['spouse1_name']} & {event['spouse2_name']} eliminato definitivamente dal database."
+    }
+

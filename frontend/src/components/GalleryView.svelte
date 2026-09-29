@@ -275,7 +275,9 @@
       {#if selectedPhotos.length === 1}
         <div class="preview-area">
           <img src={selectedPhotos[0].previewUrl} alt="Anteprima" class="preview-image" />
-          <button class="remove-btn" onclick={() => removePhoto(selectedPhotos[0].id)} title="Rimuovi">✕</button>
+          <button class="remove-btn" onclick={() => removePhoto(selectedPhotos[0].id)} title="Rimuovi" aria-label="Rimuovi">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
         </div>
       {:else}
         <div class="multi-preview-container">
@@ -287,7 +289,9 @@
             {#each selectedPhotos as item (item.id)}
               <div class="multi-thumb-wrapper">
                 <img src={item.previewUrl} alt="Anteprima" class="multi-thumb-img" />
-                <button class="multi-remove-btn" onclick={() => removePhoto(item.id)} title="Rimuovi foto">✕</button>
+                <button class="multi-remove-btn" onclick={() => removePhoto(item.id)} title="Rimuovi foto" aria-label="Rimuovi foto">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
                 {#if item.isCompressing}
                   <div class="thumb-loading-overlay">
                     <div class="spinner-tiny"></div>
@@ -423,7 +427,9 @@
   {@const isMineModal = isMyPhoto(activeModalPhoto)}
   <div class="lightbox-overlay" onclick={() => activeModalPhoto = null}>
     <div class="lightbox-content" onclick={(e) => e.stopPropagation()}>
-      <button class="lightbox-close" onclick={() => activeModalPhoto = null}>✕</button>
+      <button class="lightbox-close" onclick={() => activeModalPhoto = null} aria-label="Chiudi">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
       <img src={activeModalPhoto.photo_url} alt="Dettaglio foto" class="lightbox-img" />
       <div class="lightbox-info">
         <div class="lightbox-header">
@@ -863,7 +869,9 @@
     background: rgba(0, 0, 0, 0.5);
     color: #fff;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     z-index: 10;
   }

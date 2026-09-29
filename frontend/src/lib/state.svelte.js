@@ -33,6 +33,10 @@ class AppState {
     return !!this.token && !!this.user;
   }
 
+  get isCouple() {
+    return this.user?.role === 'couple';
+  }
+
   get mySubmissionsByChallenge() {
     const map = {};
     for (const sub of this.mySubmissions) {
@@ -44,7 +48,7 @@ class AppState {
   }
 
   get myRank() {
-    if (!this.user || !this.leaderboard.length) return null;
+    if (!this.user || !this.leaderboard.length || this.isCouple) return null;
     const entry = this.leaderboard.find(item => item.id === this.user.id);
     return entry ? entry.rank : null;
   }
@@ -83,6 +87,12 @@ class AppState {
         const res = await api.getMe();
         this.setUser(res.user);
         this.event = res.event || null;
+        if (this.event && !this.event.invite_code) {
+          try {
+            const inv = await api.getEventInvite();
+            if (inv?.invite_code) this.event.invite_code = inv.invite_code;
+          } catch (_) {}
+        }
         await this.loadInitialData();
         this.startPolling();
       } catch (err) {
@@ -106,7 +116,10 @@ class AppState {
       this.token = res.token;
       localStorage.setItem('fm_auth_token', res.token);
       this.setUser(res.user);
-      this.event = res.event || null;
+      this.event = {
+        ...(res.event || {}),
+        invite_code: res.invite_code || res.event?.invite_code
+      };
       this.pendingInvite = res.invite_code;
       return { success: true };
     } catch (err) {
@@ -122,28 +135,59 @@ class AppState {
     this.activeTab = 'home';
   }
 
-  async login(inviteCode, firstName, lastName, secretWord) {
+  async cancelEventCreation() {
     try {
-      const res = await api.login(inviteCode, firstName, lastName, secretWord);
+      if (this.token) {
+        await api.deleteMyEvent();
+      }
+    } catch (err) {
+      console.warn('Errore cancellazione evento:', err);
+    } finally {
+      this.pendingInvite = null;
+      this.token = null;
+      this.setUser(null);
+      this.event = null;
+      this.challenges = [];
+      this.mySubmissions = [];
+      this.leaderboard = [];
+      this.galleryPhotos = [];
+      localStorage.removeItem('fm_auth_token');
+      this.stopPolling();
+      this.setAuthView('entry');
+      this.showToast('Creazione annullata. Tutti i dati sono stati rimossi.', 'info');
+    }
+  }
+
+  async login(inviteCode, firstName, lastName, secretWord, isCouple = false) {
+    try {
+      const res = await api.login(inviteCode, firstName, lastName, secretWord, isCouple);
       this.token = res.token;
       this.setUser(res.user);
-      this.event = res.event || null;
+      this.event = {
+        ...(res.event || {}),
+        invite_code: res.event?.invite_code || inviteCode.trim().toUpperCase()
+      };
       localStorage.setItem('fm_auth_token', res.token);
 
       const storageKey = `fm_logged_in_before_${this.user.id}`;
       const isFirstTime = res.is_new === true || (!localStorage.getItem(storageKey) && res.is_new !== false);
 
-      if (isFirstTime) {
-        this.showToast(`Benvenuto/a ${this.user.first_name}! 🎉`, 'success');
+      if (this.isCouple) {
+        const coupleNames = [this.event?.spouse1_name, this.event?.spouse2_name].filter(Boolean).join(' & ');
+        this.showToast(coupleNames ? `Bentornati ${coupleNames}!` : 'Bentornati Sposi!', 'success');
+        this.activeTab = 'manage';
+      } else if (isFirstTime) {
+        this.showToast(`Benvenuto/a ${this.user.first_name}!`, 'success');
+        this.activeTab = 'home';
       } else {
-        this.showToast(`Bentornato/a ${this.user.first_name}! 🎉`, 'success');
+        this.showToast(`Bentornato/a ${this.user.first_name}!`, 'success');
+        this.activeTab = 'home';
       }
 
       localStorage.setItem(storageKey, 'true');
 
       await this.loadInitialData();
       this.startPolling();
-      this.activeTab = 'home';
       return { success: true };
     } catch (err) {
       this.showToast(err.message || 'Errore durante l\'accesso', 'error');
@@ -162,6 +206,7 @@ class AppState {
     localStorage.removeItem('fm_auth_token');
     this.stopPolling();
     this.activeTab = 'home';
+    this.setAuthView('join');
   }
 
   async loadInitialData() {
@@ -179,7 +224,7 @@ class AppState {
       const res = await api.getMe();
       if (!silent && this.user && res.user.total_points > this.user.total_points) {
         const diff = res.user.total_points - this.user.total_points;
-        this.showToast(`Hai guadagnato +${diff} punti! 🏆`, 'success', diff);
+        this.showToast(`Hai guadagnato +${diff} punti!`, 'success', diff);
       }
       this.setUser(res.user);
       this.event = res.event || this.event;

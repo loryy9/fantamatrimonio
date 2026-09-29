@@ -1,5 +1,6 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
+  import OnboardingSetup from './OnboardingSetup.svelte';
 
   let spouse1 = $state('');
   let spouse2 = $state('');
@@ -12,6 +13,9 @@
   let isSubmitting = $state(false);
   let errorMessage = $state('');
   let copied = $state('');
+
+  // 'form' (creazione) | 'setup' (onboarding quiz/caccia/momenti) | 'share' (codice invito)
+  let currentStep = $state('form');
 
   const inviteLink = $derived(
     appState.pendingInvite ? `${window.location.origin}/?code=${appState.pendingInvite}` : ''
@@ -55,6 +59,10 @@
 
     if (!res.success) {
       errorMessage = res.error || 'Non è stato possibile creare il matrimonio.';
+    } else {
+      // Passa allo step 2: configurazione attività
+      currentStep = 'setup';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
 
@@ -80,7 +88,9 @@
   }
 </script>
 
-{#if appState.pendingInvite}
+{#if currentStep === 'setup'}
+  <OnboardingSetup onComplete={() => { currentStep = 'share'; window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+{:else if currentStep === 'share' || appState.pendingInvite}
   <div class="reveal auth-card">
     <span class="reveal-icon">
       <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
@@ -95,19 +105,45 @@
 
     <div class="reveal-actions">
       <button class="btn btn-secondary" onclick={() => copy('code', appState.pendingInvite)}>
-        {copied === 'code' ? 'Codice copiato ✓' : 'Copia codice'}
+        {#if copied === 'code'}
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Codice copiato
+        {:else}
+          Copia codice
+        {/if}
       </button>
       <button class="btn btn-secondary" onclick={() => copy('link', inviteLink)}>
-        {copied === 'link' ? 'Link copiato ✓' : 'Copia link invito'}
+        {#if copied === 'link'}
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Link copiato
+        {:else}
+          Copia link invito
+        {/if}
       </button>
       <button class="btn btn-secondary" onclick={share}>Condividi</button>
     </div>
 
     <div class="link-line">{inviteLink}</div>
 
-    <button class="btn btn-primary btn-lg" onclick={() => appState.finishOnboarding()}>
-      Entra nel matrimonio →
-    </button>
+    <div class="reveal-footer-actions">
+      <button class="btn btn-primary btn-lg" onclick={() => appState.finishOnboarding()}>
+        Entra nel matrimonio →
+      </button>
+      <button class="link-btn-subtle" onclick={() => currentStep = 'setup'}>
+        ← Modifica ancora le attività
+      </button>
+      <button
+        type="button"
+        class="link-btn-danger"
+        onclick={async () => {
+          if (confirm("Sei sicuro di voler annullare ed eliminare questo matrimonio dal database?")) {
+            await appState.cancelEventCreation();
+          }
+        }}
+      >
+        Annulla ed elimina questo matrimonio dal database
+      </button>
+    </div>
   </div>
 {:else}
   <div class="create-layout">
@@ -128,6 +164,10 @@
         Sei un invitato?
         <button type="button" class="link-btn" onclick={() => appState.setAuthView('join')}>Entra con un codice</button>
       </p>
+
+      <button type="button" class="link-btn-back" onclick={() => appState.setAuthView('entry')}>
+        ← Annulla e torna alla pagina iniziale
+      </button>
     </aside>
 
     <form class="auth-card create-form" onsubmit={handleSubmit}>
@@ -441,6 +481,63 @@
     font-size: 0.82rem;
     overflow-wrap: anywhere;
     user-select: all;
+  }
+
+  .reveal-footer-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .link-btn-subtle {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: color 0.2s;
+  }
+
+  .link-btn-subtle:hover {
+    color: var(--gold-dark);
+    text-decoration: underline;
+  }
+
+  .link-btn-back {
+    margin-top: 6px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    transition: color 0.15s ease;
+    padding: 0;
+  }
+
+  .link-btn-back:hover {
+    color: var(--text-main);
+  }
+
+  .link-btn-danger {
+    margin-top: 6px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #b02a37;
+    transition: color 0.15s ease;
+    text-decoration: underline;
+  }
+
+  .link-btn-danger:hover {
+    color: #842029;
   }
 
   @media (max-width: 900px) {

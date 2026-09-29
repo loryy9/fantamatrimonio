@@ -8,8 +8,14 @@
   let firstName = $state('');
   let lastName = $state('');
   let secretWord = $state('');
+  let isCoupleLogin = $state(window.location.hash === '#/sposi');
   let isSubmitting = $state(false);
   let errorMessage = $state('');
+
+  function switchMode(couple) {
+    isCoupleLogin = couple;
+    errorMessage = '';
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -26,7 +32,8 @@
         inviteCode.trim().toUpperCase(),
         formatName(firstName),
         formatName(lastName),
-        secretWord.trim()
+        secretWord.trim(),
+        isCoupleLogin
       );
       if (!res.success) {
         errorMessage = res.error || 'Accesso non riuscito. Controlla i dati inseriti.';
@@ -41,24 +48,75 @@
 
 <div class="join-layout">
   <div class="join-intro">
-    <span class="eyebrow">Invitati</span>
-    <h1 class="page-title">Entra nel <span class="gold-gradient-text">matrimonio</span></h1>
-    <p class="page-lead">
-      Inserisci il codice invito ricevuto dagli sposi e le tue credenziali. Nessuna password complessa:
-      bastano il tuo nome e una parola segreta che ricorderai.
-    </p>
-    <ul class="tips">
-      <li>Se è la prima volta, il tuo profilo viene creato automaticamente.</li>
-      <li>Per rientrare da un altro dispositivo usa gli stessi dati.</li>
-    </ul>
-    <p class="switch">
-      Siete gli sposi?
-      <button type="button" class="link-btn" onclick={() => appState.setAuthView('create')}>Crea il vostro matrimonio</button>
-    </p>
+    {#if isCoupleLogin}
+      <span class="eyebrow eyebrow-couple">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+        Area Riservata
+      </span>
+      <h1 class="page-title">Console <span class="gold-gradient-text">Sposi</span></h1>
+      <p class="page-lead">
+        Accedi al pannello di gestione del tuo matrimonio. Da qui potrai personalizzare le domande,
+        gestire i quiz, visualizzare le foto e controllare le risposte dei tuoi ospiti in tempo reale.
+      </p>
+      <ul class="tips">
+        <li>Inserisci il codice invito del vostro matrimonio.</li>
+        <li>Inserisci il tuo nome e la parola segreta scelta alla registrazione.</li>
+        <li>Avrai accesso immediato alla dashboard di gestione.</li>
+      </ul>
+      <p class="switch">
+        Sei un invitato?
+        <button type="button" class="link-btn" onclick={() => switchMode(false)}>Accedi come Invitato</button>
+      </p>
+    {:else}
+      <span class="eyebrow">Invitati</span>
+      <h1 class="page-title">Entra nel <span class="gold-gradient-text">matrimonio</span></h1>
+      <p class="page-lead">
+        Inserisci il codice invito ricevuto dagli sposi e le tue credenziali. Nessuna password complessa:
+        bastano il tuo nome e una parola segreta che ricorderai.
+      </p>
+      <ul class="tips">
+        <li>Se è la prima volta, il tuo profilo viene creato automaticamente.</li>
+        <li>Per rientrare da un altro dispositivo usa gli stessi dati.</li>
+      </ul>
+      <p class="switch">
+        Siete gli sposi?
+        <button type="button" class="link-btn" onclick={() => switchMode(true)}>Accedi alla Console Sposi</button>
+        <span class="sep">oppure</span>
+        <button type="button" class="link-btn" onclick={() => appState.setAuthView('create')}>Crea un nuovo matrimonio</button>
+      </p>
+    {/if}
   </div>
 
   <form class="auth-card join-form" onsubmit={handleSubmit}>
-    <h2 class="form-title font-serif">Accedi o Registrati</h2>
+    <div class="auth-toggle" role="tablist" aria-label="Modalità di accesso">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={!isCoupleLogin}
+        class="auth-toggle-btn"
+        class:active={!isCoupleLogin}
+        onclick={() => switchMode(false)}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Invitato</span>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={isCoupleLogin}
+        class="auth-toggle-btn"
+        class:active={isCoupleLogin}
+        class:sposi-active={isCoupleLogin}
+        onclick={() => switchMode(true)}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+        <span>Sposi</span>
+      </button>
+    </div>
+
+    <h2 class="form-title font-serif">
+      {isCoupleLogin ? 'Accesso Console Sposi' : 'Accedi o Registrati'}
+    </h2>
 
     {#if errorMessage}
       <div class="form-error" role="alert">
@@ -68,7 +126,7 @@
     {/if}
 
     <div class="input-group">
-      <label for="inviteCode" class="input-label">Codice invito</label>
+      <label for="inviteCode" class="input-label">Codice invito matrimonio</label>
       <input
         id="inviteCode"
         type="text"
@@ -84,27 +142,59 @@
 
     <div class="row">
       <div class="input-group">
-        <label for="firstName" class="input-label">Nome</label>
-        <input id="firstName" type="text" class="input-field" placeholder="Es. Mario" bind:value={firstName} autocomplete="given-name" required />
+        <label for="firstName" class="input-label">
+          {isCoupleLogin ? 'Nome sposo / sposa' : 'Nome'}
+        </label>
+        <input
+          id="firstName"
+          type="text"
+          class="input-field"
+          placeholder={isCoupleLogin ? 'Es. Giulia' : 'Es. Mario'}
+          bind:value={firstName}
+          autocomplete="given-name"
+          required
+        />
       </div>
       <div class="input-group">
         <label for="lastName" class="input-label">Cognome</label>
-        <input id="lastName" type="text" class="input-field" placeholder="Es. Rossi" bind:value={lastName} autocomplete="family-name" required />
+        <input
+          id="lastName"
+          type="text"
+          class="input-field"
+          placeholder={isCoupleLogin ? 'Es. Bellotti' : 'Es. Rossi'}
+          bind:value={lastName}
+          autocomplete="family-name"
+          required
+        />
       </div>
     </div>
 
     <div class="input-group">
-      <label for="secretWord" class="input-label">Parola personale</label>
-      <input id="secretWord" type="text" class="input-field" placeholder="Es. pizza, stella, 1234..." bind:value={secretWord} autocomplete="off" required />
-      <span class="field-hint">Serve per rientrare dal tuo telefono o cambiare dispositivo.</span>
+      <label for="secretWord" class="input-label">
+        {isCoupleLogin ? 'Parola segreta sposi' : 'Parola personale'}
+      </label>
+      <input
+        id="secretWord"
+        type="password"
+        class="input-field"
+        placeholder={isCoupleLogin ? 'La parola impostata alla creazione' : 'Es. pizza, stella, 1234...'}
+        bind:value={secretWord}
+        autocomplete="current-password"
+        required
+      />
+      <span class="field-hint">
+        {isCoupleLogin
+          ? 'Inserisci la parola segreta scelta al momento della creazione del matrimonio.'
+          : 'Serve per rientrare dal tuo telefono o cambiare dispositivo.'}
+      </span>
     </div>
 
     <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
       {#if isSubmitting}
         <div class="spinner spinner-on-dark"></div>
-        <span>Entrando in pista...</span>
+        <span>{isCoupleLogin ? 'Verifica credenziali...' : 'Entrando in pista...'}</span>
       {:else}
-        <span>Entra nel gioco</span>
+        <span>{isCoupleLogin ? 'Entra nella Console Sposi' : 'Entra nel gioco'}</span>
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       {/if}
     </button>
@@ -137,6 +227,15 @@
     border-radius: var(--radius-full);
     background: rgba(201, 169, 110, 0.12);
     border: 1px solid rgba(201, 169, 110, 0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .eyebrow-couple {
+    background: rgba(184, 134, 11, 0.18);
+    border-color: rgba(184, 134, 11, 0.4);
+    color: var(--gold-dark);
   }
 
   .tips {
@@ -148,32 +247,90 @@
     color: var(--text-muted);
   }
 
+  .tips li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   .tips li::before {
-    content: '✦';
-    color: var(--gold-primary);
-    margin-right: 10px;
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--gold-primary);
+    flex-shrink: 0;
   }
 
   .switch {
     font-size: 0.92rem;
     color: var(--text-muted);
     margin-top: 8px;
+    line-height: 1.6;
+  }
+
+  .sep {
+    margin: 0 4px;
+    opacity: 0.6;
   }
 
   .join-form {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 12px;
+  }
+
+  .auth-toggle {
+    display: flex;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: var(--radius-full);
+    padding: 4px;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .auth-toggle-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .auth-toggle-btn:hover {
+    color: var(--text-main);
+  }
+
+  .auth-toggle-btn.active {
+    background: #fff;
+    color: var(--text-main);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    font-weight: 700;
+  }
+
+  .auth-toggle-btn.active.sposi-active {
+    color: var(--gold-dark);
+    box-shadow: 0 2px 10px rgba(184, 134, 11, 0.15);
   }
 
   .form-title {
-    font-size: 1.6rem;
+    font-size: 1.55rem;
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 
   .form-error {
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 
   .row {

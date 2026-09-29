@@ -1,13 +1,14 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
 
-  const navItems = [
+  const navItems = $derived([
     { id: 'home', label: 'Home' },
     { id: 'gallery', label: 'Foto' },
     { id: 'hunt', label: 'Caccia' },
     { id: 'quiz', label: 'Giochi' },
     { id: 'leaderboard', label: 'Classifica' },
-  ];
+    ...(appState.isCouple ? [{ id: 'manage', label: 'Sposi' }] : [])
+  ]);
 </script>
 
 <nav class="bottom-nav">
@@ -29,6 +30,8 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
           {:else if item.id === 'leaderboard'}
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+          {:else if item.id === 'manage'}
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
           {/if}
         </span>
         <span class="nav-label">{item.label}</span>
@@ -114,5 +117,62 @@
     max-width: 90px;
     opacity: 1;
     margin-left: 7px;
+  }
+
+  /* ── 900px: dock leggermente espansa ── */
+  @media (min-width: 900px) {
+    .bottom-nav {
+      bottom: 18px;
+    }
+
+    .nav-container {
+      max-width: 720px;
+      padding: 10px;
+    }
+
+    .nav-btn {
+      padding: 12px 10px;
+    }
+
+    .nav-btn.active {
+      padding: 12px 20px;
+    }
+  }
+
+  /* ── 1100px: dock raffinata ivory-gold, centrata, non nera ── */
+  @media (min-width: 1100px) {
+    .bottom-nav {
+      bottom: 26px;
+      padding: 0 40px;
+    }
+
+    .nav-container {
+      max-width: 680px;
+      padding: 10px 12px;
+      border-radius: 22px;
+      /* Frosted ivory-gold: coerente col tema chiaro della pagina */
+      background: rgba(255, 253, 251, 0.92);
+      border: 1px solid rgba(201, 169, 110, 0.26);
+      box-shadow:
+        0 14px 36px rgba(138, 109, 59, 0.13),
+        0 3px 8px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+    }
+
+    .nav-btn {
+      padding: 11px 10px;
+      border-radius: 16px;
+    }
+
+    .nav-btn.active {
+      padding: 11px 24px;
+    }
+
+    .nav-btn:not(.active):hover {
+      background: rgba(201, 169, 110, 0.08);
+      color: var(--text-main);
+    }
   }
 </style>

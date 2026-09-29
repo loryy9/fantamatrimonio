@@ -60,14 +60,15 @@ async function request(endpoint, options = {}) {
 
 export const api = {
   // Auth
-  async login(inviteCode, firstName, lastName, secretWord) {
+  async login(inviteCode, firstName, lastName, secretWord, isCouple = false) {
     return await request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
         invite_code: inviteCode,
         first_name: firstName,
         last_name: lastName,
-        secret_word: secretWord
+        secret_word: secretWord,
+        is_couple: isCouple
       })
     });
   },
@@ -79,17 +80,67 @@ export const api = {
     });
   },
 
+  async deleteMyEvent() {
+    return await request('/events/me', {
+      method: 'DELETE'
+    });
+  },
+
   async getMe() {
     return await request('/auth/me');
   },
 
   // Challenges
-  async getChallenges() {
-    return await request('/challenges');
+  async getChallenges(includeInactive = false) {
+    const query = includeInactive ? '?include_inactive=true' : '';
+    return await request(`/challenges${query}`);
   },
 
   async getChallenge(id) {
     return await request(`/challenges/${id}`);
+  },
+
+  async createChallenge(payload) {
+    return await request('/challenges', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async createChallengesBulk(list) {
+    return await request('/challenges/bulk', {
+      method: 'POST',
+      body: JSON.stringify(list)
+    });
+  },
+
+  async updateChallenge(id, payload) {
+    return await request(`/challenges/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async deleteChallenge(id) {
+    return await request(`/challenges/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // Event & Couple Management
+  async updateEvent(payload) {
+    return await request('/events/me', {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async getEventInvite() {
+    return await request('/events/me/invite');
+  },
+
+  async getEventStats() {
+    return await request('/events/me/stats');
   },
 
   // Submissions
@@ -173,5 +224,38 @@ export const api = {
 
   async getUserDetail(userId) {
     return await request(`/leaderboard/${userId}`);
+  },
+
+  // Admin Endpoints
+  async adminLogin(username, password) {
+    return await request('/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+  },
+
+  async adminVerify(adminToken) {
+    return await request('/admin/verify', {
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      }
+    });
+  },
+
+  async adminGetEvents(adminToken) {
+    return await request('/admin/events', {
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      }
+    });
+  },
+
+  async adminDeleteEvent(eventId, adminToken) {
+    return await request(`/admin/events/${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      }
+    });
   }
 };

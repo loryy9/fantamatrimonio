@@ -20,7 +20,7 @@ def leaderboard(current_user: dict = Depends(get_current_user)):
         """
         SELECT id, first_name, last_name, total_points
         FROM users
-        WHERE event_id = %s
+        WHERE event_id = %s AND role = 'guest'
         ORDER BY total_points DESC, first_name ASC
         """,
         (current_user["event_id"],),

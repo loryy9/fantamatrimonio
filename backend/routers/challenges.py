@@ -17,16 +17,25 @@ router = APIRouter(prefix="/api/challenges", tags=["challenges"])
 
 
 @router.get("")
-def list_challenges(current_user: dict = Depends(get_current_user)):
+def list_challenges(include_inactive: bool = False, current_user: dict = Depends(get_current_user)):
     """
-    Ritorna tutte le challenge attive dell'evento corrente.
-    Per ogni challenge include se l'utente ha già inviato una submission.
+    Ritorna tutte le challenge dell'evento corrente.
+    Se l'utente è couple e include_inactive=True, include anche le sfide disattivate.
+    Per la coppia, non nasconde mai la risposta corretta dei quiz.
     """
-    challenges = db.query(
-        "SELECT id, title, description, points, type, vote_options, active, correct_answer "
-        "FROM challenges WHERE active = TRUE AND event_id = %s ORDER BY type, id",
-        (current_user["event_id"],),
-    )
+    is_couple = current_user.get("role") == "couple"
+    if is_couple and include_inactive:
+        challenges = db.query(
+            "SELECT id, title, description, points, type, vote_options, active, correct_answer "
+            "FROM challenges WHERE event_id = %s ORDER BY type, id",
+            (current_user["event_id"],),
+        )
+    else:
+        challenges = db.query(
+            "SELECT id, title, description, points, type, vote_options, active, correct_answer "
+            "FROM challenges WHERE active = TRUE AND event_id = %s ORDER BY type, id",
+            (current_user["event_id"],),
+        )
 
     done = db.query(
         "SELECT challenge_id, answer_text FROM user_submissions WHERE user_id = %s",
@@ -60,7 +69,7 @@ def list_challenges(current_user: dict = Depends(get_current_user)):
             elif c["type"] == "vote":
                 entry["my_vote"] = submission["answer_text"]
         else:
-            if c["type"] == "quiz":
+            if c["type"] == "quiz" and not is_couple:
                 entry.pop("correct_answer", None)
 
         result.append(entry)
@@ -113,6 +122,33 @@ def create_challenge(body: ChallengeRequest, current_user: dict = Depends(get_cu
     )
     invalidate_photo_challenge_cache(current_user["event_id"])
     return row
+
+
+@router.post("/bulk")
+def create_challenges_bulk(body: list[ChallengeRequest], current_user: dict = Depends(get_current_couple)):
+    """Crea una serie di sfide in una singola transazione (usato nell'onboarding o per importare preset)."""
+    created = []
+    with db.transaction() as cur:
+        for item in body:
+            if item.type not in ("photo", "hunt", "vote", "quiz"):
+                raise HTTPException(status_code=422, detail=f"Tipo di sfida non valido: {item.type}")
+            if item.points < 0:
+                raise HTTPException(status_code=422, detail="I punti non possono essere negativi.")
+            cur.execute(
+                """
+                INSERT INTO challenges (event_id, title, description, points, type, active, correct_answer, vote_options)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING *
+                """,
+                (
+                    current_user["event_id"], item.title, item.description, item.points, item.type,
+                    item.active, item.correct_answer,
+                    json.dumps(item.vote_options) if item.vote_options is not None else None,
+                ),
+            )
+            created.append(dict(cur.fetchone()))
+    invalidate_photo_challenge_cache(current_user["event_id"])
+    return created
 
 
 class ChallengeUpdateRequest(BaseModel):

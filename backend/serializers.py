@@ -9,6 +9,7 @@ def event_out(event: dict) -> dict:
         "enable_timer": event["enable_timer"],
         "start_time": event["start_time"].isoformat() if event["start_time"] else None,
         "end_time": event["end_time"].isoformat() if event["end_time"] else None,
+        "invite_code": event.get("invite_code"),
     }
 
 

@@ -60,6 +60,18 @@
     </p>
   </div>
 
+  {#if appState.isCouple}
+    <div class="couple-hint-banner glass-card">
+      <span class="hint-text">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-svg-icon"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+        <strong>Area Sposi:</strong> vuoi aggiungere o modificare le missioni fotografiche?
+      </span>
+      <button class="btn btn-secondary btn-sm" onclick={() => appState.activeTab = 'manage'}>
+        Pannello Sposi →
+      </button>
+    </div>
+  {/if}
+
   {#if eventTimer.status === 'ended'}
     <div class="ended-banner glass-card">
       <div class="ended-banner-icon">
@@ -96,7 +108,12 @@
           <div class="hunt-card-header">
             <div class="hunt-badge-wrap">
               <span class="badge {isDone ? 'badge-green' : 'badge-gold'}">
-                {isDone ? '✓ Completata' : `+${hunt.points} PT`}
+                {#if isDone}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Completata
+                {:else}
+                  +{hunt.points} PT
+                {/if}
               </span>
             </div>
             {#if isDone}
@@ -330,5 +347,26 @@
     color: var(--text-muted);
     font-size: 0.82rem;
     font-weight: 600;
+  }
+
+  .couple-hint-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 18px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 245, 235, 0.9));
+    border: 1px solid rgba(201, 169, 110, 0.35);
+    font-size: 0.88rem;
+    margin-bottom: 14px;
+  }
+
+  @media (max-width: 600px) {
+    .couple-hint-banner {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
   }
 </style>

@@ -35,7 +35,7 @@
 
       const pts = res.points_awarded || quizPoints;
       if (res.is_correct) {
-        appState.showToast(`Risposta corretta, hai guadagnato ${pts} punti! 🎉`, 'success', pts);
+        appState.showToast(`Risposta corretta, hai guadagnato ${pts} punti!`, 'success', pts);
       } else {
         appState.showToast('Risposta sbagliata', 'error');
       }
@@ -72,7 +72,7 @@
       const isFirstTime = res.status === 'created';
       if (isFirstTime) {
         const pts = res.points_awarded || votePoints;
-        appState.showToast(`Momento salvato! Hai guadagnato ${pts} punti! 🎉`, 'success', pts);
+        appState.showToast(`Momento salvato! Hai guadagnato ${pts} punti!`, 'success', pts);
       } else {
         appState.showToast('Momento aggiornato con successo!', 'success');
       }
@@ -141,6 +141,18 @@
         <p class="page-desc">Rispondi alle domande e dimostra quanto conosci gli sposi!</p>
       </div>
 
+      {#if appState.isCouple}
+        <div class="couple-hint-banner glass-card">
+          <span class="hint-text">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-svg-icon"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+            <strong>Area Sposi:</strong> vuoi aggiungere, disattivare o modificare le domande quiz?
+          </span>
+          <button class="btn btn-secondary btn-sm" onclick={() => appState.activeTab = 'manage'}>
+            Pannello Sposi →
+          </button>
+        </div>
+      {/if}
+
       {#if eventTimer.status === 'ended'}
         <div class="ended-banner glass-card">
           <div class="ended-banner-icon">
@@ -184,7 +196,13 @@
                 <span class="badge badge-purple">+{quiz.points} PT</span>
                 {#if isDone}
                   <span class="badge {isCorrect ? 'badge-green' : 'badge-rose'}">
-                    {isCorrect ? `✓ Risposta Esatta (+${quiz.points} PT)` : '✗ Risposta Errata (0 PT)'}
+                    {#if isCorrect}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      Risposta Esatta (+{quiz.points} PT)
+                    {:else}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      Risposta Errata (0 PT)
+                    {/if}
                   </span>
                 {:else if eventTimer.status === 'ended'}
                   <span class="badge badge-neutral">Tempo scaduto</span>
@@ -207,7 +225,7 @@
                   </div>
                   <div class="recap-content">
                     <div class="recap-title">
-                      La tua risposta: <strong>{myAnswer || 'N/D'}</strong>{myOptionObj ? ` — ${myOptionObj.text}` : ''}
+                      La tua risposta: <strong>{myOptionObj?.text || myAnswer || 'N/D'}</strong>
                     </div>
                     <div class="recap-sub">
                       {#if isCorrect}
@@ -222,7 +240,8 @@
 
               <!-- Options Grid -->
               <div class="options-list">
-                {#each options as opt}
+                {#each options as opt, optIdx}
+                  {@const letter = ['A', 'B', 'C', 'D', 'E', 'F'][optIdx] || (optIdx + 1)}
                   {@const isSelected = myAnswer === opt.id}
                   {@const isCorrectOpt = correctAnswer === opt.id}
                   
@@ -235,15 +254,24 @@
                     disabled={isDone || answeringId === quiz.id || eventTimer.status === 'ended'}
                     onclick={() => handleQuizAnswer(quiz.id, opt.id, quiz.points)}
                   >
-                    <span class="opt-letter">{opt.id}</span>
+                    <span class="opt-letter">{letter}</span>
                     <span class="opt-text">{opt.text}</span>
                     {#if isDone}
                       {#if isSelected && isCorrect}
-                        <span class="opt-status-tag tag-green">La tua risposta ✓</span>
+                        <span class="opt-status-tag tag-green">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          La tua risposta
+                        </span>
                       {:else if isSelected && !isCorrect}
-                        <span class="opt-status-tag tag-rose">La tua risposta ✗</span>
+                        <span class="opt-status-tag tag-rose">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          La tua risposta
+                        </span>
                       {:else if isCorrectOpt}
-                        <span class="opt-status-tag tag-green">Risposta corretta</span>
+                        <span class="opt-status-tag tag-green">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          Risposta corretta
+                        </span>
                       {/if}
                     {/if}
                   </button>
@@ -269,6 +297,18 @@
         <h1 class="page-title font-serif rose-gradient-text">Momenti Migliori</h1>
         <p class="page-desc">Condividi pensieri, ricordi ed emozioni della festa! Puoi compilare e modificare le risposte fino alla fine dell'evento.</p>
       </div>
+
+      {#if appState.isCouple}
+        <div class="couple-hint-banner glass-card">
+          <span class="hint-text">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-svg-icon"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+            <strong>Area Sposi:</strong> vuoi aggiungere o modificare le domande dei momenti?
+          </span>
+          <button class="btn btn-secondary btn-sm" onclick={() => appState.activeTab = 'manage'}>
+            Pannello Sposi →
+          </button>
+        </div>
+      {/if}
 
       {#if eventTimer.status === 'ended'}
         <div class="ended-banner glass-card">
@@ -309,7 +349,10 @@
               <div class="card-top-row">
                 <span class="badge badge-gold">+{vote.points} PT</span>
                 {#if isAnswered}
-                  <span class="badge badge-green">✓ Risposta salvata</span>
+                  <span class="badge badge-green">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Risposta salvata
+                  </span>
                 {:else if eventTimer.status === 'ended'}
                   <span class="badge badge-neutral">Tempo scaduto</span>
                 {:else}
@@ -522,6 +565,8 @@
 
   .opt-letter {
     width: 28px;
+    min-width: 28px;
+    max-width: 28px;
     height: 28px;
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.05);
@@ -532,6 +577,9 @@
     font-size: 0.82rem;
     flex-shrink: 0;
     color: var(--text-muted);
+    overflow: hidden;
+    line-height: 1;
+    text-align: center;
   }
 
   .opt-text {
@@ -705,6 +753,9 @@
   }
 
   .opt-status-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 0.72rem;
     font-weight: 700;
     padding: 3px 8px;
@@ -890,5 +941,26 @@
     border-color: rgba(140, 120, 110, 0.2) !important;
     cursor: default;
     color: var(--text-main);
+  }
+
+  .couple-hint-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 18px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 245, 235, 0.9));
+    border: 1px solid rgba(201, 169, 110, 0.35);
+    font-size: 0.88rem;
+    margin-bottom: 16px;
+  }
+
+  @media (max-width: 600px) {
+    .couple-hint-banner {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
   }
 </style>

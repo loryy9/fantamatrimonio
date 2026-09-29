@@ -11,8 +11,25 @@
   import HuntView from './components/HuntView.svelte';
   import QuizView from './components/QuizView.svelte';
   import LeaderboardView from './components/LeaderboardView.svelte';
+  import ManageView from './components/ManageView.svelte';
+  import AdminDashboard from './components/AdminDashboard.svelte';
 
   let mainContentEl = $state(null);
+
+  function checkIsAdminRoute() {
+    if (typeof window === 'undefined') return false;
+    const p = window.location.pathname.toLowerCase();
+    const h = window.location.hash.toLowerCase();
+    const s = window.location.search.toLowerCase();
+    return p === '/admin' || p.startsWith('/admin/') || h === '#admin' || s.includes('admin');
+  }
+
+  let isAdminRoute = $state(checkIsAdminRoute());
+
+  function exitAdmin() {
+    isAdminRoute = false;
+    history.pushState(null, '', '/');
+  }
 
   // Automatically reset scroll to top on any tab or subtab change
   $effect(() => {
@@ -35,17 +52,29 @@
   });
 
   onMount(() => {
+    function handleLocationChange() {
+      isAdminRoute = checkIsAdminRoute();
+    }
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+
     appState.init();
     return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
       appState.stopPolling();
     };
   });
 </script>
 
 <Toast />
-<InstructionsModal />
+{#if !isAdminRoute}
+  <InstructionsModal />
+{/if}
 
-{#if !appState.isLoadingAuth && (!appState.isAuthenticated || appState.pendingInvite)}
+{#if isAdminRoute}
+  <AdminDashboard onExit={exitAdmin} />
+{:else if !appState.isLoadingAuth && (!appState.isAuthenticated || appState.pendingInvite)}
   <AuthFlow />
 {:else}
 <div class="app-wrapper">
@@ -74,6 +103,8 @@
         <QuizView />
       {:else if appState.activeTab === 'leaderboard'}
         <LeaderboardView />
+      {:else if appState.activeTab === 'manage'}
+        <ManageView />
       {/if}
     </main>
 

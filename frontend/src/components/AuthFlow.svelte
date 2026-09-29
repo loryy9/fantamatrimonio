@@ -5,6 +5,8 @@
   import LoginView from './LoginView.svelte';
   import CreateEventView from './CreateEventView.svelte';
 
+  let siteHeaderHeight = $state(72);
+
   onMount(() => {
     const sync = () => {
       if (appState.pendingInvite) return;
@@ -16,8 +18,8 @@
   });
 </script>
 
-<div class="site">
-  <header class="site-header">
+<div class="site" style="--site-header-height: {siteHeaderHeight ? siteHeaderHeight + 'px' : '72px'};">
+  <header class="site-header" bind:clientHeight={siteHeaderHeight}>
     <div class="site-header-inner">
       <button class="brand" onclick={() => appState.setAuthView('entry')} aria-label="Home">
         <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="5"></circle><circle cx="15" cy="12" r="5"></circle></svg>
@@ -42,7 +44,18 @@
   </main>
 
   <footer class="site-footer">
-    Fanta Matrimonio · Gioca, scatta, rispondi e scala la classifica ✨
+    <span>Fanta Matrimonio · Gioca, scatta, rispondi e scala la classifica</span>
+    <a
+      href="/admin"
+      class="admin-link-subtle"
+      onclick={(e) => {
+        e.preventDefault();
+        history.pushState(null, '', '/admin');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }}
+    >
+      Console Admin
+    </a>
   </footer>
 </div>
 
@@ -92,6 +105,29 @@
     padding: 10px 18px;
     border-radius: 14px;
     font-size: 0.9rem;
+  }
+
+  .site-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    padding: 24px 16px;
+    text-align: center;
+  }
+
+  .admin-link-subtle {
+    font-size: 0.76rem;
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .admin-link-subtle:hover {
+    color: var(--gold-dark);
+    text-decoration: underline;
   }
 
   @media (max-width: 560px) {

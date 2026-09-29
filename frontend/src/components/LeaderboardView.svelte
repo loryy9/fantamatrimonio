@@ -31,13 +31,6 @@
       isLoadingDetail = false;
     }
   }
-
-  function getMedalEmoji(rank) {
-    if (rank === 1) return '🥇';
-    if (rank === 2) return '🥈';
-    if (rank === 3) return '🥉';
-    return `${rank}°`;
-  }
 </script>
 
 <div class="leaderboard-container">
@@ -60,7 +53,9 @@
       class="podium-card podium-2 glass-card {second ? 'has-user' : 'empty-slot'}"
       onclick={() => second && openUserDetail(second.id)}
     >
-      <div class="podium-medal">🥈</div>
+      <div class="podium-medal medal-silver" title="2° Posto">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+      </div>
       <div class="podium-avatar {second ? '' : 'avatar-empty'}">
         {second ? formatName(second.first_name).charAt(0) : '—'}
       </div>
@@ -81,7 +76,9 @@
       <div class="crown-icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
       </div>
-      <div class="podium-medal">🥇</div>
+      <div class="podium-medal medal-gold" title="1° Posto">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+      </div>
       <div class="podium-avatar avatar-gold {first ? '' : 'avatar-empty'}">
         {first ? formatName(first.first_name).charAt(0) : '—'}
       </div>
@@ -99,7 +96,9 @@
       class="podium-card podium-3 glass-card {third ? 'has-user' : 'empty-slot'}"
       onclick={() => third && openUserDetail(third.id)}
     >
-      <div class="podium-medal">🥉</div>
+      <div class="podium-medal medal-bronze" title="3° Posto">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+      </div>
       <div class="podium-avatar {third ? '' : 'avatar-empty'}">
         {third ? formatName(third.first_name).charAt(0) : '—'}
       </div>
@@ -113,52 +112,92 @@
     </div>
   </div>
 
-  {#if appState.leaderboard.length === 0}
-    <div class="empty-podium-note glass-card">
-      <div class="empty-note-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+  <!-- Tabella della Classifica -->
+  <div class="leaderboard-table-card glass-card">
+    <div class="table-card-header">
+      <div class="table-title-group">
+        <h2 class="table-card-title font-serif">Classifica Generale</h2>
+        <span class="table-subtitle">Dal 4° posto in poi · Punti aggiornati in tempo reale</span>
       </div>
-      <div class="empty-note-text">
-        <strong>Il podio è pronto!</strong>
-        <span>Completa le missioni e rispondi ai quiz per guadagnare punti e salire sul podio!</span>
+      <div class="table-count-badge">
+        {#if appState.leaderboard.length > 3}
+          {restOfBoard.length} {restOfBoard.length === 1 ? 'invitato' : 'invitati'} in lista
+        {:else}
+          {appState.leaderboard.length} {appState.leaderboard.length === 1 ? 'invitato' : 'invitati'}
+        {/if}
       </div>
     </div>
-  {:else if restOfBoard.length > 0}
-    <!-- Rest of Leaderboard List (ranks 4+) -->
-    <div class="ranking-list">
-      {#each restOfBoard as entry (entry.id)}
-        {@const isMe = appState.user?.id === entry.id}
-        <div
-          class="ranking-row glass-card {isMe ? 'row-me' : ''}"
-          onclick={() => openUserDetail(entry.id)}
-        >
-          <div class="rank-num">#{entry.rank}</div>
-          <div class="rank-user">
-            <div class="rank-avatar">
-              {formatName(entry.first_name).charAt(0)}
+
+    <!-- Intestazioni colonne -->
+    <div class="table-head">
+      <span class="col-rank">Pos.</span>
+      <span class="col-user">Invitato</span>
+      <span class="col-points">Punti</span>
+    </div>
+
+    <div class="table-body">
+      {#if restOfBoard.length === 0}
+        <!-- Righe segnaposto dimostrative a partire dal 4° posto (1, 2 e 3 sono sul podio) -->
+        {#each [4, 5, 6, 7, 8] as pos}
+          <div class="table-row row-placeholder">
+            <span class="col-rank rank-num">#{pos}</span>
+            <div class="col-user user-cell">
+              <div class="table-avatar avatar-placeholder">—</div>
+              <div class="user-meta">
+                <span class="user-name placeholder-name">In attesa di partecipanti...</span>
+                <span class="user-sub placeholder-sub">Posizione #{pos} aperta</span>
+              </div>
             </div>
-            <div class="rank-name-box">
-              <span class="rank-name">{displayName(entry)}</span>
-              {#if isMe}
-                <span class="me-badge">Tu</span>
-              {/if}
+            <div class="col-points points-cell">
+              <span class="pts-val placeholder-pts">0</span>
+              <span class="pts-label">pt</span>
             </div>
           </div>
-          <div class="rank-pts">
-            <span class="pts-val">{entry.total_points}</span>
-            <span class="pts-label">pt</span>
-          </div>
+        {/each}
+        <div class="empty-table-banner">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>I primi 3 classificati sono sul podio in alto. I punteggi dal 4° posto in poi appariranno qui man mano che gli invitati giocano!</span>
         </div>
-      {/each}
+      {:else}
+        {#each restOfBoard as entry (entry.id)}
+          {@const isMe = appState.user?.id === entry.id}
+          <div
+            class="table-row {isMe ? 'row-me' : ''}"
+            onclick={() => openUserDetail(entry.id)}
+            title="Clicca per visualizzare le sfide completate"
+          >
+            <span class="col-rank rank-num">
+              #{entry.rank}
+            </span>
+            <div class="col-user user-cell">
+              <div class="table-avatar">
+                {formatName(entry.first_name).charAt(0)}
+              </div>
+              <div class="user-meta">
+                <span class="user-name">{displayName(entry)}</span>
+                {#if isMe}
+                  <span class="me-badge">Tu</span>
+                {/if}
+              </div>
+            </div>
+            <div class="col-points points-cell">
+              <span class="pts-val">{entry.total_points}</span>
+              <span class="pts-label">pt</span>
+            </div>
+          </div>
+        {/each}
+      {/if}
     </div>
-  {/if}
+  </div>
 </div>
 
 <!-- User Detail Modal -->
 {#if selectedUserDetail}
   <div class="modal-overlay" onclick={() => selectedUserDetail = null}>
     <div class="modal-content glass-card" onclick={(e) => e.stopPropagation()}>
-      <button class="modal-close" onclick={() => selectedUserDetail = null}>✕</button>
+      <button class="modal-close" onclick={() => selectedUserDetail = null} aria-label="Chiudi">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
 
       <div class="modal-header">
         <div class="modal-avatar">
@@ -273,8 +312,23 @@
   }
 
   .podium-medal {
-    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin-top: 4px;
+    line-height: 1;
+  }
+
+  .podium-medal.medal-gold {
+    color: var(--gold-primary);
+  }
+
+  .podium-medal.medal-silver {
+    color: #8da2b5;
+  }
+
+  .podium-medal.medal-bronze {
+    color: #b77943;
   }
 
   .podium-avatar {
@@ -409,65 +463,207 @@
     font-size: 0.92rem;
   }
 
-  /* List */
-  .ranking-list {
+  /* Table Card */
+  .leaderboard-table-card {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    padding: 0;
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    border: 1px solid rgba(201, 169, 110, 0.25);
+    box-shadow: 0 10px 30px rgba(138, 109, 59, 0.08);
+    background: var(--bg-surface);
   }
 
-  .ranking-row {
+  .table-card-header {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
-    cursor: pointer;
+    justify-content: space-between;
+    padding: 20px 22px 14px;
+    border-bottom: 1px solid var(--border-subtle);
   }
 
-  .row-me {
-    border-color: rgba(201, 169, 110, 0.4);
-    background: linear-gradient(135deg, rgba(201, 169, 110, 0.08) 0%, rgba(255, 255, 255, 0.9) 100%);
-  }
-
-  .rank-num {
-    font-size: 0.88rem;
-    font-weight: 800;
-    color: var(--text-dim);
-    width: 36px;
-  }
-
-  .rank-user {
+  .table-title-group {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 1;
+    flex-direction: column;
+    gap: 2px;
   }
 
-  .rank-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--bg-surface-elevated);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
+  .table-card-title {
+    font-size: 1.25rem;
     font-weight: 700;
+    margin: 0;
+  }
+
+  .table-subtitle {
+    font-size: 0.8rem;
     color: var(--text-muted);
   }
 
-  .rank-name-box {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  .table-count-badge {
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    background: rgba(201, 169, 110, 0.12);
+    color: var(--gold-dark);
+    border: 1px solid rgba(201, 169, 110, 0.28);
   }
 
-  .rank-name {
-    font-weight: 600;
+  .table-head {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.02);
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+
+  .col-rank {
+    width: 48px;
+    flex-shrink: 0;
+  }
+
+  .col-user {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .col-points {
+    width: 80px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .table-body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .table-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background 0.18s ease;
+    cursor: pointer;
+  }
+
+  .table-row:last-child {
+    border-bottom: none;
+  }
+
+  .table-row:hover:not(.row-placeholder) {
+    background: rgba(201, 169, 110, 0.06);
+  }
+
+  .row-placeholder {
+    cursor: default;
+    opacity: 0.7;
+  }
+
+  .row-me {
+    background: rgba(201, 169, 110, 0.09) !important;
+  }
+
+  .rank-num {
+    font-weight: 800;
     font-size: 0.92rem;
+    color: var(--text-muted);
+  }
+
+  .mini-medal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 24px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .mini-medal.gold {
+    background: linear-gradient(135deg, #f3d791 0%, #c9a96e 100%);
+    color: #4a3410;
+  }
+
+  .mini-medal.silver {
+    background: linear-gradient(135deg, #e3e8ed 0%, #b8c3cd 100%);
+    color: #2b3b4a;
+  }
+
+  .mini-medal.bronze {
+    background: linear-gradient(135deg, #eecbb2 0%, #cd8a60 100%);
+    color: #4c260d;
+  }
+
+  .user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .table-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-surface-elevated);
+    border: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.88rem;
     color: var(--text-main);
+    flex-shrink: 0;
+  }
+
+  .table-avatar.avatar-placeholder {
+    border-style: dashed;
+    color: var(--text-dim);
+    background: transparent;
+  }
+
+  .table-avatar.avatar-gold {
+    background: linear-gradient(135deg, #c9a96e 0%, #a17f49 100%);
+    color: #fff;
+    box-shadow: 0 0 8px rgba(201, 169, 110, 0.3);
+  }
+
+  .user-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .user-name {
+    font-size: 0.94rem;
+    font-weight: 600;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .placeholder-name {
+    color: var(--text-dim);
+    font-weight: 500;
+    font-style: italic;
+  }
+
+  .placeholder-sub {
+    font-size: 0.74rem;
+    color: var(--text-dim);
   }
 
   .me-badge {
+    display: inline-block;
     background: var(--gold-primary);
     color: #fff;
     font-size: 0.62rem;
@@ -475,11 +671,13 @@
     padding: 2px 7px;
     border-radius: var(--radius-full);
     letter-spacing: 0.02em;
+    margin-left: 6px;
   }
 
-  .rank-pts {
+  .points-cell {
     display: flex;
     align-items: baseline;
+    justify-content: flex-end;
     gap: 3px;
   }
 
@@ -489,9 +687,27 @@
     color: var(--gold-dark);
   }
 
+  .placeholder-pts {
+    color: var(--text-dim) !important;
+  }
+
   .pts-label {
     font-size: 0.72rem;
     color: var(--text-dim);
+  }
+
+  .empty-table-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    background: rgba(201, 169, 110, 0.08);
+    border-top: 1px dashed rgba(201, 169, 110, 0.3);
+    color: var(--gold-dark);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: center;
   }
 
   /* Modal */

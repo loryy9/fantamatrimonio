@@ -2,6 +2,7 @@
   import { appState } from '../lib/state.svelte.js';
   import { eventTimer } from '../lib/timer.svelte.js';
   import { formatName } from '../lib/formatters.js';
+  import heroImage from '../assets/hero.png';
 
   const completedHunts = $derived(
     appState.challenges.filter(c => c.challenge_type === 'hunt' && appState.mySubmissionsByChallenge[c.id]).length
@@ -83,7 +84,7 @@
 
 <div class="home-container">
   <!-- Dark hero (app: _HeroHeader) -->
-  <section class="hero">
+  <section class="hero" style={`--hero-image: url("${heroImage}")`}>
     <div class="glow glow-rose"></div>
     <div class="glow glow-gold"></div>
 
@@ -129,7 +130,7 @@
             {#if eventTimer.status === 'in_progress'}
               <div class="status-note">Termina tra {eventTimer.toEnd.formatted}</div>
             {:else if eventTimer.status === 'ended'}
-              <div class="status-note strong">Tempo scaduto 🏆</div>
+              <div class="status-note strong">Tempo scaduto</div>
             {/if}
           </div>
           <button class="rank-btn" onclick={() => appState.activeTab = 'leaderboard'}>
@@ -139,6 +140,23 @@
       {/if}
     </div>
   </section>
+
+  {#if appState.isCouple}
+    <div class="couple-admin-banner glass-card">
+      <div class="banner-left">
+        <span class="banner-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+        </span>
+        <div>
+          <strong class="banner-title">Pannello di Controllo Sposi</strong>
+          <p class="banner-sub">Gestisci le domande del quiz, la caccia fotografica, i momenti e le impostazioni.</p>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick={() => appState.activeTab = 'manage'}>
+        Console Sposi →
+      </button>
+    </div>
+  {/if}
 
   <!-- Activities carousel (app: _ActivityCarousel) -->
   <section class="activities">
@@ -181,10 +199,56 @@
 </div>
 
 <style>
+  /* ============================
+     BASE STYLES (mobile-first)
+     ============================ */
   .home-container {
     display: flex;
     flex-direction: column;
     gap: 26px;
+  }
+
+  /* ---------- Couple Admin Banner ---------- */
+  .couple-admin-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 20px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 245, 235, 0.9));
+    border: 1.5px solid rgba(201, 169, 110, 0.4);
+    box-shadow: 0 8px 24px rgba(138, 109, 59, 0.12);
+  }
+
+  .banner-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .banner-icon {
+    font-size: 1.6rem;
+    flex-shrink: 0;
+  }
+
+  .banner-title {
+    display: block;
+    font-size: 1rem;
+    color: var(--gold-dark);
+  }
+
+  .banner-sub {
+    font-size: 0.84rem;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+  }
+
+  @media (max-width: 600px) {
+    .couple-admin-banner {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 
   /* ---------- Hero ---------- */
@@ -196,6 +260,19 @@
     padding: calc(64px + var(--safe-top)) 20px 22px;
     background: var(--grad-dusk);
     border-radius: 0 0 36px 36px;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background-image:
+      linear-gradient(90deg, rgba(18, 14, 11, 0.92) 0%, rgba(18, 14, 11, 0.66) 48%, rgba(18, 14, 11, 0.76) 100%),
+      var(--hero-image);
+    background-position: center;
+    background-size: cover;
   }
 
   .glow {
@@ -470,6 +547,7 @@
 
   .card-arrow {
     color: rgba(255, 255, 255, 0.35);
+    transition: transform 0.2s ease, color 0.2s ease;
   }
 
   .card-bottom {
@@ -520,4 +598,186 @@
     width: 20px;
     background: var(--gold-primary);
   }
+
+  /* ============================
+     MEDIA QUERIES — DOPO i base
+     ============================ */
+
+  /* ── 900px: tablet/desktop griglia 2x2 ── */
+  @media (min-width: 900px) {
+    .home-container {
+      gap: 38px;
+    }
+
+    .hero {
+      margin: -24px -40px 0;
+      padding: calc(88px + var(--safe-top)) 40px 38px;
+      border-radius: 0 0 42px 42px;
+    }
+
+    .hero-inner {
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+      gap: 24px;
+    }
+
+    .hero-title {
+      font-size: 3.4rem;
+    }
+
+    .status-card {
+      padding: 24px;
+    }
+
+    .activities {
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      font-size: 2rem;
+    }
+
+    .section-sub {
+      margin-bottom: 22px;
+    }
+
+    .carousel {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+      overflow: visible;
+      margin: 0;
+      padding: 4px 0 14px;
+    }
+
+    .activity-card {
+      min-width: 0;
+      width: 100%;
+      height: 220px;
+      padding: 26px 28px;
+    }
+
+    /* Tutte le card a piena opacità su desktop (griglia, non carosello) */
+    .activity-card,
+    .activity-card.dim {
+      opacity: 1;
+    }
+
+    /* Puntini inutili su desktop */
+    .dots {
+      display: none;
+    }
+  }
+
+  /* ── 1100px: desktop large ── */
+  @media (min-width: 1100px) {
+    .hero {
+      /* Arrotondato su tutti i lati come una card, non full-bleed */
+      margin: -24px -48px 0;
+      border-radius: 0 0 32px 32px;
+      min-height: 280px;
+      padding: calc(72px + var(--safe-top)) 48px 36px;
+    }
+
+    .hero-top {
+      align-items: center;
+    }
+
+    .hero-inner {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+      align-items: stretch;
+      gap: 32px;
+    }
+
+    .hero-top,
+    .status-card {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-top {
+      min-height: 180px;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
+    }
+
+    .hero-couple {
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero-title {
+      max-width: 680px;
+      margin-top: 10px;
+      font-size: clamp(2.8rem, 3.5vw, 4rem);
+      line-height: 0.95;
+    }
+
+    .rules-btn {
+      margin-top: 20px;
+      padding: 10px 16px;
+      border-color: rgba(240, 216, 168, 0.34);
+    }
+
+    .status-card {
+      align-self: end;
+      width: 100%;
+      min-height: 170px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: rgba(18, 14, 11, 0.52);
+      border-color: rgba(240, 216, 168, 0.42);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .status-row {
+      min-height: 170px;
+    }
+
+    .score {
+      font-size: 3rem;
+    }
+
+    .rank-btn {
+      padding: 12px 18px;
+    }
+
+    .activity-card {
+      height: 236px;
+      padding: 28px 32px;
+      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    }
+
+    .activity-card .card-title {
+      font-size: 1.65rem;
+    }
+
+    .activity-card .card-subtitle {
+      font-size: 0.88rem;
+    }
+
+    .activity-card .icon-badge {
+      width: 48px;
+      height: 48px;
+    }
+
+    .activity-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    .activity-card:hover .card-arrow {
+      color: #fff;
+      transform: translate(2px, -2px);
+    }
+  }
 </style>
+

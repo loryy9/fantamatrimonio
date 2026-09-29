@@ -53,6 +53,7 @@
   --grad-dusk: linear-gradient(135deg, #120e0b 0%, #1c1712 50%, #2a1d1a 100%);
   --grad-gold-rose: linear-gradient(135deg, #c9a96e 0%, #d4849a 100%);
 
+  --site-header-height: 72px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
@@ -69,30 +70,33 @@
 
 html {
   width: 100%;
-  height: 100%;
-  background-color: #ffffff;
-}
-
-body {
-  width: 100%;
-  height: 100%;
+  min-height: 100%;
   background-color: var(--bg-primary);
-  color: var(--text-main);
-  font-family: var(--font-sans);
-  font-size: 16px;
-  line-height: 1.55;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
   background-image:
     radial-gradient(ellipse at 20% 0%, rgba(212, 132, 154, 0.08) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 100%, rgba(201, 169, 110, 0.07) 0%, transparent 50%);
   background-attachment: fixed;
+  overflow-x: clip;
+}
+
+body {
+  width: 100%;
+  min-height: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+  background-color: var(--bg-primary);
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(212, 132, 154, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(201, 169, 110, 0.07) 0%, transparent 50%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* App Container */
@@ -102,6 +106,7 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  background-color: var(--bg-primary);
 }
 
 .app-wrapper {
@@ -121,6 +126,101 @@ body {
   padding: 16px 16px calc(112px + var(--safe-bottom)) 16px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 900px) {
+  .app-wrapper {
+    max-width: none;
+    background-color: var(--bg-primary);
+    box-shadow: none;
+  }
+
+  .main-content {
+    padding: 24px 40px calc(132px + var(--safe-bottom));
+  }
+}
+
+@media (min-width: 1100px) {
+  .main-content {
+    padding-left: 48px;
+    padding-right: 48px;
+  }
+
+  /* Desktop page containers: integrati nel layout senza bordi extra */
+  #app .gallery-container,
+  #app .hunt-container,
+  #app .games-container,
+  #app .leaderboard-container,
+  #app .manage-container {
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  /* Header delle pagine: card frosted ivory con accento oro */
+  #app .gallery-container > .header-box,
+  #app .hunt-container > .header-box,
+  #app .games-container > .header-box,
+  #app .leaderboard-container > .header-box {
+    padding: 28px 32px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(201, 169, 110, 0.2);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow:
+      0 4px 20px rgba(138, 109, 59, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Decorazione sfumata angolare sottile */
+  #app .gallery-container > .header-box::before,
+  #app .hunt-container > .header-box::before,
+  #app .games-container > .header-box::before,
+  #app .leaderboard-container > .header-box::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at 0% 50%, rgba(201, 169, 110, 0.10) 0%, transparent 60%),
+      radial-gradient(ellipse at 100% 50%, rgba(212, 132, 154, 0.07) 0%, transparent 60%);
+  }
+
+  /* Titolo usa il suo gradiente gold naturale */
+  #app .gallery-container > .header-box .page-title,
+  #app .hunt-container > .header-box .page-title,
+  #app .games-container > .header-box .page-title,
+  #app .leaderboard-container > .header-box .page-title {
+    position: relative;
+  }
+
+  #app .gallery-container > .header-box .page-desc,
+  #app .hunt-container > .header-box .page-desc,
+  #app .games-container > .header-box .page-desc,
+  #app .leaderboard-container > .header-box .page-desc {
+    color: var(--text-muted);
+    position: relative;
+  }
+
+  #app .hunt-list,
+  #app .cards-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  #app .hunt-list > .empty-state,
+  #app .cards-list > .empty-state {
+    grid-column: 1 / -1;
+  }
 }
 
 /* Eyebrow label (app: labelSmall) */
@@ -370,15 +470,16 @@ h1, h2, h3, .font-serif {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  background-color: var(--bg-primary);
 }
 
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 20;
-  background: rgba(250, 248, 245, 0.85);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  z-index: 50;
+  background: rgba(250, 248, 245, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(201, 169, 110, 0.18);
 }
 

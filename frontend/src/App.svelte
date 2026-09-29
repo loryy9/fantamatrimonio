@@ -5,7 +5,7 @@
   import InstructionsModal from './components/InstructionsModal.svelte';
   import Navbar from './components/Navbar.svelte';
   import BottomNav from './components/BottomNav.svelte';
-  import LoginView from './components/LoginView.svelte';
+  import AuthFlow from './components/AuthFlow.svelte';
   import HomeView from './components/HomeView.svelte';
   import GalleryView from './components/GalleryView.svelte';
   import HuntView from './components/HuntView.svelte';
@@ -45,6 +45,9 @@
 <Toast />
 <InstructionsModal />
 
+{#if !appState.isLoadingAuth && (!appState.isAuthenticated || appState.pendingInvite)}
+  <AuthFlow />
+{:else}
 <div class="app-wrapper">
   {#if appState.isLoadingAuth}
     <div class="splash-screen">
@@ -57,8 +60,6 @@
       <div class="splash-title font-serif gold-gradient-text">Fanta Matrimonio</div>
       <div class="spinner"></div>
     </div>
-  {:else if !appState.isAuthenticated}
-    <LoginView />
   {:else}
     <Navbar />
 
@@ -79,6 +80,7 @@
     <BottomNav />
   {/if}
 </div>
+{/if}
 
 <style>
   .splash-screen {

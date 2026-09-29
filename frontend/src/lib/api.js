@@ -60,14 +60,22 @@ async function request(endpoint, options = {}) {
 
 export const api = {
   // Auth
-  async login(firstName, lastName, secretWord) {
+  async login(inviteCode, firstName, lastName, secretWord) {
     return await request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
+        invite_code: inviteCode,
         first_name: firstName,
         last_name: lastName,
         secret_word: secretWord
       })
+    });
+  },
+
+  async createEvent(payload) {
+    return await request('/events', {
+      method: 'POST',
+      body: JSON.stringify(payload)
     });
   },
 

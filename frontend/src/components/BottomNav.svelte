@@ -32,15 +32,13 @@
           {/if}
         </span>
         <span class="nav-label">{item.label}</span>
-        {#if appState.activeTab === item.id}
-          <div class="active-indicator"></div>
-        {/if}
       </button>
     {/each}
   </div>
 </nav>
 
 <style>
+  /* Floating frosted-glass dock (app: GlassNavBar) */
   .bottom-nav {
     position: fixed;
     bottom: 0;
@@ -49,78 +47,72 @@
     z-index: 100;
     display: flex;
     justify-content: center;
-    background: #ffffff;
-    border-top: 1px solid var(--border-subtle);
-    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+    padding: 0 16px calc(12px + var(--safe-bottom));
+    pointer-events: none;
   }
 
   .nav-container {
+    pointer-events: auto;
     width: 100%;
-    max-width: 540px;
-    background: #ffffff;
-    padding: 8px 12px calc(8px + var(--safe-bottom)) 12px;
+    max-width: 508px;
     display: flex;
-    justify-content: space-around;
     align-items: center;
+    gap: 2px;
+    padding: 8px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 12px 24px rgba(138, 109, 59, 0.14);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
   }
 
   .nav-btn {
     position: relative;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    background: transparent;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 10px 6px;
     border: none;
-    color: var(--text-dim);
-    padding: 6px 12px;
-    border-radius: var(--radius-md);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--text-muted);
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    flex: 1;
-    max-width: 80px;
+    overflow: hidden;
+    transition: flex-grow 0.32s cubic-bezier(0.16, 1, 0.3, 1), padding 0.32s cubic-bezier(0.16, 1, 0.3, 1), background 0.32s ease, color 0.32s ease, box-shadow 0.32s ease;
   }
 
   .nav-btn:active {
-    transform: scale(0.92);
+    transform: scale(0.95);
   }
 
   .nav-icon {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s ease;
+    flex-shrink: 0;
   }
 
   .nav-label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    transition: color 0.2s ease;
+    max-width: 0;
+    opacity: 0;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    font-weight: 700;
+    transition: max-width 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, margin 0.32s ease;
   }
 
   .nav-btn.active {
-    color: var(--gold-dark);
-  }
-
-  .nav-btn.active .nav-icon {
-    transform: translateY(-2px) scale(1.15);
-    color: var(--gold-primary);
+    flex-grow: 2.6;
+    padding: 10px 14px;
+    color: #fff;
+    background: var(--grad-gold-rose);
+    box-shadow: 0 6px 14px rgba(212, 132, 154, 0.35);
   }
 
   .nav-btn.active .nav-label {
-    color: var(--gold-dark);
-    font-weight: 700;
-  }
-
-  .active-indicator {
-    position: absolute;
-    bottom: -4px;
-    width: 20px;
-    height: 3px;
-    background: linear-gradient(90deg, var(--gold-primary), var(--gold-light));
-    border-radius: var(--radius-full);
-    box-shadow: 0 0 8px rgba(201, 169, 110, 0.4);
+    max-width: 90px;
+    opacity: 1;
+    margin-left: 7px;
   }
 </style>

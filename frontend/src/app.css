@@ -35,13 +35,23 @@
 
   --radius-sm: 10px;
   --radius-md: 14px;
-  --radius-lg: 20px;
+  --radius-lg: 22px;
   --radius-xl: 28px;
   --radius-full: 9999px;
 
   --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06), 0 2px 6px rgba(0, 0, 0, 0.04);
   --shadow-gold: 0 4px 20px rgba(201, 169, 110, 0.12);
+
+  /* Candlelit depth layer (shared with the mobile app) */
+  --night-ink: #1c1712;
+  --night-ink-deep: #120e0b;
+  --gold-bright: #f0d8a8;
+  --rose-neon: #ff6f9c;
+  --paper: #fffdfb;
+  --night-hairline: rgba(240, 216, 168, 0.2);
+  --grad-dusk: linear-gradient(135deg, #120e0b 0%, #1c1712 50%, #2a1d1a 100%);
+  --grad-gold-rose: linear-gradient(135deg, #c9a96e 0%, #d4849a 100%);
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -108,9 +118,26 @@ body {
 
 .main-content {
   flex: 1;
-  padding: 16px 16px calc(100px + var(--safe-bottom)) 16px;
+  padding: 16px 16px calc(112px + var(--safe-bottom)) 16px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Eyebrow label (app: labelSmall) */
+.eyebrow {
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Frosted glass over dark (app: GlassSurface dark) */
+.glass-dark {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--night-hairline);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 /* Typography Helpers */
@@ -120,7 +147,7 @@ h1, h2, h3, .font-serif {
 }
 
 .gold-gradient-text {
-  background: linear-gradient(135deg, #c9a96e 0%, #a17f49 50%, #8a6d3b 100%);
+  background: linear-gradient(135deg, #c9a96e 0%, #d4849a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -135,12 +162,10 @@ h1, h2, h3, .font-serif {
 
 /* Glass Cards */
 .glass-card {
-  background: var(--bg-glass-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle);
+  background: var(--paper);
+  border: 1px solid rgba(201, 169, 110, 0.14);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 12px 24px rgba(138, 109, 59, 0.10);
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -149,7 +174,7 @@ h1, h2, h3, .font-serif {
 }
 
 .glass-card-gold {
-  background: linear-gradient(135deg, rgba(201, 169, 110, 0.08) 0%, rgba(255, 255, 255, 0.85) 100%);
+  background: linear-gradient(135deg, rgba(201, 169, 110, 0.10) 0%, var(--paper) 70%);
   border: 1px solid var(--border-highlight);
   box-shadow: var(--shadow-gold);
 }
@@ -164,7 +189,7 @@ h1, h2, h3, .font-serif {
   font-weight: 600;
   font-size: 0.92rem;
   padding: 12px 22px;
-  border-radius: var(--radius-md);
+  border-radius: 20px;
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -178,15 +203,15 @@ h1, h2, h3, .font-serif {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #c9a96e 0%, #a17f49 100%);
+  background: var(--grad-gold-rose);
   color: #ffffff;
-  box-shadow: 0 3px 12px rgba(201, 169, 110, 0.3);
+  box-shadow: 0 10px 22px rgba(212, 132, 154, 0.4);
   font-weight: 700;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #d4b47a 0%, #b8955a 100%);
-  box-shadow: 0 4px 16px rgba(201, 169, 110, 0.4);
+  filter: brightness(1.05);
+  box-shadow: 0 12px 26px rgba(212, 132, 154, 0.5);
 }
 
 .btn-secondary {
@@ -237,7 +262,7 @@ h1, h2, h3, .font-serif {
   padding: 13px 16px;
   background: var(--bg-surface);
   border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: var(--radius-md);
+  border-radius: 18px;
   color: var(--text-main);
   font-family: var(--font-sans);
   font-size: 1rem;
@@ -335,4 +360,111 @@ h1, h2, h3, .font-serif {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.18);
+}
+
+/* ============================================================
+   Public web pages (landing / join / create event)
+   ============================================================ */
+.site {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(250, 248, 245, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(201, 169, 110, 0.18);
+}
+
+.site-header-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.site-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+}
+
+.site-footer {
+  border-top: 1px solid rgba(201, 169, 110, 0.18);
+  padding: 22px 24px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.auth-card {
+  background: var(--paper);
+  border: 1px solid rgba(201, 169, 110, 0.2);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 18px 40px rgba(138, 109, 59, 0.12);
+  padding: 36px;
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+}
+
+.page-lead {
+  color: var(--text-muted);
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
+.form-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: rgba(212, 132, 154, 0.1);
+  border: 1px solid rgba(212, 132, 154, 0.35);
+  color: #a24d66;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.field-hint {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--gold-dark);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link-btn:hover {
+  color: var(--rose-primary);
+}
+
+.btn-lg {
+  padding: 15px 28px;
+  font-size: 1rem;
 }

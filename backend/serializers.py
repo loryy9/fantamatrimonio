@@ -14,10 +14,25 @@ def event_out(event: dict) -> dict:
 
 
 def user_out(user: dict) -> dict:
-    return {
+    out = {
         "id": str(user["id"]),
         "first_name": user["first_name"],
         "last_name": user["last_name"],
         "total_points": user["total_points"],
         "role": user["role"],
+    }
+    if user.get("account_id"):
+        out["account_id"] = str(user["account_id"])
+    if user.get("email"):
+        out["email"] = user["email"]
+    return out
+
+
+def account_out(account: dict) -> dict:
+    return {
+        "id": str(account["id"]),
+        "email": account.get("email"),
+        "display_name": account["display_name"],
+        "is_verified": account.get("is_verified", False),
+        "registered_at": account["registered_at"].isoformat() if account.get("registered_at") else None,
     }

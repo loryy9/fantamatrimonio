@@ -10,6 +10,8 @@
   let coupleFirst = $state('');
   let coupleLast = $state('');
   let coupleWord = $state('');
+  let coupleEmail = $state('');
+  let couplePassword = $state('');
   let isSubmitting = $state(false);
   let errorMessage = $state('');
   let copied = $state('');
@@ -43,6 +45,14 @@
       errorMessage = 'Compila tutti i campi di accesso degli sposi.';
       return;
     }
+    if (coupleEmail.trim() && !couplePassword.trim()) {
+      errorMessage = 'Se inserisci l\'email, devi anche scegliere una password.';
+      return;
+    }
+    if (couplePassword.trim() && couplePassword.trim().length < 6) {
+      errorMessage = 'La password deve essere di almeno 6 caratteri.';
+      return;
+    }
 
     isSubmitting = true;
     const res = await appState.createEvent({
@@ -53,7 +63,9 @@
       end_time: enableTimer ? new Date(endTime).toISOString() : null,
       couple_first_name: coupleFirst.trim(),
       couple_last_name: coupleLast.trim(),
-      couple_secret_word: coupleWord.trim()
+      couple_secret_word: coupleWord.trim(),
+      couple_email: coupleEmail.trim() || undefined,
+      couple_password: couplePassword.trim() || undefined
     });
     isSubmitting = false;
 
@@ -158,6 +170,7 @@
         <li><span class="step-num">1</span><div><strong>I vostri nomi</strong><span>Compariranno nell'intestazione del gioco.</span></div></li>
         <li><span class="step-num">2</span><div><strong>Le tempistiche</strong><span>Facoltative: limita i giochi a una finestra oraria.</span></div></li>
         <li><span class="step-num">3</span><div><strong>Il vostro accesso</strong><span>Con queste credenziali gestirete l'evento.</span></div></li>
+        <li><span class="step-num">4</span><div><strong>Il vostro account</strong><span>Email e password per la dashboard post-festa.</span></div></li>
       </ol>
 
       <p class="switch">
@@ -234,6 +247,22 @@
           <input id="coupleWord" type="text" class="input-field" bind:value={coupleWord} autocomplete="off" required />
           <span class="field-hint">Vi servirà, con nome e cognome, per rientrare come sposi.</span>
         </div>
+      </fieldset>
+
+      <fieldset class="account-section">
+        <legend><span class="step-num">4</span> Il vostro account</legend>
+        <p class="section-note">Creando un account potrete accedere alla dashboard, rivedere foto e risultati anche dopo la festa.</p>
+        <div class="input-group">
+          <label for="coupleEmail" class="input-label">Email</label>
+          <input id="coupleEmail" type="email" class="input-field" placeholder="es. giulia@email.com" bind:value={coupleEmail} autocomplete="email" />
+        </div>
+        {#if coupleEmail.trim()}
+          <div class="input-group">
+            <label for="couplePassword" class="input-label">Password</label>
+            <input id="couplePassword" type="password" class="input-field" placeholder="Almeno 6 caratteri" bind:value={couplePassword} autocomplete="new-password" minlength="6" />
+            <span class="field-hint">Userete email e password per accedere alla dashboard dopo la festa.</span>
+          </div>
+        {/if}
       </fieldset>
 
       <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
@@ -462,6 +491,19 @@
   .switch-text strong {
     color: var(--text-main);
     font-size: 0.95rem;
+  }
+
+  .account-section {
+    border-top: 1px dashed rgba(201, 169, 110, 0.4);
+    padding-top: 20px;
+    margin-top: 4px;
+  }
+
+  .section-note {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: -6px 0 10px;
   }
 
   .spinner-on-dark {

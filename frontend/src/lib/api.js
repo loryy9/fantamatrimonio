@@ -12,7 +12,8 @@ export class ApiError extends Error {
 }
 
 function getStoredToken() {
-  return localStorage.getItem('fm_auth_token');
+  // Preferisci JWT se disponibile, altrimenti session token
+  return localStorage.getItem('fm_jwt_token') || localStorage.getItem('fm_auth_token');
 }
 
 async function request(endpoint, options = {}) {
@@ -34,20 +35,25 @@ async function request(endpoint, options = {}) {
   });
 
   if (!response.ok) {
-    let errorDetail = 'Errore sconosciuto';
+    let errorDetail = `Errore HTTP ${response.status}`;
     try {
-      const errJson = await response.json();
-      if (Array.isArray(errJson.detail)) {
-        errorDetail = errJson.detail.map(d => d.msg || JSON.stringify(d)).join(', ');
-      } else if (typeof errJson.detail === 'object' && errJson.detail !== null) {
-        errorDetail = JSON.stringify(errJson.detail);
-      } else {
-        errorDetail = errJson.detail || errJson.message || JSON.stringify(errJson);
+      const rawText = await response.text();
+      try {
+        const errJson = JSON.parse(rawText);
+        if (Array.isArray(errJson.detail)) {
+          errorDetail = errJson.detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+        } else if (typeof errJson.detail === 'object' && errJson.detail !== null) {
+          errorDetail = JSON.stringify(errJson.detail);
+        } else {
+          errorDetail = errJson.detail || errJson.message || rawText;
+        }
+      } catch {
+        errorDetail = rawText || errorDetail;
       }
     } catch {
-      errorDetail = await response.text();
+      // Se anche leggere il testo fallisce, mantieni errorDetail di default
     }
-    throw new ApiError(errorDetail || `Errore HTTP ${response.status}`, response.status, errorDetail);
+    throw new ApiError(errorDetail, response.status, errorDetail);
   }
 
   // If 204 No Content
@@ -59,8 +65,8 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
-  // Auth
-  async login(inviteCode, firstName, lastName, secretWord, isCouple = false) {
+  // ── Auth (login leggero) ──────────────────────────────────────────────────
+  async login(inviteCode, firstName, lastName, secretWord, isCouple = false, email = null) {
     return await request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
@@ -68,7 +74,36 @@ export const api = {
         first_name: firstName,
         last_name: lastName,
         secret_word: secretWord,
-        is_couple: isCouple
+        is_couple: isCouple,
+        email: email || undefined
+      })
+    });
+  },
+
+  // ── Auth (registrazione sicura) ───────────────────────────────────────────
+  async register(email, password, displayName) {
+    return await request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, display_name: displayName })
+    });
+  },
+
+  // ── Auth (login sicuro con email/password) ────────────────────────────────
+  async loginSecure(email, password) {
+    return await request('/auth/login-secure', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+  },
+
+  // ── Auth (upgrade account) ────────────────────────────────────────────────
+  async upgradeAccount(email, password, displayName = null) {
+    return await request('/auth/upgrade', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        password,
+        display_name: displayName || undefined
       })
     });
   },
@@ -86,8 +121,9 @@ export const api = {
     });
   },
 
-  async getMe() {
-    return await request('/auth/me');
+  async getMe(eventId = null) {
+    const query = eventId ? `?event_id=${encodeURIComponent(eventId)}` : '';
+    return await request(`/auth/me${query}`);
   },
 
   // Challenges
@@ -224,6 +260,19 @@ export const api = {
 
   async getUserDetail(userId) {
     return await request(`/leaderboard/${userId}`);
+  },
+
+  // ── Dashboard ─────────────────────────────────────────────────────────────
+  async getDashboardEvents() {
+    return await request('/dashboard/events');
+  },
+
+  async getDashboardEventDetail(eventId) {
+    return await request(`/dashboard/events/${eventId}`);
+  },
+
+  async getDashboardEventSubmissions(eventId) {
+    return await request(`/dashboard/events/${eventId}/submissions`);
   },
 
   // Admin Endpoints

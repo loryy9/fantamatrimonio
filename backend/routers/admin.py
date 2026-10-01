@@ -161,3 +161,17 @@ def delete_event(event_id: str, admin: dict = Depends(get_current_admin)):
         "success": True,
         "message": f"Matrimonio di {existing['spouse1_name']} & {existing['spouse2_name']} (Codice: {existing['invite_code']}) eliminato definitivamente.",
     }
+
+
+@router.post("/reminders/process")
+def trigger_reminders(admin: dict = Depends(get_current_admin)):
+    """
+    Attiva manualmente l'invio delle email di reminder per gli ospiti.
+    Utile per testare l'invio o per cron webhook esterni.
+    """
+    from email_service import process_due_reminders
+    result = process_due_reminders()
+    return {
+        "success": True,
+        "summary": result,
+    }

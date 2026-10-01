@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 import db
-from routers import auth, challenges, submissions, leaderboard, events, admin
+from routers import auth, challenges, submissions, leaderboard, events, admin, dashboard
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -55,6 +55,7 @@ app.include_router(submissions.router)
 app.include_router(leaderboard.router)
 app.include_router(events.router)
 app.include_router(admin.router)
+app.include_router(dashboard.router)
 
 
 # ── HEALTH CHECK ─────────────────────────────────────────────────────────────

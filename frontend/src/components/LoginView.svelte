@@ -8,6 +8,7 @@
   let firstName = $state('');
   let lastName = $state('');
   let secretWord = $state('');
+  let email = $state('');
   let isCoupleLogin = $state(window.location.hash === '#/sposi');
   let isSubmitting = $state(false);
   let errorMessage = $state('');
@@ -33,7 +34,8 @@
         formatName(firstName),
         formatName(lastName),
         secretWord.trim(),
-        isCoupleLogin
+        isCoupleLogin,
+        email.trim() || null
       );
       if (!res.success) {
         errorMessage = res.error || 'Accesso non riuscito. Controlla i dati inseriti.';
@@ -83,6 +85,10 @@
         <button type="button" class="link-btn" onclick={() => switchMode(true)}>Accedi alla Console Sposi</button>
         <span class="sep">oppure</span>
         <button type="button" class="link-btn" onclick={() => appState.setAuthView('create')}>Crea un nuovo matrimonio</button>
+      </p>
+      <p class="switch">
+        Hai già un account?
+        <button type="button" class="link-btn" onclick={() => appState.setAuthView('login-secure')}>Accedi con email e password</button>
       </p>
     {/if}
   </div>
@@ -188,6 +194,24 @@
           : 'Serve per rientrare dal tuo telefono o cambiare dispositivo.'}
       </span>
     </div>
+
+    {#if !isCoupleLogin}
+      <div class="input-group email-optional">
+        <label for="guestEmail" class="input-label email-label">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+          Vuoi ricevere i ricordi della festa?
+        </label>
+        <input
+          id="guestEmail"
+          type="email"
+          class="input-field"
+          placeholder="La tua email (facoltativa)"
+          bind:value={email}
+          autocomplete="email"
+        />
+        <span class="field-hint">Facoltativa · Ti manderemo un riepilogo con foto e risultati dopo il matrimonio.</span>
+      </div>
+    {/if}
 
     <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
       {#if isSubmitting}
@@ -360,5 +384,19 @@
   @media (max-width: 520px) {
     .row { grid-template-columns: 1fr; gap: 0; }
     :global(.auth-card) { padding: 24px; }
+  }
+
+  .email-optional {
+    padding-top: 14px;
+    border-top: 1px dashed rgba(201, 169, 110, 0.35);
+    margin-top: 6px;
+  }
+
+  .email-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--gold-dark);
+    font-weight: 600;
   }
 </style>

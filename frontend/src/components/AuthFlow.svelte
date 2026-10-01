@@ -4,10 +4,10 @@
   import LandingView from './LandingView.svelte';
   import LoginView from './LoginView.svelte';
   import CreateEventView from './CreateEventView.svelte';
+  import SecureLoginView from './SecureLoginView.svelte';
+  import SiteHeader from './SiteHeader.svelte';
 
-  let siteHeaderHeight = $state(72);
-
-  const isLanding = $derived(!appState.pendingInvite && appState.authView !== 'create' && appState.authView !== 'join');
+  const isLanding = $derived(!appState.pendingInvite && appState.authView !== 'create' && appState.authView !== 'join' && appState.authView !== 'login-secure');
 
   function scrollToId(id) {
     if (!isLanding) {
@@ -25,29 +25,15 @@
     const sync = () => {
       if (appState.pendingInvite) return;
       const path = window.location.pathname;
-      appState.authView = path === '/crea' ? 'create' : path === '/entra' ? 'join' : 'entry';
+      appState.authView = path === '/crea' ? 'create' : path === '/entra' ? 'join' : (path === '/dashboard_utente' || path === '/login' || path === '/dashboard') ? 'login-secure' : 'entry';
     };
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
   });
 </script>
 
-<div class="site" style="--site-header-height: {siteHeaderHeight ? siteHeaderHeight + 'px' : '72px'};">
-  <header class="site-header" bind:clientHeight={siteHeaderHeight}>
-    <div class="site-header-inner">
-      <button class="brand" onclick={() => appState.setAuthView('entry')} aria-label="Home">
-        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="5"></circle><circle cx="15" cy="12" r="5"></circle></svg>
-        <span class="brand-name font-serif gold-gradient-text">Fanta Matrimonio</span>
-      </button>
-
-      <nav class="top-nav">
-        <button class="nav-link nav-anchor" onclick={() => scrollToId('come-funziona')}>Come funziona</button>
-        <button class="nav-link nav-anchor" onclick={() => scrollToId('giochi')}>I giochi</button>
-        <button class="nav-link" class:active={appState.authView === 'join'} onclick={() => appState.setAuthView('join')}>Entra con un codice</button>
-        <button class="btn btn-primary nav-cta" onclick={() => appState.setAuthView('create')}>Crea il matrimonio</button>
-      </nav>
-    </div>
-  </header>
+<div class="site">
+  <SiteHeader {scrollToId} />
 
   {#if isLanding}
     <main class="site-landing">
@@ -57,6 +43,8 @@
     <main class="site-main">
       {#if appState.pendingInvite || appState.authView === 'create'}
         <CreateEventView />
+      {:else if appState.authView === 'login-secure'}
+        <SecureLoginView />
       {:else}
         <LoginView />
       {/if}
@@ -80,53 +68,6 @@
 </div>
 
 <style>
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--gold-primary);
-  }
-
-  .brand-name {
-    font-size: 1.35rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-  }
-
-  .top-nav {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .nav-link {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: 0.92rem;
-    color: var(--text-muted);
-    padding: 10px 14px;
-    border-radius: var(--radius-md);
-    transition: color 0.2s, background 0.2s;
-  }
-
-  .nav-link:hover,
-  .nav-link.active {
-    color: var(--gold-dark);
-    background: rgba(201, 169, 110, 0.12);
-  }
-
-  .nav-cta {
-    padding: 10px 18px;
-    border-radius: 14px;
-    font-size: 0.9rem;
-  }
-
   .site-footer {
     display: flex;
     flex-direction: column;
@@ -153,14 +94,5 @@
   .site-landing {
     flex: 1;
     width: 100%;
-  }
-
-  @media (max-width: 899px) {
-    .nav-anchor { display: none; }
-  }
-
-  @media (max-width: 560px) {
-    .brand-name { font-size: 1.1rem; }
-    .nav-link { display: none; }
   }
 </style>

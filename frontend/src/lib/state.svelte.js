@@ -6,35 +6,61 @@ function readAuthView() {
   if (new URLSearchParams(window.location.search).get('code')) return 'join';
   if (window.location.pathname === '/crea') return 'create';
   if (window.location.pathname === '/entra') return 'join';
+  if (window.location.pathname === '/dashboard_utente' || window.location.pathname === '/login' || window.location.pathname === '/dashboard') return 'login-secure';
   return 'entry';
 }
 
 class AppState {
-  authView = $state(readAuthView()); // 'entry' | 'join' | 'create'
+  authView = $state(readAuthView()); // 'entry' | 'join' | 'create' | 'login-secure' | 'dashboard'
   pendingInvite = $state(null); // invite code shown right after creating an event
   user = $state(null);
   event = $state(null);
+  account = $state(null); // account registrato (email + password)
   token = $state(localStorage.getItem('fm_auth_token') || null);
+  jwtToken = $state(localStorage.getItem('fm_jwt_token') || null);
   isLoadingAuth = $state(true);
   activeTab = $state('home');
   quizSubTab = $state('quiz'); // 'quiz' | 'vote'
   showInstructionsModal = $state(false);
+  showUpgradeModal = $state(false); // modal per registrazione account
 
   challenges = $state([]);
   mySubmissions = $state([]);
   leaderboard = $state([]);
   galleryPhotos = $state([]);
 
+  // Dashboard state
+  dashboardEvents = $state([]);
+  dashboardLoading = $state(false);
+
   toasts = $state([]);
   isPolling = $state(false);
   pollingTimer = null;
 
   get isAuthenticated() {
-    return !!this.token && !!this.user;
+    return (!!this.token || !!this.jwtToken) && (!!this.user || !!this.account);
   }
 
   get isCouple() {
     return this.user?.role === 'couple';
+  }
+
+  get hasAccount() {
+    return !!this.account || !!this.jwtToken;
+  }
+
+  get isInGame() {
+    return Boolean(
+      this.event &&
+      this.user &&
+      !this.pendingInvite &&
+      this.activeTab !== 'dashboard' &&
+      this.activeTab !== 'create' &&
+      this.activeTab !== 'join' &&
+      this.activeTab !== 'entry' &&
+      this.activeTab !== 'login-secure' &&
+      ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'manage'].includes(this.activeTab)
+    );
   }
 
   get mySubmissionsByChallenge() {
@@ -80,41 +106,128 @@ class AppState {
     };
   }
 
+  _saveTokens(sessionToken, jwt, account) {
+    if (sessionToken) {
+      this.token = sessionToken;
+      localStorage.setItem('fm_auth_token', sessionToken);
+    }
+    if (jwt) {
+      this.jwtToken = jwt;
+      localStorage.setItem('fm_jwt_token', jwt);
+    }
+    if (account) {
+      this.account = account;
+    }
+  }
+
   async init() {
     this.isLoadingAuth = true;
-    if (this.token) {
+    if (this.token || this.jwtToken) {
       try {
         const res = await api.getMe();
-        this.setUser(res.user);
-        this.event = res.event || null;
-        if (this.event && !this.event.invite_code) {
-          try {
-            const inv = await api.getEventInvite();
-            if (inv?.invite_code) this.event.invite_code = inv.invite_code;
-          } catch (_) {}
+        if (res.account) {
+          this.account = res.account;
         }
-        await this.loadInitialData();
-        this.startPolling();
+
+        // Se l'utente ha effettuato l'accesso con account (JWT) e non ha una sessione ospite attiva:
+        // È in modalità Dashboard Utente: resta scollegato dal gioco del singolo matrimonio!
+        if (this.jwtToken && !this.token) {
+          this.user = null;
+          this.event = null;
+          this.activeTab = 'dashboard';
+          await this.loadDashboardEvents();
+        } else if (res.user) {
+          // Ha un session token (ospite alla festa con codice invito)
+          this.setUser(res.user);
+          this.event = res.event || null;
+          if (this.event && !this.event.invite_code) {
+            try {
+              const inv = await api.getEventInvite();
+              if (inv?.invite_code) this.event.invite_code = inv.invite_code;
+            } catch (_) {}
+          }
+          await this.loadInitialData();
+          this.startPolling();
+        }
       } catch (err) {
         console.warn('Session restoration failed:', err);
         this.logout();
       }
     }
+    this.syncRouteFromUrl();
     this.isLoadingAuth = false;
+  }
+
+  syncRouteFromUrl() {
+    if (typeof window === 'undefined') return;
+    const path = window.location.pathname.toLowerCase();
+    if (this.pendingInvite) return;
+
+    if (path === '/crea') {
+      this.authView = 'create';
+      this.activeTab = 'create';
+    } else if (path === '/entra') {
+      this.authView = 'join';
+      this.activeTab = 'join';
+    } else if (path === '/dashboard_utente' || path === '/login' || path === '/dashboard') {
+      if (this.hasAccount) {
+        this.authView = 'dashboard';
+        this.activeTab = 'dashboard';
+        this.loadDashboardEvents();
+      } else {
+        this.authView = 'login-secure';
+        this.activeTab = 'login-secure';
+      }
+    } else if (path === '/' && !this.isInGame) {
+      if (this.hasAccount && !this.event) {
+        this.activeTab = 'dashboard';
+        this.authView = 'dashboard';
+        this.loadDashboardEvents();
+      } else {
+        this.authView = 'entry';
+        this.activeTab = 'entry';
+      }
+    }
+  }
+
+  openDashboard() {
+    this.activeTab = 'dashboard';
+    this.authView = 'dashboard';
+    this.stopPolling();
+    history.pushState(null, '', '/dashboard_utente');
+    this.loadDashboardEvents();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   setAuthView(view) {
     this.authView = view;
-    const path = view === 'create' ? '/crea' : view === 'join' ? '/entra' : '/';
+    if (view === 'create') {
+      this.activeTab = 'create';
+    } else if (view === 'join') {
+      this.activeTab = 'join';
+    } else if (view === 'login-secure') {
+      this.activeTab = 'login-secure';
+    } else if (view === 'dashboard') {
+      this.activeTab = 'dashboard';
+    } else if (view === 'entry') {
+      this.activeTab = 'entry';
+    }
+    const pathMap = {
+      'create': '/crea',
+      'join': '/entra',
+      'login-secure': '/dashboard_utente',
+      'dashboard': '/dashboard_utente',
+      'entry': '/',
+    };
+    const path = pathMap[view] || '/';
     history.pushState(null, '', path + window.location.search);
-    window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async createEvent(payload) {
     try {
       const res = await api.createEvent(payload);
-      this.token = res.token;
-      localStorage.setItem('fm_auth_token', res.token);
+      this._saveTokens(res.token, res.jwt, res.account);
       this.setUser(res.user);
       this.event = {
         ...(res.event || {}),
@@ -145,6 +258,8 @@ class AppState {
     } finally {
       this.pendingInvite = null;
       this.token = null;
+      this.jwtToken = null;
+      this.account = null;
       this.setUser(null);
       this.event = null;
       this.challenges = [];
@@ -152,22 +267,22 @@ class AppState {
       this.leaderboard = [];
       this.galleryPhotos = [];
       localStorage.removeItem('fm_auth_token');
+      localStorage.removeItem('fm_jwt_token');
       this.stopPolling();
       this.setAuthView('entry');
       this.showToast('Creazione annullata. Tutti i dati sono stati rimossi.', 'info');
     }
   }
 
-  async login(inviteCode, firstName, lastName, secretWord, isCouple = false) {
+  async login(inviteCode, firstName, lastName, secretWord, isCouple = false, email = null) {
     try {
-      const res = await api.login(inviteCode, firstName, lastName, secretWord, isCouple);
-      this.token = res.token;
+      const res = await api.login(inviteCode, firstName, lastName, secretWord, isCouple, email);
+      this._saveTokens(res.token, res.jwt, res.account);
       this.setUser(res.user);
       this.event = {
         ...(res.event || {}),
         invite_code: res.event?.invite_code || inviteCode.trim().toUpperCase()
       };
-      localStorage.setItem('fm_auth_token', res.token);
 
       const storageKey = `fm_logged_in_before_${this.user.id}`;
       const isFirstTime = res.is_new === true || (!localStorage.getItem(storageKey) && res.is_new !== false);
@@ -195,18 +310,128 @@ class AppState {
     }
   }
 
+  async loginSecure(email, password) {
+    try {
+      const res = await api.loginSecure(email, password);
+      this._saveTokens(null, res.jwt, res.account);
+      this.account = res.account;
+
+      // Resetta e scollega qualsiasi sessione / stato di gioco del singolo matrimonio
+      this.user = null;
+      this.event = null;
+      this.challenges = [];
+      this.mySubmissions = [];
+      this.leaderboard = [];
+      this.galleryPhotos = [];
+      this.stopPolling();
+
+      // Vai SEMPRE e subito alla dashboard utente!
+      this.activeTab = 'dashboard';
+      history.pushState(null, '', '/dashboard_utente');
+
+      // Carica i dati dashboard
+      await this.loadDashboardEvents();
+
+      this.showToast(`Bentornato/a ${res.account.display_name}!`, 'success');
+
+      return { success: true, events: res.events || [] };
+    } catch (err) {
+      this.showToast(err.message || 'Email o password non corretti', 'error');
+      return { success: false, error: err.message };
+    }
+  }
+
+  async register(email, password, displayName) {
+    try {
+      const res = await api.register(email, password, displayName);
+      this._saveTokens(null, res.jwt, res.account);
+      this.account = res.account;
+
+      // Resetta e scollega qualsiasi sessione / stato di gioco del singolo matrimonio
+      this.user = null;
+      this.event = null;
+      this.challenges = [];
+      this.mySubmissions = [];
+      this.leaderboard = [];
+      this.galleryPhotos = [];
+      this.stopPolling();
+
+      this.activeTab = 'dashboard';
+      history.pushState(null, '', '/dashboard_utente');
+
+      await this.loadDashboardEvents();
+      this.showToast('Account creato con successo!', 'success');
+      return { success: true };
+    } catch (err) {
+      this.showToast(err.message || 'Errore nella registrazione', 'error');
+      return { success: false, error: err.message };
+    }
+  }
+
+  async selectEvent(eventItem) {
+    const eventId = eventItem?.event?.id || eventItem?.id;
+    if (!eventId) return;
+    try {
+      const res = await api.getMe(eventId);
+      if (res.user) {
+        this.setUser(res.user);
+        this.event = res.event;
+        await this.loadInitialData();
+        this.startPolling();
+        this.activeTab = (res.user.role === 'couple') ? 'manage' : 'home';
+        history.pushState(null, '', '/');
+        this.showToast(`Entrato nel matrimonio di ${this.event.spouse1_name} & ${this.event.spouse2_name}`, 'info');
+      } else {
+        this.showToast('Nessun profilo trovato per questo matrimonio', 'error');
+      }
+    } catch (err) {
+      console.error('Errore selezione evento:', err);
+      this.showToast('Impossibile entrare nell\'evento', 'error');
+    }
+  }
+
+  async upgradeAccount(email, password, displayName = null) {
+    try {
+      const res = await api.upgradeAccount(email, password, displayName);
+      this._saveTokens(null, res.jwt, res.account);
+      this.showUpgradeModal = false;
+      this.showToast('Account registrato! Ora puoi accedere con email e password.', 'success');
+      return { success: true };
+    } catch (err) {
+      this.showToast(err.message || 'Errore nell\'upgrade', 'error');
+      return { success: false, error: err.message };
+    }
+  }
+
+  async loadDashboardEvents() {
+    if (!this.hasAccount) return;
+    this.dashboardLoading = true;
+    try {
+      this.dashboardEvents = await api.getDashboardEvents();
+    } catch (err) {
+      console.error('Failed to load dashboard events', err);
+      this.dashboardEvents = [];
+    } finally {
+      this.dashboardLoading = false;
+    }
+  }
+
   logout() {
     this.token = null;
+    this.jwtToken = null;
+    this.account = null;
     this.setUser(null);
     this.event = null;
     this.challenges = [];
     this.mySubmissions = [];
     this.leaderboard = [];
     this.galleryPhotos = [];
+    this.dashboardEvents = [];
     localStorage.removeItem('fm_auth_token');
+    localStorage.removeItem('fm_jwt_token');
     this.stopPolling();
-    this.activeTab = 'home';
-    this.setAuthView('join');
+    this.activeTab = 'entry';
+    this.setAuthView('entry');
   }
 
   async loadInitialData() {
@@ -219,7 +444,7 @@ class AppState {
   }
 
   async refreshUser(silent = false) {
-    if (!this.token) return;
+    if (!this.token && !this.jwtToken) return;
     try {
       const res = await api.getMe();
       if (!silent && this.user && res.user.total_points > this.user.total_points) {
@@ -228,13 +453,16 @@ class AppState {
       }
       this.setUser(res.user);
       this.event = res.event || this.event;
+      if (res.account) {
+        this.account = res.account;
+      }
     } catch (err) {
       console.error('Failed to refresh user', err);
     }
   }
 
   async refreshChallenges() {
-    if (!this.token) return;
+    if (!this.token && !this.jwtToken) return;
     try {
       this.challenges = await api.getChallenges();
     } catch (err) {
@@ -243,7 +471,7 @@ class AppState {
   }
 
   async refreshMySubmissions() {
-    if (!this.token) return;
+    if (!this.token && !this.jwtToken) return;
     try {
       this.mySubmissions = await api.getMySubmissions();
     } catch (err) {
@@ -252,7 +480,7 @@ class AppState {
   }
 
   async refreshLeaderboard() {
-    if (!this.token) return;
+    if (!this.token && !this.jwtToken) return;
     try {
       const data = await api.getLeaderboard();
       this.leaderboard = data.map(item => ({
@@ -266,7 +494,7 @@ class AppState {
   }
 
   async refreshGallery(force = false) {
-    if (!this.token) return;
+    if (!this.token && !this.jwtToken) return;
     try {
       const data = await api.getGallery();
       // Evita di rimpiazzare l'array (e rieseguire il render di tutte le immagini) se non ci sono nuove foto

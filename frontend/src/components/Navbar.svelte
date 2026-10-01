@@ -29,16 +29,28 @@
 
     {#if appState.isAuthenticated}
       <div class="user-stats">
-        {#if appState.isCouple}
-          <button class="chip" onclick={() => appState.activeTab = 'manage'} title="Apri console di gestione sposi">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
-            <span class="chip-text">Console Sposi</span>
+        {#if appState.activeTab !== 'dashboard'}
+          {#if appState.isCouple}
+            <button class="chip" onclick={() => appState.activeTab = 'manage'} title="Apri console di gestione sposi">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+              <span class="chip-text">Console Sposi</span>
+            </button>
+          {:else if appState.user}
+            <div class="chip static">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+              <span class="points-val">{appState.user?.total_points || 0} pt</span>
+            </div>
+          {/if}
+        {/if}
+
+        {#if appState.hasAccount}
+          <button class="icon-btn" onclick={() => appState.openDashboard()} title="I miei matrimoni (Dashboard)" aria-label="Dashboard">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
           </button>
-        {:else}
-          <div class="chip static">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-            <span class="points-val">{appState.user?.total_points || 0} pt</span>
-          </div>
+        {:else if !appState.isCouple}
+          <button class="icon-btn icon-btn-gold" onclick={() => appState.showUpgradeModal = true} title="Registra il tuo account" aria-label="Registra account">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+          </button>
         {/if}
 
         <button class="icon-btn" onclick={handleLogout} title="Esci" aria-label="Esci">
@@ -212,6 +224,17 @@
   .chip:focus-visible {
     outline: 2px solid var(--gold-bright);
     outline-offset: 2px;
+  }
+
+  .icon-btn-gold {
+    background: rgba(240, 216, 168, 0.2);
+    color: var(--gold-bright);
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(240, 216, 168, 0); }
+    50% { box-shadow: 0 0 0 4px rgba(240, 216, 168, 0.3); }
   }
 
   @media (max-width: 500px) {

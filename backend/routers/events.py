@@ -48,6 +48,8 @@ class CreateEventRequest(BaseModel):
     couple_first_name: str
     couple_last_name: str
     couple_secret_word: str
+    couple_email: str | None = None      # per registrazione sicura sposi
+    couple_password: str | None = None   # per registrazione sicura sposi
 
 
 @router.post("")
@@ -62,6 +64,38 @@ def create_event(body: CreateEventRequest, request: Request):
     word = _normalize(body.couple_secret_word)
     if not body.spouse1_name.strip() or not body.spouse2_name.strip() or not first or not last or not word:
         raise HTTPException(status_code=422, detail="Tutti i campi sono obbligatori.")
+
+    # Se email e password fornite, crea/verifica account sicuro per gli sposi
+    couple_email = body.couple_email.strip().lower() if body.couple_email else None
+    couple_password = body.couple_password if body.couple_password else None
+
+    account_id = None
+    jwt_token = None
+    account_data = None
+
+    if couple_email and couple_password:
+        if len(couple_password) < 6:
+            raise HTTPException(status_code=422, detail="La password deve essere di almeno 6 caratteri.")
+
+        from dependencies import hash_password, create_jwt
+        from serializers import account_out as _account_out
+
+        existing_account = db.query_one("SELECT * FROM accounts WHERE email = %s", (couple_email,))
+        if existing_account:
+            raise HTTPException(status_code=409, detail="Esiste già un account con questa email.")
+
+        account = db.execute(
+            """
+            INSERT INTO accounts (email, password_hash, display_name, is_verified, registered_at)
+            VALUES (%s, %s, %s, FALSE, NOW())
+            RETURNING *
+            """,
+            (couple_email, hash_password(couple_password),
+             f"{body.spouse1_name.strip()} & {body.spouse2_name.strip()}"),
+        )
+        account_id = account["id"]
+        jwt_token = create_jwt(str(account_id))
+        account_data = _account_out(account)
 
     event = None
     user = None
@@ -83,18 +117,18 @@ def create_event(body: CreateEventRequest, request: Request):
 
                 cur.execute(
                     """
-                    INSERT INTO users (event_id, role, first_name, last_name, secret_word)
-                    VALUES (%s, 'couple', %s, %s, %s)
+                    INSERT INTO users (event_id, role, first_name, last_name, secret_word, account_id, email)
+                    VALUES (%s, 'couple', %s, %s, %s, %s, %s)
                     RETURNING *
                     """,
-                    (event["id"], first, last, word),
+                    (event["id"], first, last, word, account_id, couple_email),
                 )
                 user = dict(cur.fetchone())
 
                 token = str(uuid.uuid4())
                 cur.execute(
-                    "INSERT INTO sessions (token, user_id) VALUES (%s, %s)",
-                    (token, user["id"]),
+                    "INSERT INTO sessions (token, user_id, account_id) VALUES (%s, %s, %s)",
+                    (token, user["id"], account_id),
                 )
             break
         except Exception as e:
@@ -105,12 +139,19 @@ def create_event(body: CreateEventRequest, request: Request):
     if event is None:
         raise HTTPException(status_code=500, detail="Impossibile generare un codice invito univoco. Riprova.")
 
-    return {
+    result = {
         "token": token,
         "invite_code": event["invite_code"],
         "user": user_out(user),
         "event": event_out(event),
     }
+
+    if jwt_token:
+        result["jwt"] = jwt_token
+    if account_data:
+        result["account"] = account_data
+
+    return result
 
 
 @router.get("/me")

@@ -6,3 +6,5 @@
 [] al refresh della pagina se sono nella partita mi porta alla home, non farà più controllo session storage?
 
 [] se ho già fatto l'accesso e vengo buttato fuori, come faccio a riaccedere? non posso rimettere nickname email ecc.. magari mandiamo la mail con "per rientrare premi qui" o troviamo una soluzione migliore
+
+[] WEBSOCKET

@@ -3,10 +3,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL: str = os.environ["DATABASE_URL"]
-SUPABASE_URL: str = os.environ["SUPABASE_URL"]
-SUPABASE_SERVICE_KEY: str = os.environ["SUPABASE_SERVICE_KEY"]
-STORAGE_BUCKET: str = os.environ.get("STORAGE_BUCKET", "wedding-photos")
+DATABASE_URL: str = os.environ.get("DATABASE_URL", "").strip().strip('"').strip("'")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
+
+SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "").strip().strip('"').strip("'").rstrip("/")
+SUPABASE_SERVICE_KEY: str = os.environ.get("SUPABASE_SERVICE_KEY", "").strip().strip('"').strip("'")
+STORAGE_BUCKET: str = os.environ.get("STORAGE_BUCKET", "wedding-photos").strip().strip('"').strip("'")
 PORT: int = int(os.environ.get("PORT", 8000))
 
 # ── Auth & JWT ───────────────────────────────────────────────────────────────

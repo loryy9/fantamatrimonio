@@ -1,5 +1,6 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
+  import EmailVerificationField from './EmailVerificationField.svelte';
 
   let email = $state('');
   let password = $state('');
@@ -11,6 +12,7 @@
   let regEmail = $state('');
   let regPassword = $state('');
   let regConfirm = $state('');
+  let regVerificationCode = $state('');
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -46,10 +48,14 @@
       errorMessage = 'Le password non coincidono.';
       return;
     }
+    if (!regVerificationCode.trim() || regVerificationCode.trim().length !== 6) {
+      errorMessage = 'Inserisci il codice di verifica a 6 cifre inviato alla tua email.';
+      return;
+    }
     errorMessage = '';
     isSubmitting = true;
     try {
-      const res = await appState.register(regEmail.trim(), regPassword, regName.trim());
+      const res = await appState.register(regEmail.trim(), regPassword, regName.trim(), regVerificationCode.trim());
       if (!res.success) {
         errorMessage = res.error || 'Registrazione non riuscita.';
       }
@@ -96,9 +102,13 @@
         <button type="button" class="link-btn" onclick={() => switchMode('login')}>Accedi</button>
       </p>
     {/if}
-    <p class="switch">
-      <button type="button" class="link-btn" onclick={() => appState.setAuthView('join')}>← Torna al login con codice invito</button>
-    </p>
+    <div class="guest-shortcut">
+      <span class="guest-shortcut-title">Sei un invitato alla festa?</span>
+      <p class="guest-shortcut-text">Non hai bisogno di un creare un account se non lo hai già! Ti basta il codice che ti hanno dato gli sposi.</p>
+      <button type="button" class="btn btn-secondary btn-sm" onclick={() => appState.setAuthView('join')}>
+        Entra con codice invito →
+      </button>
+    </div>
   </div>
 
   {#if mode === 'login'}
@@ -148,10 +158,14 @@
         <input id="regName" type="text" class="input-field" placeholder="Es. Giulia Bianchi" bind:value={regName} autocomplete="name" required />
       </div>
 
-      <div class="input-group">
-        <label for="regEmail" class="input-label">Email</label>
-        <input id="regEmail" type="email" class="input-field" placeholder="es. giulia@email.com" bind:value={regEmail} autocomplete="email" required />
-      </div>
+      <EmailVerificationField
+        bind:email={regEmail}
+        bind:verificationCode={regVerificationCode}
+        purpose="register_account"
+        label="Email"
+        placeholder="es. giulia@email.com"
+        disabled={isSubmitting}
+      />
 
       <div class="input-group">
         <label for="regPassword" class="input-label">Password</label>
@@ -244,5 +258,29 @@
 
   @media (max-width: 520px) {
     :global(.auth-card) { padding: 24px; }
+  }
+
+  .guest-shortcut {
+    margin-top: 14px;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    background: rgba(201, 169, 110, 0.08);
+    border: 1px solid rgba(201, 169, 110, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .guest-shortcut-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  .guest-shortcut-text {
+    font-size: 0.84rem;
+    color: var(--text-muted);
+    line-height: 1.45;
   }
 </style>

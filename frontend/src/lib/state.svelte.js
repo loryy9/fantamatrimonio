@@ -3,10 +3,14 @@ import { fireCelebration } from './confetti.js';
 import { formatName } from './formatters.js';
 
 function readAuthView() {
-  if (new URLSearchParams(window.location.search).get('code')) return 'join';
-  if (window.location.pathname === '/crea') return 'create';
-  if (window.location.pathname === '/entra') return 'join';
-  if (window.location.pathname === '/dashboard_utente' || window.location.pathname === '/login' || window.location.pathname === '/dashboard') return 'login-secure';
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('code')) return 'join';
+    const path = window.location.pathname.toLowerCase();
+    if (path === '/crea') return 'create';
+    if (path === '/entra') return 'join';
+    if (path === '/dashboard_utente' || path === '/login' || path === '/dashboard') return 'login-secure';
+  }
   return 'entry';
 }
 
@@ -19,7 +23,7 @@ class AppState {
   token = $state(localStorage.getItem('fm_auth_token') || null);
   jwtToken = $state(localStorage.getItem('fm_jwt_token') || null);
   isLoadingAuth = $state(true);
-  activeTab = $state('home');
+  activeTab = $state(readAuthView());
   quizSubTab = $state('quiz'); // 'quiz' | 'vote'
   showInstructionsModal = $state(false);
   showUpgradeModal = $state(false); // modal per registrazione account
@@ -54,6 +58,7 @@ class AppState {
       this.event &&
       this.user &&
       !this.pendingInvite &&
+      this.authView === 'entry' &&
       this.activeTab !== 'dashboard' &&
       this.activeTab !== 'create' &&
       this.activeTab !== 'join' &&
@@ -122,46 +127,66 @@ class AppState {
 
   async init() {
     this.isLoadingAuth = true;
-    if (this.token || this.jwtToken) {
-      try {
-        const res = await api.getMe();
-        if (res.account) {
-          this.account = res.account;
-        }
+    try {
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const codeParam = urlParams?.get('code')?.trim();
 
-        // Se l'utente ha effettuato l'accesso con account (JWT) e non ha una sessione ospite attiva:
-        // È in modalità Dashboard Utente: resta scollegato dal gioco del singolo matrimonio!
-        if (this.jwtToken && !this.token) {
-          this.user = null;
-          this.event = null;
-          this.activeTab = 'dashboard';
-          await this.loadDashboardEvents();
-        } else if (res.user) {
-          // Ha un session token (ospite alla festa con codice invito)
-          this.setUser(res.user);
-          this.event = res.event || null;
-          if (this.event && !this.event.invite_code) {
-            try {
-              const inv = await api.getEventInvite();
-              if (inv?.invite_code) this.event.invite_code = inv.invite_code;
-            } catch (_) {}
-          }
-          await this.loadInitialData();
-          this.startPolling();
-        }
-      } catch (err) {
-        console.warn('Session restoration failed:', err);
-        this.logout();
+      if (codeParam) {
+        this.authView = 'join';
+        this.activeTab = 'join';
+        this.isLoadingAuth = false;
+        return;
       }
+
+      if (this.token || this.jwtToken) {
+        try {
+          const res = await api.getMe();
+          if (res.account) {
+            this.account = res.account;
+          }
+
+          if (this.jwtToken && !this.token) {
+            this.user = null;
+            this.event = null;
+            this.activeTab = 'dashboard';
+            await this.loadDashboardEvents();
+          } else if (res.user) {
+            this.setUser(res.user);
+            this.event = res.event || null;
+            if (this.event && !this.event.invite_code) {
+              try {
+                const inv = await api.getEventInvite();
+                if (inv?.invite_code) this.event.invite_code = inv.invite_code;
+              } catch (_) {}
+            }
+            await this.loadInitialData();
+            this.startPolling();
+          }
+        } catch (err) {
+          console.warn('Session restoration failed:', err);
+          this.logout();
+        }
+      }
+      this.syncRouteFromUrl();
+    } catch (err) {
+      console.error('Fatal init error:', err);
+    } finally {
+      this.isLoadingAuth = false;
     }
-    this.syncRouteFromUrl();
-    this.isLoadingAuth = false;
   }
 
   syncRouteFromUrl() {
     if (typeof window === 'undefined') return;
     const path = window.location.pathname.toLowerCase();
+    const urlParams = new URLSearchParams(window.location.search);
+    const codeParam = urlParams.get('code')?.trim();
     if (this.pendingInvite) return;
+
+    if (codeParam) {
+      this.authView = 'join';
+      this.activeTab = 'join';
+      return;
+    }
 
     if (path === '/crea') {
       this.authView = 'create';
@@ -195,6 +220,7 @@ class AppState {
     this.authView = 'dashboard';
     this.stopPolling();
     history.pushState(null, '', '/dashboard_utente');
+    window.dispatchEvent(new PopStateEvent('popstate'));
     this.loadDashboardEvents();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -220,7 +246,9 @@ class AppState {
       'entry': '/',
     };
     const path = pathMap[view] || '/';
-    history.pushState(null, '', path + window.location.search);
+    const search = view === 'join' ? window.location.search : '';
+    history.pushState(null, '', path + search);
+    window.dispatchEvent(new PopStateEvent('popstate'));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -240,12 +268,12 @@ class AppState {
     }
   }
 
-  async finishOnboarding() {
+  async finishOnboarding(targetTab = null) {
     this.pendingInvite = null;
     history.replaceState(null, '', '/');
     await this.loadInitialData();
     this.startPolling();
-    this.activeTab = 'home';
+    this.activeTab = targetTab || (this.isCouple ? 'manage' : 'home');
   }
 
   async cancelEventCreation() {
@@ -299,6 +327,10 @@ class AppState {
         this.activeTab = 'home';
       }
 
+      this.authView = 'entry';
+      history.pushState(null, '', '/');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+
       localStorage.setItem(storageKey, 'true');
 
       await this.loadInitialData();
@@ -328,6 +360,7 @@ class AppState {
       // Vai SEMPRE e subito alla dashboard utente!
       this.activeTab = 'dashboard';
       history.pushState(null, '', '/dashboard_utente');
+      window.dispatchEvent(new PopStateEvent('popstate'));
 
       // Carica i dati dashboard
       await this.loadDashboardEvents();
@@ -341,9 +374,9 @@ class AppState {
     }
   }
 
-  async register(email, password, displayName) {
+  async register(email, password, displayName, verificationCode = null) {
     try {
-      const res = await api.register(email, password, displayName);
+      const res = await api.register(email, password, displayName, verificationCode);
       this._saveTokens(null, res.jwt, res.account);
       this.account = res.account;
 
@@ -358,6 +391,7 @@ class AppState {
 
       this.activeTab = 'dashboard';
       history.pushState(null, '', '/dashboard_utente');
+      window.dispatchEvent(new PopStateEvent('popstate'));
 
       await this.loadDashboardEvents();
       this.showToast('Account creato con successo!', 'success');
@@ -368,7 +402,7 @@ class AppState {
     }
   }
 
-  async selectEvent(eventItem) {
+  async selectEvent(eventItem, targetTab = null) {
     const eventId = eventItem?.event?.id || eventItem?.id;
     if (!eventId) return;
     try {
@@ -378,8 +412,9 @@ class AppState {
         this.event = res.event;
         await this.loadInitialData();
         this.startPolling();
-        this.activeTab = (res.user.role === 'couple') ? 'manage' : 'home';
+        this.activeTab = targetTab || ((res.user.role === 'couple') ? 'manage' : 'home');
         history.pushState(null, '', '/');
+        window.dispatchEvent(new PopStateEvent('popstate'));
         this.showToast(`Entrato nel matrimonio di ${this.event.spouse1_name} & ${this.event.spouse2_name}`, 'info');
       } else {
         this.showToast('Nessun profilo trovato per questo matrimonio', 'error');
@@ -390,9 +425,9 @@ class AppState {
     }
   }
 
-  async upgradeAccount(email, password, displayName = null) {
+  async upgradeAccount(email, password, displayName = null, verificationCode = null) {
     try {
-      const res = await api.upgradeAccount(email, password, displayName);
+      const res = await api.upgradeAccount(email, password, displayName, verificationCode);
       this._saveTokens(null, res.jwt, res.account);
       this.showUpgradeModal = false;
       this.showToast('Account registrato! Ora puoi accedere con email e password.', 'success');

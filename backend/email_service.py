@@ -215,3 +215,92 @@ def process_due_reminders(limit: int = 50) -> dict:
         "sent": sent_count,
         "failed": failed_count,
     }
+
+
+def build_verification_code_email_html(code: str, purpose_label: str = "registrazione") -> str:
+    """Template email elegante per l'invio del codice di verifica a 6 cifre."""
+    return f"""<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Codice di Verifica - Fanta Matrimonio</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0d0a0b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f5f0eb;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0d0a0b; padding: 40px 10px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 540px; background: linear-gradient(180deg, #1f1418 0%, #160e12 100%); border: 1px solid rgba(240, 216, 168, 0.25); border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+          <!-- Header Banner -->
+          <tr>
+            <td style="padding: 36px 32px 20px; text-align: center; border-bottom: 1px solid rgba(240, 216, 168, 0.12);">
+              <div style="font-size: 34px; margin-bottom: 8px;">💍✨</div>
+              <h1 style="margin: 0; font-family: Georgia, serif; font-size: 26px; font-weight: 400; color: #f0d8a8; letter-spacing: 0.5px;">
+                Fanta Matrimonio
+              </h1>
+              <p style="margin: 6px 0 0; font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #c4a97d;">
+                Verifica della tua email
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td style="padding: 32px 32px 28px; text-align: center;">
+              <p style="font-size: 16px; line-height: 1.5; color: #ffffff; margin: 0 0 16px;">
+                Per completare la tua <strong>{purpose_label}</strong> su Fanta Matrimonio, inserisci questo codice di sicurezza:
+              </p>
+
+              <!-- OTP Box -->
+              <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin: 24px auto;">
+                <tr>
+                  <td style="background: rgba(240, 216, 168, 0.12); border: 2px dashed rgba(240, 216, 168, 0.55); border-radius: 14px; padding: 18px 36px; text-align: center;">
+                    <span style="font-family: 'Courier New', Courier, monospace, sans-serif; font-size: 34px; font-weight: 700; letter-spacing: 10px; color: #f0d8a8; display: block; margin-right: -10px;">
+                      {code}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size: 13px; color: #a89f91; margin: 20px 0 0; line-height: 1.5;">
+                ⏱️ Questo codice è valido per <strong>15 minuti</strong>.<br>
+                Se non hai richiesto tu questo codice, puoi ignorare tranquillamente questa email.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 32px; background-color: rgba(0,0,0,0.3); border-top: 1px solid rgba(240, 216, 168, 0.08); text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #7a6e60; line-height: 1.4;">
+                Fanta Matrimonio · Gioca, scatta, rispondi e scala la classifica<br>
+                Email generata automaticamente, si prega di non rispondere.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+
+
+def send_verification_email(to_email: str, code: str, purpose: str = "registration") -> bool:
+    """Invia il codice di verifica a 6 cifre via email all'utente."""
+    purpose_labels = {
+        "register_couple": "creazione del matrimonio",
+        "register_account": "registrazione account",
+        "upgrade_account": "registrazione del tuo profilo",
+    }
+    purpose_label = purpose_labels.get(purpose, "registrazione")
+    subject = f"💍 Il tuo codice di verifica Fanta Matrimonio: {code}"
+    html = build_verification_code_email_html(code, purpose_label)
+    text = (
+        f"Il tuo codice di verifica Fanta Matrimonio è: {code}\n\n"
+        f"Inseriscilo sul sito per confermare la tua {purpose_label}.\n"
+        f"Il codice è valido per 15 minuti."
+    )
+    return send_email(to_email, subject, html, text)
+

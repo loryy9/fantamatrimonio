@@ -80,11 +80,35 @@ export const api = {
     });
   },
 
+  async getEventPreview(inviteCode) {
+    return await request(`/events/preview/${encodeURIComponent(inviteCode.trim().toUpperCase())}`);
+  },
+
+  // ── Verifica Email OTP ───────────────────────────────────────────────────
+  async sendVerificationCode(email, purpose = 'registration') {
+    return await request('/auth/send-verification-code', {
+      method: 'POST',
+      body: JSON.stringify({ email, purpose })
+    });
+  },
+
+  async verifyCode(email, code, purpose = 'registration') {
+    return await request('/auth/verify-code', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, purpose })
+    });
+  },
+
   // ── Auth (registrazione sicura) ───────────────────────────────────────────
-  async register(email, password, displayName) {
+  async register(email, password, displayName, verificationCode = null) {
     return await request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, display_name: displayName })
+      body: JSON.stringify({
+        email,
+        password,
+        display_name: displayName,
+        verification_code: verificationCode || undefined
+      })
     });
   },
 
@@ -97,13 +121,14 @@ export const api = {
   },
 
   // ── Auth (upgrade account) ────────────────────────────────────────────────
-  async upgradeAccount(email, password, displayName = null) {
+  async upgradeAccount(email, password, displayName = null, verificationCode = null) {
     return await request('/auth/upgrade', {
       method: 'POST',
       body: JSON.stringify({
         email,
         password,
-        display_name: displayName || undefined
+        display_name: displayName || undefined,
+        verification_code: verificationCode || undefined
       })
     });
   },
@@ -301,6 +326,24 @@ export const api = {
 
   async adminDeleteEvent(eventId, adminToken) {
     return await request(`/admin/events/${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      }
+    });
+  },
+
+  async adminGetUsers(adminToken) {
+    return await request('/admin/users', {
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      }
+    });
+  },
+
+  async adminDeleteUser(accountId, adminToken, deleteEvents = false) {
+    const query = deleteEvents ? '?delete_events=true' : '';
+    return await request(`/admin/users/${accountId}${query}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${adminToken}`

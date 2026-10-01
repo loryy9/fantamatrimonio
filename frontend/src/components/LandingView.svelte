@@ -70,7 +70,7 @@
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="hero-copy">
-      <h1 class="hero-title">Il vostro matrimonio, con una classifica.</h1>
+      <h1 class="hero-title">Il vostro matrimonio, i vostri ricordi </h1>
       <p class="hero-lead">
         Gli invitati scattano foto, completano missioni e rispondono ai quiz sugli sposi.
         Voi create l'evento in pochi minuti e condividete un codice.

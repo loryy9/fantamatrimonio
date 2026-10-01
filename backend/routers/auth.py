@@ -36,10 +36,22 @@ class LoginRequest(BaseModel):
     email: str | None = None  # opzionale per ospiti
 
 
+class SendVerificationCodeRequest(BaseModel):
+    email: str
+    purpose: str = "registration"  # 'register_couple', 'register_account', 'upgrade_account'
+
+
+class VerifyCodeRequest(BaseModel):
+    email: str
+    code: str
+    purpose: str = "registration"
+
+
 class RegisterRequest(BaseModel):
     email: str
     password: str
     display_name: str
+    verification_code: str | None = None
 
 
 class LoginSecureRequest(BaseModel):
@@ -51,6 +63,10 @@ class UpgradeRequest(BaseModel):
     email: str
     password: str
     display_name: str | None = None
+    verification_code: str | None = None
+
+
+from verification import create_and_send_code, verify_code, normalize_email
 
 
 def _normalize(s: str) -> str:
@@ -207,15 +223,44 @@ def login(body: LoginRequest, background_tasks: BackgroundTasks):
     return result
 
 
+@router.post("/send-verification-code")
+def send_code(body: SendVerificationCodeRequest):
+    """Invia il codice di verifica a 6 cifre via email prima di completare la registrazione."""
+    email = normalize_email(body.email)
+    if body.purpose in ("register_couple", "register_account"):
+        existing = db.query_one("SELECT id FROM accounts WHERE email = %s", (email,))
+        if existing and body.purpose == "register_account":
+            raise HTTPException(status_code=409, detail="Esiste già un account con questa email. Prova ad accedere.")
+    return create_and_send_code(email, body.purpose)
+
+
+@router.post("/verify-code")
+def check_code(body: VerifyCodeRequest):
+    """Verifica la correttezza del codice senza consumarlo."""
+    valid = verify_code(body.email, body.code, body.purpose, mark_used=False)
+    if not valid:
+        raise HTTPException(status_code=400, detail="Codice di verifica non valido o scaduto.")
+    return {"valid": True, "message": "Codice verificato con successo."}
+
+
 @router.post("/register")
 def register(body: RegisterRequest):
     """
     Registrazione sicura: crea un account con email + password.
-    Non collega automaticamente a nessun evento — il login ad un evento resta separato.
+    Verifica il codice a 6 cifre ricevuto via email.
     """
     email = body.email.strip().lower()
     if not email or not body.password or len(body.password) < 6:
         raise HTTPException(status_code=422, detail="Email e password (min 6 caratteri) sono obbligatori.")
+
+    is_verified = False
+    if body.verification_code:
+        valid = verify_code(email, body.verification_code, "register_account", mark_used=True)
+        if not valid:
+            raise HTTPException(status_code=400, detail="Codice di verifica non valido o scaduto.")
+        is_verified = True
+    else:
+        raise HTTPException(status_code=400, detail="Il codice di verifica inviato via email è obbligatorio.")
 
     existing = db.query_one("SELECT id FROM accounts WHERE email = %s", (email,))
     if existing:
@@ -224,10 +269,10 @@ def register(body: RegisterRequest):
     account = db.execute(
         """
         INSERT INTO accounts (email, password_hash, display_name, is_verified, registered_at)
-        VALUES (%s, %s, %s, FALSE, NOW())
+        VALUES (%s, %s, %s, %s, NOW())
         RETURNING *
         """,
-        (email, hash_password(body.password), body.display_name.strip()),
+        (email, hash_password(body.password), body.display_name.strip(), is_verified),
     )
 
     jwt_token = create_jwt(str(account["id"]))
@@ -284,6 +329,13 @@ def upgrade_account(body: UpgradeRequest, current_user: dict = Depends(get_curre
     if not email or not body.password or len(body.password) < 6:
         raise HTTPException(status_code=422, detail="Email e password (min 6 caratteri) sono obbligatori.")
 
+    is_verified = False
+    if body.verification_code:
+        valid = verify_code(email, body.verification_code, "upgrade_account", mark_used=True)
+        if not valid:
+            raise HTTPException(status_code=400, detail="Codice di verifica non valido o scaduto.")
+        is_verified = True
+
     # Controlla se esiste già un account con questa email
     existing = db.query_one("SELECT * FROM accounts WHERE email = %s", (email,))
 
@@ -294,16 +346,18 @@ def upgrade_account(body: UpgradeRequest, current_user: dict = Depends(get_curre
         if not verify_password(body.password, existing["password_hash"]):
             raise HTTPException(status_code=401, detail="Password non corretta per questo account.")
         account = existing
+        if is_verified:
+            db.execute("UPDATE accounts SET is_verified = TRUE WHERE id = %s", (account["id"],))
     else:
         # Crea nuovo account
         display = body.display_name or f"{current_user['first_name']} {current_user['last_name']}"
         account = db.execute(
             """
             INSERT INTO accounts (email, password_hash, display_name, is_verified, registered_at)
-            VALUES (%s, %s, %s, FALSE, NOW())
+            VALUES (%s, %s, %s, %s, NOW())
             RETURNING *
             """,
-            (email, hash_password(body.password), display.strip()),
+            (email, hash_password(body.password), display.strip(), is_verified),
         )
 
     # Collega il user corrente all'account

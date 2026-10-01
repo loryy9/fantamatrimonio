@@ -123,19 +123,19 @@
   <div class="site">
     <SiteHeader />
 
-    {#if appState.authView === 'entry' && !appState.pendingInvite && appState.activeTab !== 'dashboard' && appState.activeTab !== 'create' && appState.activeTab !== 'join' && appState.activeTab !== 'login-secure'}
+    {#if appState.authView === 'entry' && !appState.pendingInvite}
       <main class="site-landing">
         <LandingView />
       </main>
     {:else}
-      <main class="site-main" class:site-dashboard-page={appState.activeTab === 'dashboard'}>
-        {#if appState.pendingInvite || appState.authView === 'create' || appState.activeTab === 'create'}
+      <main class="site-main" class:site-dashboard-page={appState.authView === 'dashboard' || appState.activeTab === 'dashboard'}>
+        {#if appState.pendingInvite || appState.authView === 'create'}
           <CreateEventView />
-        {:else if appState.activeTab === 'dashboard'}
+        {:else if appState.authView === 'dashboard' || appState.activeTab === 'dashboard'}
           <DashboardView />
-        {:else if appState.authView === 'login-secure' || appState.activeTab === 'login-secure'}
+        {:else if appState.authView === 'login-secure'}
           <SecureLoginView />
-        {:else if appState.authView === 'join' || appState.activeTab === 'join'}
+        {:else if appState.authView === 'join'}
           <LoginView />
         {:else}
           <LandingView />

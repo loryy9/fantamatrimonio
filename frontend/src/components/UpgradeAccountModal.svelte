@@ -1,9 +1,11 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
+  import EmailVerificationField from './EmailVerificationField.svelte';
 
   let email = $state('');
   let password = $state('');
   let confirmPassword = $state('');
+  let verificationCode = $state('');
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
@@ -30,11 +32,15 @@
       errorMessage = 'Le password non coincidono.';
       return;
     }
+    if (!verificationCode.trim() || verificationCode.trim().length !== 6) {
+      errorMessage = 'Inserisci il codice di verifica a 6 cifre inviato alla tua email.';
+      return;
+    }
 
     errorMessage = '';
     isSubmitting = true;
     try {
-      const res = await appState.upgradeAccount(email.trim(), password, displayName);
+      const res = await appState.upgradeAccount(email.trim(), password, displayName, verificationCode.trim());
       if (!res.success) {
         errorMessage = res.error || 'Registrazione non riuscita.';
       }
@@ -71,10 +77,14 @@
           </div>
         {/if}
 
-        <div class="input-group">
-          <label for="upgradeEmail" class="input-label">Email</label>
-          <input id="upgradeEmail" type="email" class="input-field" placeholder="es. mario@email.com" bind:value={email} autocomplete="email" required />
-        </div>
+        <EmailVerificationField
+          bind:email={email}
+          bind:verificationCode={verificationCode}
+          purpose="upgrade_account"
+          label="Email"
+          placeholder="es. mario@email.com"
+          disabled={isSubmitting}
+        />
 
         <div class="input-group">
           <label for="upgradePassword" class="input-label">Password</label>

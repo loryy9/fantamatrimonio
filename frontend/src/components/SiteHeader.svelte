@@ -86,28 +86,34 @@
         <!-- Menu pubblico per visitatori non autenticati -->
         <button class="nav-link nav-anchor" onclick={() => handleAnchorClick('come-funziona')}>Come funziona</button>
         <button class="nav-link nav-anchor" onclick={() => handleAnchorClick('giochi')}>I giochi</button>
-        
+
         <button
-          class="nav-link"
-          class:active={appState.authView === 'join'}
-          onclick={() => appState.setAuthView('join')}
+          class="nav-link nav-login-link"
+          class:active={appState.authView === 'login-secure'}
+          onclick={() => appState.setAuthView('login-secure')}
+          title="Hai già un account? Accedi con email e password"
+          aria-label="Accedi al tuo account"
         >
-          <span class="desktop-only">Entra con codice</span>
-          <span class="mobile-only">Codice</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="desktop-only">Accedi</span>
         </button>
 
         <button
-          class="nav-link"
-          class:active={appState.authView === 'login-secure'}
-          onclick={() => appState.setAuthView('login-secure')}
+          class="btn btn-secondary nav-action-btn nav-guest-btn"
+          class:active={appState.authView === 'join'}
+          onclick={() => appState.setAuthView('join')}
+          title="Partecipa alla festa con il codice invito"
         >
-          Accedi
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+          <span class="desktop-only">Entra con codice</span>
+          <span class="mobile-only">Codice</span>
         </button>
 
         <button
           class="btn btn-primary nav-cta"
           class:active={appState.authView === 'create'}
           onclick={() => appState.setAuthView('create')}
+          title="Crea il vostro matrimonio"
         >
           <span class="desktop-only">Crea matrimonio</span>
           <span class="mobile-only">Crea</span>
@@ -225,6 +231,33 @@
     align-items: center;
     gap: 6px;
     white-space: nowrap;
+  }
+
+  .nav-guest-btn {
+    border-color: rgba(201, 169, 110, 0.4);
+    background: #ffffff;
+    color: var(--text-main);
+    transition: all 0.18s ease;
+  }
+
+  .nav-guest-btn:hover,
+  .nav-guest-btn.active {
+    background: rgba(201, 169, 110, 0.14);
+    border-color: var(--gold-primary);
+    color: var(--gold-dark);
+  }
+
+  .nav-login-link {
+    font-size: 0.86rem;
+    color: var(--text-muted);
+    padding: 7px 10px;
+    border-radius: var(--radius-md);
+  }
+
+  .nav-login-link:hover,
+  .nav-login-link.active {
+    color: var(--gold-dark);
+    background: rgba(201, 169, 110, 0.1);
   }
 
   .user-chip {

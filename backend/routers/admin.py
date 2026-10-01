@@ -175,3 +175,113 @@ def trigger_reminders(admin: dict = Depends(get_current_admin)):
         "success": True,
         "summary": result,
     }
+
+
+@router.get("/users")
+def list_all_users(admin: dict = Depends(get_current_admin)):
+    """
+    Ritorna la lista di tutti gli account utente registrati nel database,
+    con info sui matrimoni creati (sposi) o a cui partecipano (invitati).
+    """
+    rows = db.query(
+        """
+        SELECT 
+            a.id,
+            a.email,
+            a.display_name,
+            a.is_verified,
+            a.registered_at,
+            a.created_at,
+            (SELECT COUNT(*) FROM users u WHERE u.account_id = a.id AND u.role = 'couple') AS weddings_as_couple,
+            (SELECT COUNT(*) FROM users u WHERE u.account_id = a.id AND u.role = 'guest') AS weddings_as_guest,
+            (
+                SELECT json_agg(json_build_object(
+                    'event_id', e.id,
+                    'role', u.role,
+                    'spouse1_name', e.spouse1_name,
+                    'spouse2_name', e.spouse2_name,
+                    'invite_code', e.invite_code,
+                    'total_points', u.total_points
+                ))
+                FROM users u
+                JOIN events e ON e.id = u.event_id
+                WHERE u.account_id = a.id
+            ) AS events
+        FROM accounts a
+        ORDER BY a.created_at DESC;
+        """
+    )
+
+    users_data = []
+    for r in rows:
+        users_data.append({
+            "id": str(r["id"]),
+            "email": r["email"] or "",
+            "display_name": r["display_name"] or "",
+            "is_verified": bool(r.get("is_verified")),
+            "registered_at": r["registered_at"].isoformat() if r["registered_at"] else None,
+            "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+            "weddings_as_couple": r.get("weddings_as_couple", 0),
+            "weddings_as_guest": r.get("weddings_as_guest", 0),
+            "events": r.get("events") or [],
+        })
+
+    return {"users": users_data}
+
+
+@router.delete("/users/{account_id}")
+def delete_account(
+    account_id: str,
+    delete_events: bool = False,
+    admin: dict = Depends(get_current_admin)
+):
+    """
+    Elimina un account registrato.
+    Se delete_events=True, cancella anche i matrimoni creati da questo utente come sposo.
+    Altrimenti, disassocia o rimuove l'account lasciando intatti i dati del matrimonio.
+    """
+    existing = db.query_one(
+        "SELECT id, email, display_name FROM accounts WHERE id = %s",
+        (account_id,),
+    )
+    if not existing:
+        raise HTTPException(status_code=404, detail="Utente / account non trovato.")
+
+    # Trova eventuali matrimoni creati come sposo
+    owned_events = db.query(
+        """
+        SELECT e.id, e.spouse1_name, e.spouse2_name
+        FROM events e
+        JOIN users u ON u.event_id = e.id
+        WHERE u.account_id = %s AND u.role = 'couple'
+        """,
+        (account_id,),
+    )
+
+    with db.transaction() as cur:
+        if delete_events and owned_events:
+            for ev in owned_events:
+                cur.execute("DELETE FROM events WHERE id = %s", (ev["id"],))
+
+        # Rimuovi reminder pendenti collegati all'utente
+        cur.execute(
+            """
+            DELETE FROM registration_reminders
+            WHERE user_id IN (SELECT id FROM users WHERE account_id = %s)
+            """,
+            (account_id,),
+        )
+        # Cancella sessioni collegate
+        cur.execute("DELETE FROM sessions WHERE account_id = %s", (account_id,))
+        # Cancella profili guest collegati a questo account
+        cur.execute("DELETE FROM users WHERE account_id = %s AND role = 'guest'", (account_id,))
+        # Per eventuali profili sposi rimasti (se l'evento non è stato cancellato), disassocia account
+        cur.execute("UPDATE users SET account_id = NULL WHERE account_id = %s", (account_id,))
+        # Cancella l'account
+        cur.execute("DELETE FROM accounts WHERE id = %s", (account_id,))
+
+    logger.info(f"Account {account_id} ({existing['email']}) eliminato dall'amministratore.")
+    return {
+        "success": True,
+        "message": f"Account {existing['email']} ({existing['display_name']}) eliminato definitivamente.",
+    }

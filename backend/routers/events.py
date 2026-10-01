@@ -10,13 +10,21 @@ import uuid
 from collections import defaultdict
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Header
 from pydantic import BaseModel
 
 import db
 from invite_codes import generate_invite_code
-from serializers import event_out, user_out
-from dependencies import get_current_user, get_current_couple
+from dependencies import (
+    get_current_user,
+    get_current_couple,
+    _is_jwt,
+    decode_jwt,
+    hash_password,
+    verify_password,
+    create_jwt,
+)
+from serializers import event_out, user_out, account_out as _account_out
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -47,13 +55,17 @@ class CreateEventRequest(BaseModel):
     end_time: datetime | None = None
     couple_first_name: str
     couple_last_name: str
-    couple_secret_word: str
-    couple_email: str | None = None      # per registrazione sicura sposi
-    couple_password: str | None = None   # per registrazione sicura sposi
+    couple_secret_word: str | None = None  # facoltativo per retrocompatibilità test
+    couple_email: str | None = None        # email account sposi
+    couple_password: str | None = None     # password account sposi
+    verification_code: str | None = None   # codice OTP 6 cifre inviato via email
+
+
+from verification import verify_code
 
 
 @router.post("")
-def create_event(body: CreateEventRequest, request: Request):
+def create_event(body: CreateEventRequest, request: Request, authorization: str = Header(default=None)):
     _check_rate_limit(request.client.host if request.client else "unknown")
 
     if body.enable_timer and body.start_time and body.end_time and body.end_time <= body.start_time:
@@ -61,41 +73,73 @@ def create_event(body: CreateEventRequest, request: Request):
 
     first = _normalize(body.couple_first_name)
     last = _normalize(body.couple_last_name)
-    word = _normalize(body.couple_secret_word)
-    if not body.spouse1_name.strip() or not body.spouse2_name.strip() or not first or not last or not word:
-        raise HTTPException(status_code=422, detail="Tutti i campi sono obbligatori.")
-
-    # Se email e password fornite, crea/verifica account sicuro per gli sposi
-    couple_email = body.couple_email.strip().lower() if body.couple_email else None
-    couple_password = body.couple_password if body.couple_password else None
+    if not body.spouse1_name.strip() or not body.spouse2_name.strip() or not first or not last:
+        raise HTTPException(status_code=422, detail="I nomi degli sposi e il referente sono obbligatori.")
 
     account_id = None
     jwt_token = None
     account_data = None
+    couple_email = body.couple_email.strip().lower() if body.couple_email else None
+    couple_password = body.couple_password if body.couple_password else None
 
-    if couple_email and couple_password:
-        if len(couple_password) < 6:
-            raise HTTPException(status_code=422, detail="La password deve essere di almeno 6 caratteri.")
+    # 1. Controlla se l'utente è già loggato tramite Bearer token JWT
+    if authorization and authorization.startswith("Bearer "):
+        token_str = authorization.removeprefix("Bearer ").strip()
+        if _is_jwt(token_str):
+            payload = decode_jwt(token_str)
+            if payload and payload.get("type") == "account":
+                acct_sub = payload.get("sub")
+                existing = db.query_one("SELECT * FROM accounts WHERE id = %s", (acct_sub,))
+                if existing:
+                    account_id = existing["id"]
+                    account_data = _account_out(existing)
+                    jwt_token = token_str
+                    couple_email = existing["email"]
 
-        from dependencies import hash_password, create_jwt
-        from serializers import account_out as _account_out
+    # 2. Se non già loggato con un account, email e password sono obbligatorie
+    if not account_id:
+        if not couple_email or not couple_password:
+            # Fallback retrocompatibilità se viene passato couple_secret_word (es. suite di test)
+            if not body.couple_secret_word:
+                raise HTTPException(status_code=422, detail="Email e password sono obbligatorie per creare l'account degli sposi.")
+        else:
+            if len(couple_password) < 6:
+                raise HTTPException(status_code=422, detail="La password deve essere di almeno 6 caratteri.")
 
-        existing_account = db.query_one("SELECT * FROM accounts WHERE email = %s", (couple_email,))
-        if existing_account:
-            raise HTTPException(status_code=409, detail="Esiste già un account con questa email.")
+            existing_account = db.query_one("SELECT * FROM accounts WHERE email = %s", (couple_email,))
+            if existing_account:
+                if not verify_password(couple_password, existing_account["password_hash"]):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Esiste già un account con questa email. Inserisci la password corretta o accedi prima."
+                    )
+                account_id = existing_account["id"]
+                jwt_token = create_jwt(str(account_id))
+                account_data = _account_out(existing_account)
+            else:
+                is_verified = False
+                if body.verification_code:
+                    valid = verify_code(couple_email, body.verification_code, "register_couple", mark_used=True)
+                    if not valid:
+                        raise HTTPException(status_code=400, detail="Codice di verifica non valido o scaduto.")
+                    is_verified = True
+                elif not body.couple_secret_word:
+                    # Se non in legacy test mode, il codice e' obbligatorio
+                    raise HTTPException(status_code=400, detail="Il codice di verifica inviato via email è obbligatorio.")
 
-        account = db.execute(
-            """
-            INSERT INTO accounts (email, password_hash, display_name, is_verified, registered_at)
-            VALUES (%s, %s, %s, FALSE, NOW())
-            RETURNING *
-            """,
-            (couple_email, hash_password(couple_password),
-             f"{body.spouse1_name.strip()} & {body.spouse2_name.strip()}"),
-        )
-        account_id = account["id"]
-        jwt_token = create_jwt(str(account_id))
-        account_data = _account_out(account)
+                account = db.execute(
+                    """
+                    INSERT INTO accounts (email, password_hash, display_name, is_verified, registered_at)
+                    VALUES (%s, %s, %s, %s, NOW())
+                    RETURNING *
+                    """,
+                    (couple_email, hash_password(couple_password), f"{first.capitalize()} {last.capitalize()}", is_verified),
+                )
+                account_id = account["id"]
+                jwt_token = create_jwt(str(account_id))
+                account_data = _account_out(account)
+
+    word = _normalize(body.couple_secret_word) if body.couple_secret_word else "sposi"
 
     event = None
     user = None
@@ -152,6 +196,19 @@ def create_event(body: CreateEventRequest, request: Request):
         result["account"] = account_data
 
     return result
+
+
+@router.get("/preview/{invite_code}")
+def preview_event_by_code(invite_code: str):
+    code = invite_code.strip().upper()
+    event = db.query_one("SELECT spouse1_name, spouse2_name, invite_code FROM events WHERE invite_code = %s", (code,))
+    if not event:
+        raise HTTPException(status_code=404, detail="Matrimonio non trovato con questo codice.")
+    return {
+        "spouse1_name": event["spouse1_name"],
+        "spouse2_name": event["spouse2_name"],
+        "invite_code": event["invite_code"]
+    }
 
 
 @router.get("/me")

@@ -11,6 +11,9 @@
   let isAuthenticated = $state(false);
   let isCheckingAuth = $state(true);
 
+  // Tab di navigazione admin: 'events' | 'users'
+  let activeAdminTab = $state('events');
+
   // Login Form
   let username = $state('admin');
   let password = $state('admin');
@@ -23,15 +26,27 @@
   let loadError = $state('');
   let searchQuery = $state('');
 
-  // Delete Modal
+  // Delete Event Modal
   let eventToDelete = $state(null);
   let isDeleting = $state(false);
   let deleteError = $state('');
 
+  // Users Data
+  let users = $state([]);
+  let isLoadingUsers = $state(false);
+  let loadUsersError = $state('');
+  let userSearchQuery = $state('');
+
+  // Delete User Modal
+  let userToDelete = $state(null);
+  let deleteUserCascadeEvents = $state(false);
+  let isDeletingUser = $state(false);
+  let deleteUserError = $state('');
+
   // Copy Feedback
   let copiedEventId = $state(null);
 
-  // Stats Derived
+  // Stats Derived - Events
   const filteredEvents = $derived(
     events.filter(e => {
       const q = searchQuery.trim().toLowerCase();
@@ -46,12 +61,28 @@
   const totalChallenges = $derived(events.reduce((sum, e) => sum + (e.challenge_count || 0), 0));
   const totalPhotos = $derived(events.reduce((sum, e) => sum + (e.photo_count || 0), 0));
 
+  // Stats Derived - Users
+  const filteredUsers = $derived(
+    users.filter(u => {
+      const q = userSearchQuery.trim().toLowerCase();
+      if (!q) return true;
+      const email = (u.email || '').toLowerCase();
+      const name = (u.display_name || '').toLowerCase();
+      const eventsStr = (u.events || []).map(e => `${e.spouse1_name} ${e.spouse2_name} ${e.invite_code}`).join(' ').toLowerCase();
+      return email.includes(q) || name.includes(q) || eventsStr.includes(q);
+    })
+  );
+
+  const totalCoupleAccounts = $derived(users.filter(u => u.weddings_as_couple > 0).length);
+  const totalGuestAccounts = $derived(users.filter(u => u.weddings_as_couple === 0 && u.weddings_as_guest > 0).length);
+  const totalStandaloneAccounts = $derived(users.filter(u => u.weddings_as_couple === 0 && u.weddings_as_guest === 0).length);
+
   onMount(async () => {
     if (adminToken) {
       try {
         await api.adminVerify(adminToken);
         isAuthenticated = true;
-        await loadEvents();
+        await Promise.all([loadEvents(), loadUsers()]);
       } catch {
         sessionStorage.removeItem('fm_admin_token');
         adminToken = '';
@@ -71,7 +102,7 @@
       adminToken = res.token;
       sessionStorage.setItem('fm_admin_token', res.token);
       isAuthenticated = true;
-      await loadEvents();
+      await Promise.all([loadEvents(), loadUsers()]);
       appState.showToast('Accesso amministratore eseguito!', 'success');
     } catch (err) {
       loginError = err.message || 'Credenziali non valide.';
@@ -85,6 +116,7 @@
     adminToken = '';
     isAuthenticated = false;
     events = [];
+    users = [];
     appState.showToast('Sessione amministratore terminata.', 'info');
   }
 
@@ -103,6 +135,46 @@
       }
     } finally {
       isLoadingEvents = false;
+    }
+  }
+
+  async function loadUsers() {
+    if (!adminToken) return;
+    isLoadingUsers = true;
+    loadUsersError = '';
+
+    try {
+      const res = await api.adminGetUsers(adminToken);
+      users = res.users || [];
+    } catch (err) {
+      loadUsersError = err.message || 'Errore nel caricamento degli utenti.';
+      if (err.status === 401) {
+        handleLogout();
+      }
+    } finally {
+      isLoadingUsers = false;
+    }
+  }
+
+  async function confirmDeleteUser() {
+    if (!userToDelete) return;
+    isDeletingUser = true;
+    deleteUserError = '';
+
+    try {
+      await api.adminDeleteUser(userToDelete.id, adminToken, deleteUserCascadeEvents);
+      const deletedEmail = userToDelete.email;
+      users = users.filter(u => u.id !== userToDelete.id);
+      if (deleteUserCascadeEvents) {
+        await loadEvents();
+      }
+      userToDelete = null;
+      deleteUserCascadeEvents = false;
+      appState.showToast(`Utente ${deletedEmail} eliminato con successo!`, 'success');
+    } catch (err) {
+      deleteUserError = err.message || 'Errore durante l\'eliminazione dell\'utente.';
+    } finally {
+      isDeletingUser = false;
     }
   }
 
@@ -257,8 +329,32 @@
         </div>
       </header>
 
-      <!-- Global Metrics -->
-      <section class="metrics-grid">
+      <!-- Tab Navigation Switcher -->
+      <div class="admin-tab-nav">
+        <button
+          type="button"
+          class="admin-nav-tab"
+          class:active={activeAdminTab === 'events'}
+          onclick={() => activeAdminTab = 'events'}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg>
+          <span>Matrimoni ({events.length})</span>
+        </button>
+
+        <button
+          type="button"
+          class="admin-nav-tab"
+          class:active={activeAdminTab === 'users'}
+          onclick={() => { activeAdminTab = 'users'; if (users.length === 0) loadUsers(); }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Utenti Registrati ({users.length})</span>
+        </button>
+      </div>
+
+      {#if activeAdminTab === 'events'}
+        <!-- Global Metrics: Events -->
+        <section class="metrics-grid">
         <div class="metric-card glass-card">
           <div class="metric-icon gold">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg>
@@ -445,6 +541,189 @@
           </div>
         {/if}
       </section>
+
+      {:else}
+        <!-- Global Metrics: Users -->
+        <section class="metrics-grid">
+          <div class="metric-card glass-card">
+            <div class="metric-icon gold">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="metric-info">
+              <span class="metric-val">{users.length}</span>
+              <span class="metric-lbl">Account Registrati</span>
+            </div>
+          </div>
+
+          <div class="metric-card glass-card">
+            <div class="metric-icon purple">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+            </div>
+            <div class="metric-info">
+              <span class="metric-val">{totalCoupleAccounts}</span>
+              <span class="metric-lbl">Account Sposi</span>
+            </div>
+          </div>
+
+          <div class="metric-card glass-card">
+            <div class="metric-icon green">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/></svg>
+            </div>
+            <div class="metric-info">
+              <span class="metric-val">{totalGuestAccounts}</span>
+              <span class="metric-lbl">Account Invitati</span>
+            </div>
+          </div>
+
+          <div class="metric-card glass-card">
+            <div class="metric-icon rose">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </div>
+            <div class="metric-info">
+              <span class="metric-val">{totalStandaloneAccounts}</span>
+              <span class="metric-lbl">Senza Eventi</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Main Section: Users Table -->
+        <section class="events-section glass-card">
+          <div class="section-toolbar">
+            <div class="toolbar-title-box">
+              <h2 class="section-title font-serif">Utenti Registrati (Account)</h2>
+              <p class="section-desc">Elenco di tutti gli account registrati con email e password, con i matrimoni associati e gestione eliminazione.</p>
+            </div>
+
+            <div class="search-box">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input
+                type="text"
+                class="search-input"
+                bind:value={userSearchQuery}
+                placeholder="Cerca per email, nome o matrimonio..."
+              />
+              {#if userSearchQuery}
+                <button class="clear-search" onclick={() => userSearchQuery = ''}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              {/if}
+            </div>
+          </div>
+
+          {#if loadUsersError}
+            <div class="error-banner" role="alert">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>{loadUsersError}</span>
+            </div>
+          {/if}
+
+          {#if isLoadingUsers}
+            <div class="loading-state">
+              <div class="spinner-admin"></div>
+              <span>Caricamento utenti registrati in corso...</span>
+            </div>
+          {:else if filteredUsers.length === 0}
+            <div class="empty-state">
+              <div class="empty-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/></svg>
+              </div>
+              <h3>Nessun utente registrato trovato</h3>
+              <p>{userSearchQuery ? 'Nessun account corrisponde ai criteri di ricerca impostati.' : 'Non ci sono account registrati nel database.'}</p>
+            </div>
+          {:else}
+            <div class="table-container">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Account / Utente</th>
+                    <th>Tipo Account</th>
+                    <th>Matrimoni Associati</th>
+                    <th>Data Registrazione</th>
+                    <th class="text-right">Azioni</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each filteredUsers as u (u.id)}
+                    <tr>
+                      <!-- Account / Utente -->
+                      <td class="col-spouses">
+                        <div class="user-row-cell">
+                          <div class="user-avatar-badge">
+                            {u.display_name ? u.display_name.charAt(0).toUpperCase() : u.email.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div class="user-display-name font-serif">
+                              {u.display_name || 'Utente'}
+                            </div>
+                            <div class="user-email-text font-mono">
+                              {u.email}
+                            </div>
+                            <div class="event-id-sub">ID: {u.id}</div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <!-- Tipo Account -->
+                      <td>
+                        {#if u.weddings_as_couple > 0 && u.weddings_as_guest > 0}
+                          <span class="user-type-tag tag-purple">👑 Sposo &amp; 🎉 Ospite</span>
+                        {:else if u.weddings_as_couple > 0}
+                          <span class="user-type-tag tag-gold">👑 Sposo ({u.weddings_as_couple})</span>
+                        {:else if u.weddings_as_guest > 0}
+                          <span class="user-type-tag tag-green">🎉 Ospite ({u.weddings_as_guest})</span>
+                        {:else}
+                          <span class="user-type-tag tag-gray">Registrato</span>
+                        {/if}
+                      </td>
+
+                      <!-- Matrimoni Associati -->
+                      <td>
+                        {#if u.events && u.events.length > 0}
+                          <div class="user-events-list">
+                            {#each u.events as ev}
+                              <div class="user-event-pill" class:pill-couple={ev.role === 'couple'}>
+                                <span class="pill-icon">{ev.role === 'couple' ? '👑' : '🎉'}</span>
+                                <span class="pill-text">{ev.spouse1_name} &amp; {ev.spouse2_name}</span>
+                                <code class="pill-code" title="Codice Invito">{ev.invite_code}</code>
+                                {#if ev.total_points > 0}
+                                  <span class="pill-pts">{ev.total_points} pt</span>
+                                {/if}
+                              </div>
+                            {/each}
+                          </div>
+                        {:else}
+                          <span class="text-subtle">Nessun matrimonio collegato</span>
+                        {/if}
+                      </td>
+
+                      <!-- Data Registrazione -->
+                      <td class="col-date">
+                        <span class="date-badge">{formatDateTime(u.registered_at || u.created_at)}</span>
+                      </td>
+
+                      <!-- Azioni -->
+                      <td class="col-actions text-right">
+                        <button
+                          class="btn-delete-event"
+                          onclick={() => {
+                            userToDelete = u;
+                            deleteUserCascadeEvents = false;
+                            deleteUserError = '';
+                          }}
+                          title="Elimina definitivamente questo account"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          <span>Elimina</span>
+                        </button>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        </section>
+      {/if}
     </div>
   {/if}
 
@@ -488,6 +767,65 @@
             {:else}
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               <span>Elimina Definitivamente</span>
+            {/if}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- CONFIRM DELETE USER MODAL -->
+  {#if userToDelete}
+    <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget && !isDeletingUser) userToDelete = null; }}>
+      <div class="modal-dialog glass-card">
+        <div class="modal-icon-danger">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/>
+          </svg>
+        </div>
+
+        <h3 class="modal-title font-serif">Conferma Eliminazione Account Utente</h3>
+
+        <div class="modal-event-summary">
+          <div class="summary-names font-serif">
+            {userToDelete.display_name || 'Utente'}
+          </div>
+          <div class="summary-code">Email: <strong>{userToDelete.email}</strong></div>
+        </div>
+
+        <p class="modal-warning">
+          <strong>Attenzione:</strong> Questa azione eliminerà definitivamente l'account registrato e invaliderà tutte le sue sessioni di accesso attive.
+        </p>
+
+        {#if userToDelete.weddings_as_couple > 0}
+          <div class="cascade-checkbox-card">
+            <label class="cascade-checkbox-label">
+              <input type="checkbox" bind:checked={deleteUserCascadeEvents} />
+              <div class="cascade-checkbox-text">
+                <strong>Elimina anche i {userToDelete.weddings_as_couple} matrimoni creati da questo account</strong>
+                <span>Se selezionato, verranno cancellati per sempre anche i matrimoni creati con tutti i quiz, foto e invitati associati. Se non selezionato, i matrimoni rimarranno nel database.</span>
+              </div>
+            </label>
+          </div>
+        {/if}
+
+        {#if deleteUserError}
+          <div class="error-banner" role="alert">
+            <span>{deleteUserError}</span>
+          </div>
+        {/if}
+
+        <div class="modal-actions">
+          <button class="btn btn-secondary" onclick={() => userToDelete = null} disabled={isDeletingUser}>
+            Annulla
+          </button>
+          <button class="btn btn-danger" onclick={confirmDeleteUser} disabled={isDeletingUser}>
+            {#if isDeletingUser}
+              <div class="spinner-tiny"></div>
+              <span>Eliminazione in corso...</span>
+            {:else}
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              <span>Elimina Account</span>
             {/if}
           </button>
         </div>
@@ -1215,5 +1553,211 @@
     .modal-dialog {
       padding: 26px 20px;
     }
+  }
+
+  /* Tab Navigation Switcher */
+  .admin-tab-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    background: rgba(36, 28, 32, 0.04);
+    padding: 6px;
+    border-radius: 16px;
+    width: fit-content;
+    border: 1px solid rgba(201, 169, 110, 0.2);
+  }
+
+  .admin-nav-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 12px;
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .admin-nav-tab:hover {
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  .admin-nav-tab.active {
+    background: #ffffff;
+    color: var(--wine);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(201, 169, 110, 0.35);
+  }
+
+  /* User Row Components */
+  .user-row-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .user-avatar-badge {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold-primary), #8c2f4b);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(140, 47, 75, 0.25);
+  }
+
+  .user-display-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.25;
+  }
+
+  .user-email-text {
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+
+  /* User Type Tags */
+  .user-type-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .tag-purple {
+    background: rgba(147, 51, 234, 0.1);
+    color: #7e22ce;
+    border: 1px solid rgba(147, 51, 234, 0.25);
+  }
+
+  .tag-gold {
+    background: rgba(201, 169, 110, 0.15);
+    color: #8c6a28;
+    border: 1px solid rgba(201, 169, 110, 0.35);
+  }
+
+  .tag-green {
+    background: rgba(46, 125, 50, 0.1);
+    color: #2e7d32;
+    border: 1px solid rgba(46, 125, 50, 0.25);
+  }
+
+  .tag-gray {
+    background: rgba(36, 28, 32, 0.06);
+    color: var(--ink-soft);
+    border: 1px solid rgba(36, 28, 32, 0.1);
+  }
+
+  /* User Events Chips */
+  .user-events-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 320px;
+  }
+
+  .user-event-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: rgba(36, 28, 32, 0.04);
+    border: 1px solid rgba(36, 28, 32, 0.08);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-event-pill.pill-couple {
+    background: rgba(201, 169, 110, 0.1);
+    border-color: rgba(201, 169, 110, 0.3);
+  }
+
+  .pill-names {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .pill-code {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    background: #ffffff;
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: var(--wine);
+    font-weight: 700;
+  }
+
+  .pill-pts {
+    font-size: 0.72rem;
+    color: #2e7d32;
+    font-weight: 700;
+  }
+
+  .text-subtle {
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+
+  /* Cascade Checkbox Card */
+  .cascade-checkbox-card {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(166, 53, 82, 0.06);
+    border: 1px solid rgba(166, 53, 82, 0.25);
+    text-align: left;
+  }
+
+  .cascade-checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  .cascade-checkbox-label input[type="checkbox"] {
+    margin-top: 3px;
+    width: 17px;
+    height: 17px;
+    accent-color: var(--wine);
+    cursor: pointer;
+  }
+
+  .cascade-checkbox-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .cascade-checkbox-text strong {
+    font-size: 0.86rem;
+    color: #8c2a43;
+  }
+
+  .cascade-checkbox-text span {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    line-height: 1.35;
   }
 </style>

@@ -67,6 +67,12 @@ def create_and_send_code(email: str, purpose: str = "registration") -> dict:
     sent = send_verification_email(norm_email, code, purpose)
     logger.info(f"[VERIFICATION OTP] Email: {norm_email} | Code: {code} | Sent: {sent}")
 
+    if not sent:
+        raise HTTPException(
+            status_code=500,
+            detail="Impossibile inviare l'email con il codice di verifica. Verifica che l'indirizzo email sia corretto."
+        )
+
     return {
         "success": True,
         "message": f"Codice di verifica inviato a {norm_email}",

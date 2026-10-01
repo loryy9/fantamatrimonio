@@ -83,6 +83,21 @@
 </script>
 
 <div class="home-container">
+  {#if appState.isCouple}
+    <div class="sposi-preview-banner">
+      <div class="sposi-preview-info">
+        <span class="sposi-crown">👑</span>
+        <div>
+          <strong>Modalità Anteprima Sposi</strong>
+          <span class="sposi-preview-sub">Stai guardando la festa come la vedono gli invitati</span>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-sm sposi-return-btn" onclick={() => appState.activeTab = 'manage'}>
+        Console Sposi →
+      </button>
+    </div>
+  {/if}
+
   <section class="intro">
     <div class="intro-text">
       <div class="couple font-serif"><span class="rule"></span>{coupleNames}</div>
@@ -807,6 +822,50 @@
 
     .rank-btn:hover svg {
       transform: translateX(3px);
+    }
+  }
+
+  .sposi-preview-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 18px;
+    margin-bottom: 24px;
+    background: linear-gradient(135deg, rgba(201, 169, 110, 0.16), rgba(140, 47, 75, 0.08));
+    border: 1px solid rgba(201, 169, 110, 0.4);
+    border-radius: var(--radius-md, 16px);
+  }
+
+  .sposi-preview-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .sposi-crown {
+    font-size: 1.4rem;
+  }
+
+  .sposi-preview-sub {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .sposi-return-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 520px) {
+    .sposi-preview-banner {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .sposi-return-btn {
+      width: 100%;
     }
   }
 </style>

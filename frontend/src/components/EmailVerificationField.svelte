@@ -44,7 +44,7 @@
     try {
       const res = await api.sendVerificationCode(cleanEmail, purpose);
       codeSent = true;
-      statusMessage = `Codice inviato a ${cleanEmail}! Controlla la casella di posta (e lo spam).`;
+      statusMessage = `Codice a 6 cifre inviato a ${cleanEmail}! Controlla la posta (incluso Spam).`;
       isError = false;
       startCountdown(25);
     } catch (err) {
@@ -56,19 +56,22 @@
   }
 
   function handleCodeInput(e) {
-    // Mantieni solo cifre e limita a 6
     const clean = e.target.value.replace(/\D/g, '').slice(0, 6);
     verificationCode = clean;
   }
 </script>
 
-<div class="email-verification-group">
-  <div class="field email-row">
-    <label for="vf-email">{label} {#if required}<span class="req">*</span>{/if}</label>
-    <div class="input-with-button">
+<div class="verification-wrapper">
+  <!-- Campo Email Principale -->
+  <div class="input-group">
+    <label class="input-label" for="vf-email">
+      {label} {#if required}<span class="req">*</span>{/if}
+    </label>
+    <div class="input-action-row">
       <input
         id="vf-email"
         type="email"
+        class="input-field email-input"
         bind:value={email}
         placeholder={placeholder}
         required={required}
@@ -77,7 +80,8 @@
       />
       <button
         type="button"
-        class="btn-send-code"
+        class="btn-send-otp"
+        class:btn-sent={codeSent}
         disabled={disabled || sending || countdown > 0 || !email?.includes('@')}
         onclick={handleSendCode}
       >
@@ -95,99 +99,115 @@
     </div>
   </div>
 
+  <!-- Campo Codice OTP quando inviato -->
   {#if codeSent}
-    <div class="field code-box">
-      <div class="code-header">
-        <label for="vf-code">Codice di verifica email <span class="req">*</span></label>
-        <span class="code-badge">6 cifre</span>
+    <div class="input-group otp-card">
+      <div class="otp-header">
+        <label class="input-label" for="vf-code">
+          Codice di verifica ricevuto {#if required}<span class="req">*</span>{/if}
+        </label>
+        <span class="otp-pill">6 cifre</span>
       </div>
       <input
         id="vf-code"
         type="text"
         inputmode="numeric"
         maxlength="6"
+        class="input-field otp-input"
         value={verificationCode}
         oninput={handleCodeInput}
-        placeholder="123456"
-        class="code-input"
+        placeholder="••••••"
         required
         disabled={disabled}
         autocomplete="one-time-code"
       />
-      <span class="field-hint">Inserisci il codice ricevuto per verificare che l'email sia tua.</span>
+      <span class="otp-hint">Inserisci il codice ricevuto per confermare che l'indirizzo email ti appartiene.</span>
     </div>
   {/if}
 
   {#if statusMessage}
-    <div class="status-msg" class:status-err={isError} class:status-ok={!isError} role="alert">
-      <span>{isError ? '⚠️' : '✉️'}</span>
-      <span>{statusMessage}</span>
+    <div class="otp-feedback" class:feedback-err={isError} class:feedback-ok={!isError} role="alert">
+      <span class="feedback-icon">{isError ? '⚠️' : '✉️'}</span>
+      <span class="feedback-text">{statusMessage}</span>
     </div>
   {/if}
 </div>
 
 <style>
-  .email-verification-group {
+  .verification-wrapper {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    width: 100%;
   }
 
-  .field {
+  .input-group {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    width: 100%;
   }
 
   .req {
     color: #e05252;
   }
 
-  .input-with-button {
+  .input-action-row {
     display: flex;
-    gap: 8px;
-    align-items: center;
+    gap: 10px;
+    align-items: stretch;
+    width: 100%;
   }
 
-  .input-with-button input {
+  .email-input {
     flex: 1;
     min-width: 0;
   }
 
-  .btn-send-code {
-    white-space: nowrap;
-    padding: 10px 14px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    border-radius: var(--radius-sm, 8px);
-    border: 1px solid rgba(201, 169, 110, 0.4);
-    background: linear-gradient(135deg, rgba(233, 201, 143, 0.2), rgba(201, 169, 110, 0.1));
-    color: var(--gold-dark, #8b6d2e);
+  .btn-send-otp {
+    flex-shrink: 0;
+    padding: 0 18px;
+    height: 48px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    border-radius: 16px;
+    border: 1px solid rgba(140, 47, 75, 0.25);
+    background: linear-gradient(135deg, rgba(140, 47, 75, 0.08), rgba(201, 169, 110, 0.12));
+    color: var(--wine, #8c2f4b);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    height: 42px;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
   }
 
-  .btn-send-code:hover:not(:disabled) {
-    background: linear-gradient(135deg, rgba(233, 201, 143, 0.35), rgba(201, 169, 110, 0.22));
-    border-color: var(--gold-dark, #8b6d2e);
+  .btn-send-otp:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(140, 47, 75, 0.16), rgba(201, 169, 110, 0.22));
+    border-color: var(--wine, #8c2f4b);
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(140, 47, 75, 0.12);
   }
 
-  .btn-send-code:disabled {
-    opacity: 0.55;
+  .btn-send-otp:disabled {
+    opacity: 0.5;
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
+  }
+
+  .btn-send-otp.btn-sent {
+    border-color: rgba(201, 169, 110, 0.45);
+    color: var(--gold-dark, #8b6d2e);
+    background: rgba(201, 169, 110, 0.1);
   }
 
   .btn-spinner {
-    width: 12px;
-    height: 12px;
-    border: 2px solid rgba(139, 109, 46, 0.3);
-    border-top-color: var(--gold-dark, #8b6d2e);
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(140, 47, 75, 0.25);
+    border-top-color: var(--wine, #8c2f4b);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
@@ -196,72 +216,92 @@
     to { transform: rotate(360deg); }
   }
 
-  .code-box {
-    background: rgba(248, 244, 235, 0.7);
-    border: 1px solid rgba(201, 169, 110, 0.3);
-    border-radius: var(--radius-md, 10px);
-    padding: 12px 14px;
-    animation: fadeIn 0.3s ease;
+  .otp-card {
+    background: linear-gradient(180deg, rgba(201, 169, 110, 0.08) 0%, rgba(201, 169, 110, 0.02) 100%);
+    border: 1px dashed rgba(201, 169, 110, 0.45);
+    border-radius: 18px;
+    padding: 14px 16px;
+    animation: slideDown 0.25s ease;
   }
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-4px); }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
-  .code-header {
+  .otp-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 2px;
   }
 
-  .code-badge {
+  .otp-pill {
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 2px 7px;
-    border-radius: 20px;
-    background: rgba(201, 169, 110, 0.25);
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(201, 169, 110, 0.2);
     color: var(--gold-dark, #8b6d2e);
   }
 
-  .code-input {
-    font-size: 1.3rem;
+  .otp-input {
+    font-size: 1.4rem;
     letter-spacing: 0.35em;
     font-weight: 700;
     text-align: center;
     background: #fff;
-    border: 2px solid rgba(201, 169, 110, 0.4);
-    border-radius: 8px;
-    padding: 8px 12px;
+    border: 1.5px solid rgba(201, 169, 110, 0.5);
+    border-radius: 14px;
+    padding: 10px 14px;
+    color: var(--text-main, #241c20);
   }
 
-  .code-input:focus {
+  .otp-input:focus {
     border-color: var(--gold-dark, #8b6d2e);
-    outline: none;
     box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.2);
+    background: #fff;
   }
 
-  .status-msg {
+  .otp-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted, #7a7276);
+    line-height: 1.35;
+    margin-top: 2px;
+  }
+
+  .otp-feedback {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    font-size: 0.82rem;
-    padding: 9px 12px;
-    border-radius: var(--radius-sm, 8px);
+    font-size: 0.84rem;
+    padding: 10px 14px;
+    border-radius: 14px;
     line-height: 1.4;
   }
 
-  .status-ok {
-    background: #f0fdf4;
-    color: #166534;
-    border: 1px solid #bbf7d0;
+  .feedback-ok {
+    background: rgba(34, 197, 94, 0.08);
+    color: #15803d;
+    border: 1px solid rgba(34, 197, 94, 0.25);
   }
 
-  .status-err {
-    background: #fef2f2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
+  .feedback-err {
+    background: rgba(239, 68, 68, 0.08);
+    color: #b91c1c;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+  }
+
+  @media (max-width: 520px) {
+    .input-action-row {
+      flex-direction: column;
+      gap: 8px;
+    }
+    .btn-send-otp {
+      width: 100%;
+      height: 44px;
+    }
   }
 </style>

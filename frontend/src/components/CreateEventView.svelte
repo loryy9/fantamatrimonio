@@ -16,6 +16,7 @@
   let coupleLast = $state(appState.account?.display_name?.split(' ').slice(1).join(' ') || '');
   let coupleEmail = $state(appState.account?.email || '');
   let couplePassword = $state('');
+  let coupleConfirmPassword = $state('');
   let coupleVerificationCode = $state('');
   let showPassword = $state(false);
   let isSubmitting = $state(false);
@@ -62,6 +63,10 @@
       }
       if (couplePassword.trim().length < 6) {
         errorMessage = 'La password deve contenere almeno 6 caratteri.';
+        return;
+      }
+      if (couplePassword !== coupleConfirmPassword) {
+        errorMessage = 'Le password non coincidono.';
         return;
       }
       if (!coupleVerificationCode.trim() || coupleVerificationCode.trim().length !== 6) {
@@ -320,6 +325,20 @@
               </button>
             </div>
             <span class="field-hint">Userete queste credenziali per accedere da qualsiasi dispositivo.</span>
+          </div>
+
+          <div class="input-group">
+            <label for="coupleConfirmPassword" class="input-label">Conferma password sposi</label>
+            <input
+              id="coupleConfirmPassword"
+              type={showPassword ? 'text' : 'password'}
+              class="input-field"
+              placeholder="Ripeti la password"
+              bind:value={coupleConfirmPassword}
+              autocomplete="new-password"
+              minlength="6"
+              required
+            />
           </div>
         {/if}
       </fieldset>

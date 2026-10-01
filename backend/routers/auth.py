@@ -419,13 +419,28 @@ def me(
                 (account_id,),
             )
 
+        session_token = None
         if user:
             event = db.query_one("SELECT * FROM events WHERE id = %s", (user["event_id"],))
+            sess = db.query_one(
+                "SELECT token FROM sessions WHERE user_id = %s AND expires_at > NOW() ORDER BY expires_at DESC LIMIT 1",
+                (user["id"],),
+            )
+            if sess:
+                session_token = sess["token"]
+            else:
+                import uuid
+                session_token = str(uuid.uuid4())
+                db.execute(
+                    "INSERT INTO sessions (user_id, token, expires_at) VALUES (%s, %s, NOW() + INTERVAL '30 days')",
+                    (user["id"], session_token),
+                )
 
         return {
             "account": account_out(account),
             "user": user_out(user) if user else None,
             "event": event_out(event) if event else None,
+            "token": session_token,
         }
 
     # Se session token UUID (ospite temporaneo)

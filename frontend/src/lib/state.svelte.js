@@ -58,7 +58,6 @@ class AppState {
       this.event &&
       this.user &&
       !this.pendingInvite &&
-      this.authView === 'entry' &&
       this.activeTab !== 'dashboard' &&
       this.activeTab !== 'create' &&
       this.activeTab !== 'join' &&
@@ -270,10 +269,11 @@ class AppState {
 
   async finishOnboarding(targetTab = null) {
     this.pendingInvite = null;
+    this.authView = 'entry';
+    this.activeTab = targetTab || (this.isCouple ? 'manage' : 'home');
     history.replaceState(null, '', '/');
     await this.loadInitialData();
     this.startPolling();
-    this.activeTab = targetTab || (this.isCouple ? 'manage' : 'home');
   }
 
   async cancelEventCreation() {
@@ -408,13 +408,16 @@ class AppState {
     try {
       const res = await api.getMe(eventId);
       if (res.user) {
+        if (res.token) {
+          this._saveTokens(res.token, this.jwtToken, this.account);
+        }
         this.setUser(res.user);
         this.event = res.event;
-        await this.loadInitialData();
-        this.startPolling();
+        this.authView = 'entry';
         this.activeTab = targetTab || ((res.user.role === 'couple') ? 'manage' : 'home');
         history.pushState(null, '', '/');
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        await this.loadInitialData();
+        this.startPolling();
         this.showToast(`Entrato nel matrimonio di ${this.event.spouse1_name} & ${this.event.spouse2_name}`, 'info');
       } else {
         this.showToast('Nessun profilo trovato per questo matrimonio', 'error');

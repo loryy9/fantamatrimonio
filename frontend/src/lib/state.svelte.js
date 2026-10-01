@@ -323,14 +323,15 @@ class AppState {
     }
   }
 
-  async login(inviteCode, firstName, lastName, secretWord, isCouple = false, email = null) {
+  async login(payload, argFirst, argLast, argSecret, argCouple = false, argEmail = null) {
     try {
-      const res = await api.login(inviteCode, firstName, lastName, secretWord, isCouple, email);
+      const res = await api.login(payload, argFirst, argLast, argSecret, argCouple, argEmail);
       this._saveTokens(res.token, res.jwt, res.account);
       this.setUser(res.user);
+      const code = typeof payload === 'object' && payload !== null ? (payload.inviteCode || payload.invite_code) : payload;
       this.event = {
         ...(res.event || {}),
-        invite_code: res.event?.invite_code || inviteCode.trim().toUpperCase()
+        invite_code: res.event?.invite_code || (code ? code.trim().toUpperCase() : '')
       };
 
       const storageKey = `fm_logged_in_before_${this.user.id}`;
@@ -488,12 +489,12 @@ class AppState {
     }
   }
 
-  async completeClaim(password, displayName = null) {
+  async completeClaim(password, firstName = null, lastName = null, displayName = null) {
     if (!this.pendingClaimToken) {
       return { success: false, error: 'Token di recupero non trovato' };
     }
     try {
-      const res = await api.completeClaim(this.pendingClaimToken, password, displayName);
+      const res = await api.completeClaim(this.pendingClaimToken, password, firstName, lastName, displayName);
       this._saveTokens(res.token, res.jwt, res.account);
       if (res.user) this.setUser(res.user);
       if (res.event) this.event = res.event;

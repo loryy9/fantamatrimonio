@@ -29,16 +29,19 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 class LoginRequest(BaseModel):
     invite_code: str
-    first_name: str
-    last_name: str
-    secret_word: str
+    nickname: str | None = None
+    email: str | None = None
+    verification_code: str | None = None
+    no_email: bool = False
+    secret_word: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
     is_couple: bool = False
-    email: str | None = None  # opzionale per ospiti
 
 
 class SendVerificationCodeRequest(BaseModel):
     email: str
-    purpose: str = "registration"  # 'register_couple', 'register_account', 'upgrade_account'
+    purpose: str = "registration"  # 'register_couple', 'register_account', 'upgrade_account', 'join_guest'
 
 
 class VerifyCodeRequest(BaseModel):
@@ -73,6 +76,8 @@ class ClaimInfoRequest(BaseModel):
 class CompleteClaimRequest(BaseModel):
     claim_token: str
     password: str
+    first_name: str | None = None
+    last_name: str | None = None
     display_name: str | None = None
 
 
@@ -87,21 +92,19 @@ def _normalize(s: str) -> str:
 @router.post("/login")
 def login(body: LoginRequest, background_tasks: BackgroundTasks):
     """
-    Login o registrazione in un unico endpoint, sempre scoped a un evento.
-    Ora supporta anche email opzionale per il reminder post-festa.
+    Login veloce per gli invitati:
+    1. Modalità con email (predefinita): chiede email (verificata via codice a 6 cifre) e un nickname.
+       Nessuna parola segreta. Permette la creazione dell'account dopo tot giorni.
+    2. Modalità senza email: per chi non possiede un'email, chiede nickname e parola segreta.
+    3. Accesso sposi o compatibilità legacy.
     """
-    first = _normalize(body.first_name)
-    last = _normalize(body.last_name)
-    word = _normalize(body.secret_word)
     code = body.invite_code.strip().upper()
-    email = body.email.strip().lower() if body.email else None
-
-    if not first or not last or not word or not code:
-        raise HTTPException(status_code=422, detail="Tutti i campi sono obbligatori.")
+    if not code:
+        raise HTTPException(status_code=422, detail="Inserisci il codice del matrimonio.")
 
     event = db.query_one("SELECT * FROM events WHERE invite_code = %s", (code,))
     if not event:
-        raise HTTPException(status_code=404, detail="Codice invito non valido.")
+        raise HTTPException(status_code=404, detail="Codice matrimonio non trovato. Controlla il codice inserito.")
 
     couple_user = db.query_one(
         "SELECT * FROM users WHERE event_id = %s AND role = 'couple'",
@@ -111,102 +114,121 @@ def login(body: LoginRequest, background_tasks: BackgroundTasks):
     user = None
     is_new = False
 
+    # ── 1. Accesso Sposi (con parola segreta sposi) ──────────────────────────
     if body.is_couple:
+        word = _normalize(body.secret_word or "")
         if not couple_user:
             raise HTTPException(status_code=404, detail="Nessun account sposi trovato per questo matrimonio.")
-
         if word != _normalize(couple_user["secret_word"]):
             raise HTTPException(
                 status_code=401,
-                detail="Parola segreta sposi non corretta. Inserisci la parola impostata durante la registrazione del matrimonio."
+                detail="Parola segreta sposi non corretta. Inserisci la parola impostata durante la creazione del matrimonio."
             )
-
         user = couple_user
-        # Se lo sposo ha digitato nome o cognome con grafia corretta, aggiorniamo il record
-        if first and last and (first != couple_user["first_name"] or last != couple_user["last_name"]):
-            try:
-                user = db.execute(
-                    "UPDATE users SET first_name = %s, last_name = %s WHERE id = %s RETURNING *",
-                    (first, last, couple_user["id"]),
-                )
-            except Exception:
-                user = couple_user
 
-    else:
-        # Cerca utente identico esistente
+    # ── 2. Modalità SENZA EMAIL (per parenti anziani / no-smart) ─────────────
+    elif body.no_email:
+        nick = (body.nickname or body.first_name or "").strip()
+        word = _normalize(body.secret_word or "")
+        if not nick:
+            raise HTTPException(status_code=422, detail="Inserisci un nickname (es. Zia Pina, Nonno Bruno).")
+        if not word:
+            raise HTTPException(status_code=422, detail="Inserisci una parola segreta personale per poter rientrare.")
+
+        # Cerca ospite esistente con stesso nickname e parola segreta
         user = db.query_one(
-            "SELECT * FROM users WHERE event_id = %s AND first_name = %s AND last_name = %s AND secret_word = %s",
-            (event["id"], first, last, word),
+            "SELECT * FROM users WHERE event_id = %s AND LOWER(first_name) = %s AND LOWER(secret_word) = %s AND role = 'guest'",
+            (event["id"], nick.lower(), word),
         )
-
-        # Se non trovato, verifica se sono gli sposi che stanno accedendo dal form generico
-        if not user and couple_user:
-            if word == _normalize(couple_user["secret_word"]):
-                s1 = _normalize(event.get("spouse1_name") or "")
-                s2 = _normalize(event.get("spouse2_name") or "")
-                c_first = _normalize(couple_user["first_name"])
-                c_last = _normalize(couple_user["last_name"])
-
-                is_couple_match = (
-                    first in (c_first, s1, s2)
-                    or last in (c_last, s1, s2)
-                    or (s1 and s1 in first)
-                    or (s2 and s2 in first)
-                    or (c_first and c_first in first)
-                )
-
-                if is_couple_match:
-                    user = couple_user
-
-        # Se ancora nessun utente, crea nuovo guest
         if not user:
             is_new = True
             user = db.execute(
                 """
                 INSERT INTO users (event_id, role, first_name, last_name, secret_word, email)
-                VALUES (%s, 'guest', %s, %s, %s, %s)
+                VALUES (%s, 'guest', %s, '', %s, NULL)
                 RETURNING *
                 """,
-                (event["id"], first, last, word, email),
+                (event["id"], nick, word),
             )
 
-            # Se l'ospite ha lasciato l'email, programma il reminder
-            if email:
-                send_after = datetime.now(timezone.utc) + timedelta(days=REGISTRATION_REMINDER_DAYS)
-                db.execute(
-                    """
-                    INSERT INTO registration_reminders (user_id, event_id, email, send_after)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (user["id"], event["id"], email, send_after),
+    # ── 3. Modalità CON EMAIL VERIFICATA (Predefinita e Veloce) ─────────────
+    elif body.email:
+        email = normalize_email(body.email)
+        code_input = (body.verification_code or "").strip()
+        if not code_input or len(code_input) != 6:
+            raise HTTPException(status_code=422, detail="Inserisci il codice di verifica a 6 cifre inviato alla tua email.")
+
+        valid = verify_code(email, code_input, "join_guest", mark_used=True)
+        if not valid:
+            raise HTTPException(status_code=400, detail="Codice di verifica email non valido o scaduto.")
+
+        # Cerca se esiste già un profilo ospite in questo matrimonio con questa email
+        user = db.query_one(
+            "SELECT * FROM users WHERE event_id = %s AND LOWER(email) = %s AND role = 'guest'",
+            (event["id"], email),
+        )
+
+        if user:
+            # Ospite già registrato alla festa: aggiorna nickname se fornito
+            nick = (body.nickname or body.first_name or "").strip()
+            if nick and nick != user["first_name"]:
+                user = db.execute(
+                    "UPDATE users SET first_name = %s WHERE id = %s RETURNING *",
+                    (nick, user["id"]),
                 )
-                if REGISTRATION_REMINDER_DAYS <= 0:
-                    from email_service import process_due_reminders
-                    background_tasks.add_task(process_due_reminders)
         else:
-            # Utente esistente: aggiorna email se fornita e non presente
-            if email and not user.get("email"):
-                db.execute(
-                    "UPDATE users SET email = %s WHERE id = %s",
-                    (email, user["id"]),
-                )
-                # Programma reminder se non ce n'è già uno
-                existing_reminder = db.query_one(
-                    "SELECT id FROM registration_reminders WHERE user_id = %s AND event_id = %s",
-                    (user["id"], event["id"]),
-                )
-                if not existing_reminder:
-                    send_after = datetime.now(timezone.utc) + timedelta(days=REGISTRATION_REMINDER_DAYS)
-                    db.execute(
-                        """
-                        INSERT INTO registration_reminders (user_id, event_id, email, send_after)
-                        VALUES (%s, %s, %s, %s)
-                        """,
-                        (user["id"], event["id"], email, send_after),
-                    )
-                    if REGISTRATION_REMINDER_DAYS <= 0:
-                        from email_service import process_due_reminders
-                        background_tasks.add_task(process_due_reminders)
+            # Nuovo ospite: il nickname è obbligatorio
+            nick = (body.nickname or body.first_name or "").strip()
+            if not nick:
+                raise HTTPException(status_code=422, detail="Inserisci il tuo nickname per partecipare (es. Zia Pina, Fratello sposa).")
+
+            is_new = True
+            user = db.execute(
+                """
+                INSERT INTO users (event_id, role, first_name, last_name, secret_word, email)
+                VALUES (%s, 'guest', %s, '', '', %s)
+                RETURNING *
+                """,
+                (event["id"], nick, email),
+            )
+
+            # Programma reminder per creare l'account dopo tot giorni
+            send_after = datetime.now(timezone.utc) + timedelta(days=REGISTRATION_REMINDER_DAYS)
+            db.execute(
+                """
+                INSERT INTO registration_reminders (user_id, event_id, email, send_after)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (user["id"], event["id"], email, send_after),
+            )
+            if REGISTRATION_REMINDER_DAYS <= 0:
+                from email_service import process_due_reminders
+                background_tasks.add_task(process_due_reminders)
+
+    # ── 4. Compatibilità Legacy (Nome + Cognome + Parola segreta) ───────────
+    elif body.first_name and body.secret_word:
+        first = _normalize(body.first_name)
+        last = _normalize(body.last_name or "")
+        word = _normalize(body.secret_word)
+        user = db.query_one(
+            "SELECT * FROM users WHERE event_id = %s AND LOWER(first_name) = %s AND LOWER(last_name) = %s AND LOWER(secret_word) = %s",
+            (event["id"], first, last, word),
+        )
+        if not user:
+            is_new = True
+            user = db.execute(
+                """
+                INSERT INTO users (event_id, role, first_name, last_name, secret_word, email)
+                VALUES (%s, 'guest', %s, %s, %s, NULL)
+                RETURNING *
+                """,
+                (event["id"], body.first_name.strip(), last, word),
+            )
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail="Inserisci la tua email verificata oppure seleziona l'opzione 'Non possiedo un indirizzo email'."
+        )
 
 
     # Genera session token (manteniamo il flusso attuale)
@@ -495,10 +517,20 @@ def complete_claim(body: CompleteClaimRequest):
     if not email:
         raise HTTPException(status_code=422, detail="Email non associata a questo invito.")
 
-    first = user.get("first_name") or ""
-    last = user.get("last_name") or ""
-    default_name = f"{first} {last}".strip() or "Invitato"
-    display = (body.display_name or "").strip() or default_name
+    first = (body.first_name or "").strip() or user.get("first_name") or ""
+    last = (body.last_name or "").strip() or user.get("last_name") or ""
+    if not first or not last:
+        raise HTTPException(status_code=422, detail="Nome e cognome sono obbligatori per completare la registrazione.")
+
+    display = (body.display_name or "").strip() or f"{first} {last}".strip()
+
+    # Aggiorna i dati anagrafici reali dell'utente
+    db.execute(
+        "UPDATE users SET first_name = %s, last_name = %s WHERE id = %s",
+        (first, last, user["id"]),
+    )
+    user["first_name"] = first
+    user["last_name"] = last
 
     # Controlla se esiste già un account con questa email
     existing = db.query_one("SELECT * FROM accounts WHERE email = %s", (email,))

@@ -1,16 +1,20 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
 
+  let firstName = $state(appState.claimData?.first_name || '');
+  let lastName = $state(appState.claimData?.last_name || '');
   let password = $state('');
   let confirmPassword = $state('');
-  let displayName = $state(appState.claimData?.display_name || '');
   let showPassword = $state(false);
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
   $effect(() => {
-    if (appState.claimData?.display_name && !displayName) {
-      displayName = appState.claimData.display_name;
+    if (appState.claimData?.first_name && !firstName) {
+      firstName = appState.claimData.first_name;
+    }
+    if (appState.claimData?.last_name && !lastName) {
+      lastName = appState.claimData.last_name;
     }
   });
 
@@ -28,6 +32,11 @@
     e.preventDefault();
     errorMessage = '';
 
+    if (!firstName.trim() || !lastName.trim()) {
+      errorMessage = 'Inserisci sia il nome che il cognome.';
+      return;
+    }
+
     if (!password || password.length < 6) {
       errorMessage = 'La password deve contenere almeno 6 caratteri.';
       return;
@@ -40,7 +49,7 @@
 
     isSubmitting = true;
     try {
-      const res = await appState.completeClaim(password, displayName.trim());
+      const res = await appState.completeClaim(password, firstName.trim(), lastName.trim());
       if (!res.success) {
         errorMessage = res.error || 'Errore durante la creazione dell\'account.';
       }
@@ -65,7 +74,7 @@
       <h2 class="modal-title font-serif">Salva il tuo account</h2>
       <p class="modal-lead">
         Ciao <strong>{appState.claimData.first_name || 'invitato'}</strong>! Abbiamo ripristinato la tua sessione{#if eventLabel} per il matrimonio di <strong>{eventLabel}</strong>{/if}.
-        Imposta una password per accedere alla tua <strong>Dashboard personale</strong> e conservare lo storico dei quiz, punteggi e foto.
+        Inserisci i tuoi dati anagrafici e una password per accedere alla tua <strong>Dashboard personale</strong> e conservare lo storico dei quiz, punteggi e foto.
       </p>
 
       <form class="claim-form" onsubmit={handleSubmit}>
@@ -76,17 +85,31 @@
           </div>
         {/if}
 
-        <div class="input-group">
-          <label for="claimName" class="input-label">Nome e Cognome</label>
-          <input
-            id="claimName"
-            type="text"
-            class="input-field"
-            bind:value={displayName}
-            placeholder="es. Mario Rossi"
-            required
-            disabled={isSubmitting}
-          />
+        <div class="row">
+          <div class="input-group">
+            <label for="claimFirst" class="input-label">Nome</label>
+            <input
+              id="claimFirst"
+              type="text"
+              class="input-field"
+              bind:value={firstName}
+              placeholder="es. Mario"
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div class="input-group">
+            <label for="claimLast" class="input-label">Cognome</label>
+            <input
+              id="claimLast"
+              type="text"
+              class="input-field"
+              bind:value={lastName}
+              placeholder="es. Rossi"
+              required
+              disabled={isSubmitting}
+            />
+          </div>
         </div>
 
         <div class="input-group">

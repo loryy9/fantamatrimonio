@@ -1,8 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import { appState } from '../lib/state.svelte.js';
-  import { formatName } from '../lib/formatters.js';
   import { api } from '../lib/api.js';
+  import EmailVerificationField from './EmailVerificationField.svelte';
 
   function getCodeFromUrl() {
     if (typeof window === 'undefined') return '';
@@ -10,10 +10,12 @@
   }
 
   let inviteCode = $state(getCodeFromUrl());
-  let firstName = $state('');
-  let lastName = $state('');
-  let secretWord = $state('');
+  let nickname = $state('');
   let email = $state('');
+  let verificationCode = $state('');
+  let noEmail = $state(false);
+  let secretWord = $state('');
+
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
@@ -54,15 +56,11 @@
     window.addEventListener('popstate', onLocation);
     window.addEventListener('hashchange', onLocation);
 
-    // Se l'utente ha già un account registrato, precompila nome e email
+    // Se l'utente ha già un account registrato, precompila
     if (appState.account) {
       if (!email && appState.account.email) email = appState.account.email;
-      if (!firstName && appState.account.display_name) {
-        const parts = appState.account.display_name.trim().split(' ');
-        firstName = parts[0] || '';
-        if (parts.length > 1 && !lastName) {
-          lastName = parts.slice(1).join(' ');
-        }
+      if (!nickname && appState.account.display_name) {
+        nickname = appState.account.display_name;
       }
     }
 
@@ -93,23 +91,44 @@
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!inviteCode.trim() || !firstName.trim() || !lastName.trim() || !secretWord.trim()) {
-      errorMessage = 'Per favore compila tutti i campi!';
+    errorMessage = '';
+
+    if (!inviteCode.trim()) {
+      errorMessage = 'Inserisci il codice del matrimonio.';
       return;
     }
 
-    errorMessage = '';
-    isSubmitting = true;
+    if (!nickname.trim()) {
+      errorMessage = 'Inserisci un nickname per partecipare (es. Zia Pina, Fratello sposa).';
+      return;
+    }
 
+    if (!noEmail) {
+      if (!email.trim()) {
+        errorMessage = 'Inserisci il tuo indirizzo email.';
+        return;
+      }
+      if (!verificationCode.trim() || verificationCode.trim().length !== 6) {
+        errorMessage = 'Inserisci il codice di verifica a 6 cifre inviato alla tua email.';
+        return;
+      }
+    } else {
+      if (!secretWord.trim()) {
+        errorMessage = 'Inserisci una parola segreta personale per poter rientrare se chiudi il browser.';
+        return;
+      }
+    }
+
+    isSubmitting = true;
     try {
-      const res = await appState.login(
-        inviteCode.trim().toUpperCase(),
-        formatName(firstName),
-        formatName(lastName),
-        secretWord.trim(),
-        false, // guest login
-        email.trim() || null
-      );
+      const res = await appState.login({
+        inviteCode: inviteCode.trim().toUpperCase(),
+        nickname: nickname.trim(),
+        email: noEmail ? null : email.trim(),
+        verificationCode: noEmail ? null : verificationCode.trim(),
+        noEmail,
+        secretWord: noEmail ? secretWord.trim() : null,
+      });
       if (!res.success) {
         errorMessage = res.error || 'Accesso non riuscito. Controlla il codice o i dati inseriti.';
       }
@@ -126,13 +145,14 @@
     <span class="eyebrow">Invitati</span>
     <h1 class="page-title">Entra nel <span class="gold-gradient-text">matrimonio</span></h1>
     <p class="page-lead">
-      Inserisci il codice invito ricevuto dagli sposi e le tue credenziali. Nessuna registrazione complessa:
-      bastano il tuo nome e una parola personale che ricorderai.
+      Bastano la tua email e un nickname per scendere in pista! Niente password o parole complicate:
+      riceverai subito un codice a 6 cifre per accedere e iniziare a giocare.
     </p>
 
     <ul class="tips">
-      <li>Se è la prima volta, il tuo profilo viene creato all'istante.</li>
-      <li>Per rientrare dallo stesso o da un altro dispositivo usa gli stessi dati.</li>
+      <li><strong>Accesso veloce:</strong> ricevi subito il codice di verifica via email.</li>
+      <li><strong>Scegli il tuo nickname:</strong> comparirà in classifica, nelle foto e nei quiz.</li>
+      <li><strong>I tuoi ricordi al sicuro:</strong> dopo la festa potrai registrare la tua password e accedere alla dashboard.</li>
     </ul>
 
     <div class="sposi-notice-box">
@@ -193,6 +213,7 @@
       </div>
     {/if}
 
+    <!-- CODICE INVITO -->
     <div class="input-group">
       <label for="inviteCode" class="input-label">Codice invito matrimonio</label>
       <input
@@ -209,64 +230,92 @@
       />
     </div>
 
-    <div class="row">
-      <div class="input-group">
-        <label for="firstName" class="input-label">Nome</label>
-        <input
-          id="firstName"
-          type="text"
-          class="input-field"
-          placeholder="Es. Mario"
-          bind:value={firstName}
-          autocomplete="given-name"
-          required
-        />
+    <!-- OPZIONE SENZA EMAIL (PER PARENTI ANZIANI) -->
+    <div
+      class="no-email-card"
+      class:selected={noEmail}
+      onclick={() => { noEmail = !noEmail; errorMessage = ''; }}
+      role="checkbox"
+      aria-checked={noEmail}
+      tabindex="0"
+      onkeydown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); noEmail = !noEmail; errorMessage = ''; } }}
+    >
+      <div class="no-email-checkbox">
+        {#if noEmail}
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        {/if}
       </div>
-      <div class="input-group">
-        <label for="lastName" class="input-label">Cognome</label>
-        <input
-          id="lastName"
-          type="text"
-          class="input-field"
-          placeholder="Es. Rossi"
-          bind:value={lastName}
-          autocomplete="family-name"
-          required
-        />
+      <div class="no-email-text">
+        <strong>Non possiedo un indirizzo email</strong>
+        <span>Opzione per parenti anziani o chi non usa la posta elettronica</span>
       </div>
     </div>
 
-    <div class="input-group">
-      <label for="secretWord" class="input-label">Parola personale (o PIN a scelta)</label>
-      <input
-        id="secretWord"
-        type="password"
-        class="input-field"
-        placeholder="Es. stella, 1234..."
-        bind:value={secretWord}
-        autocomplete="current-password"
-        required
+    {#if !noEmail}
+      <!-- MODALITÀ STANDARD (EMAIL VERIFICATA + NICKNAME) -->
+      <EmailVerificationField
+        bind:email={email}
+        bind:verificationCode={verificationCode}
+        purpose="join_guest"
+        label="La tua email"
+        placeholder="es. mario@email.com"
+        disabled={isSubmitting}
       />
-      <span class="field-hint">Serve per rientrare dal tuo telefono o cambiare dispositivo.</span>
-    </div>
 
-    <div class="input-group email-optional">
-      <label for="guestEmail" class="input-label email-label">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-        Vuoi ricevere i ricordi della festa?
-      </label>
-      <input
-        id="guestEmail"
-        type="email"
-        class="input-field"
-        placeholder="La tua email (facoltativa)"
-        bind:value={email}
-        autocomplete="email"
-      />
-      <span class="field-hint">Facoltativa · Ti manderemo un riepilogo con foto e risultati dopo il matrimonio.</span>
-    </div>
+      <div class="input-group">
+        <label for="guestNick" class="input-label">Il tuo Nickname per il gioco</label>
+        <input
+          id="guestNick"
+          type="text"
+          class="input-field"
+          placeholder="es. Zia Pina, Fratello sposa, Testimone Matteo..."
+          bind:value={nickname}
+          required
+          disabled={isSubmitting}
+        />
+        <span class="field-hint">Sarà il nome visibile in classifica, nelle foto e nelle sfide!</span>
+      </div>
+    {:else}
+      <!-- MODALITÀ SENZA EMAIL (NICKNAME + PAROLA SEGRETA) -->
+      <div class="no-email-notice" role="alert">
+        <span class="notice-icon">👵👴</span>
+        <div>
+          <strong>Partecipazione senza email</strong>
+          <p>Potrai giocare a tutte le sfide e caricare foto durante la festa, ma senza email non potrai creare un account permanente né rivedere le tue foto e statistiche in futuro da altri dispositivi.</p>
+        </div>
+      </div>
 
-    <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
+      <div class="input-group">
+        <label for="guestNickNoMail" class="input-label">Il tuo Nickname</label>
+        <input
+          id="guestNickNoMail"
+          type="text"
+          class="input-field"
+          placeholder="es. Zia Pina, Nonno Bruno, Zio Carlo..."
+          bind:value={nickname}
+          required
+          disabled={isSubmitting}
+        />
+        <span class="field-hint">Il nome con cui ti riconosceranno sposi e invitati.</span>
+      </div>
+
+      <div class="input-group">
+        <label for="secretWord" class="input-label">Parola segreta personale</label>
+        <input
+          id="secretWord"
+          type="password"
+          class="input-field"
+          placeholder="Una parola semplice che ricorderai (es. sole, roma, gatto)"
+          bind:value={secretWord}
+          autocomplete="current-password"
+          required
+          disabled={isSubmitting}
+        />
+        <span class="field-hint">Ti servirà per rientrare nella partita dal telefono se chiudi la pagina.</span>
+      </div>
+    {/if}
+
+    <button type="submit" class="btn btn-primary btn-lg btn-block submit-btn" disabled={isSubmitting}>
       {#if isSubmitting}
         <div class="spinner spinner-on-dark"></div>
         <span>Entrando in pista...</span>
@@ -337,25 +386,22 @@
     margin: 0;
   }
 
-  .eyebrow-couple {
-    background: rgba(184, 134, 11, 0.18);
-    border-color: rgba(184, 134, 11, 0.4);
-    color: var(--gold-dark);
-  }
-
   .tips {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     font-size: 0.9rem;
     color: var(--text-muted);
+    padding: 0;
+    margin: 4px 0 0;
   }
 
   .tips li {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
+    line-height: 1.45;
   }
 
   .tips li::before {
@@ -365,67 +411,13 @@
     border-radius: 50%;
     background: var(--gold-primary);
     flex-shrink: 0;
-  }
-
-  .switch {
-    font-size: 0.92rem;
-    color: var(--text-muted);
-    margin-top: 8px;
-    line-height: 1.6;
-  }
-
-  .sep {
-    margin: 0 4px;
-    opacity: 0.6;
+    margin-top: 7px;
   }
 
   .join-form {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-  }
-
-  .auth-toggle {
-    display: flex;
-    background: rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: var(--radius-full);
-    padding: 4px;
-    gap: 4px;
-    margin-bottom: 8px;
-  }
-
-  .auth-toggle-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-radius: var(--radius-full);
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .auth-toggle-btn:hover {
-    color: var(--text-main);
-  }
-
-  .auth-toggle-btn.active {
-    background: #fff;
-    color: var(--text-main);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    font-weight: 700;
-  }
-
-  .auth-toggle-btn.active.sposi-active {
-    color: var(--gold-dark);
-    box-shadow: 0 2px 10px rgba(184, 134, 11, 0.15);
+    gap: 14px;
   }
 
   .form-title {
@@ -438,16 +430,110 @@
     margin-bottom: 4px;
   }
 
-  .row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
-
   .code-input {
     text-transform: uppercase;
     letter-spacing: 0.18em;
     font-weight: 700;
+  }
+
+  /* Option card "Non possiedo un indirizzo email" */
+  .no-email-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1.5px solid rgba(201, 169, 110, 0.35);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  }
+
+  .no-email-card:hover {
+    background: rgba(201, 169, 110, 0.08);
+    border-color: rgba(201, 169, 110, 0.55);
+  }
+
+  .no-email-card.selected {
+    background: rgba(140, 47, 75, 0.05);
+    border-color: rgba(140, 47, 75, 0.4);
+  }
+
+  .no-email-checkbox {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid rgba(201, 169, 110, 0.8);
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--wine);
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+  }
+
+  .no-email-card.selected .no-email-checkbox {
+    border-color: var(--wine);
+    background: var(--wine);
+    color: #ffffff;
+  }
+
+  .no-email-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+  }
+
+  .no-email-text strong {
+    font-size: 0.88rem;
+    color: var(--text-main);
+  }
+
+  .no-email-text span {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+  }
+
+  /* Notice for users without email */
+  .no-email-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(184, 134, 11, 0.09);
+    border: 1px solid rgba(184, 134, 11, 0.3);
+    color: #5c4308;
+    font-size: 0.84rem;
+    line-height: 1.45;
+    text-align: left;
+    margin-top: 2px;
+  }
+
+  .no-email-notice .notice-icon {
+    font-size: 1.3rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .no-email-notice strong {
+    display: block;
+    color: #4a3504;
+    margin-bottom: 2px;
+    font-weight: 700;
+  }
+
+  .no-email-notice p {
+    margin: 0;
+    color: #695213;
+  }
+
+  .submit-btn {
+    margin-top: 6px;
   }
 
   .spinner-on-dark {
@@ -466,44 +552,35 @@
   }
 
   @media (max-width: 520px) {
-    .row { grid-template-columns: 1fr; gap: 0; }
     :global(.auth-card) { padding: 24px; }
   }
 
-  .email-optional {
-    padding-top: 14px;
-    border-top: 1px dashed rgba(201, 169, 110, 0.35);
-    margin-top: 6px;
-  }
-
-  .email-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--gold-dark);
-    font-weight: 600;
-  }
-
+  /* Live Preview Box */
   .preview-banner {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 12px 16px;
-    border-radius: var(--radius-md);
-    background: linear-gradient(135deg, rgba(233, 201, 143, 0.22), rgba(201, 169, 110, 0.12));
+    border-radius: 16px;
+    background: rgba(201, 169, 110, 0.12);
     border: 1px solid rgba(201, 169, 110, 0.4);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
+  }
+
+  .preview-loading {
+    opacity: 0.85;
   }
 
   .preview-badge-icon {
     font-size: 1.4rem;
+    line-height: 1;
   }
 
   .preview-badge-body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
   }
 
   .preview-badge-label {
@@ -542,7 +619,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 
   .sposi-notice-box {

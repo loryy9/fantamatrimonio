@@ -296,8 +296,9 @@ def send_verification_email(to_email: str, code: str, purpose: str = "registrati
         "register_couple": "creazione del matrimonio",
         "register_account": "registrazione account",
         "upgrade_account": "registrazione del tuo profilo",
+        "join_guest": "partecipazione al matrimonio",
     }
-    purpose_label = purpose_labels.get(purpose, "registrazione")
+    purpose_label = purpose_labels.get(purpose, "partecipazione")
     subject = f"💍 Il tuo codice di verifica Fanta Matrimonio: {code}"
     html = build_verification_code_email_html(code, purpose_label)
     text = (

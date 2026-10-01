@@ -65,18 +65,35 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
-  // ── Auth (login leggero) ──────────────────────────────────────────────────
-  async login(inviteCode, firstName, lastName, secretWord, isCouple = false, email = null) {
+  // ── Auth (login veloce) ───────────────────────────────────────────────────
+  async login(payload, argFirst, argLast, argSecret, argCouple = false, argEmail = null) {
+    let body;
+    if (typeof payload === 'object' && payload !== null) {
+      body = {
+        invite_code: payload.inviteCode || payload.invite_code,
+        nickname: payload.nickname,
+        email: payload.email,
+        verification_code: payload.verificationCode || payload.verification_code,
+        no_email: !!(payload.noEmail || payload.no_email),
+        secret_word: payload.secretWord || payload.secret_word,
+        first_name: payload.firstName || payload.first_name,
+        last_name: payload.lastName || payload.last_name,
+        is_couple: !!(payload.isCouple || payload.is_couple)
+      };
+    } else {
+      body = {
+        invite_code: payload,
+        first_name: argFirst,
+        last_name: argLast,
+        secret_word: argSecret,
+        is_couple: !!argCouple,
+        email: argEmail || undefined
+      };
+    }
+
     return await request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({
-        invite_code: inviteCode,
-        first_name: firstName,
-        last_name: lastName,
-        secret_word: secretWord,
-        is_couple: isCouple,
-        email: email || undefined
-      })
+      body: JSON.stringify(body)
     });
   },
 
@@ -140,12 +157,14 @@ export const api = {
     });
   },
 
-  async completeClaim(claimToken, password, displayName = null) {
+  async completeClaim(claimToken, password, firstName = null, lastName = null, displayName = null) {
     return await request('/auth/complete-claim', {
       method: 'POST',
       body: JSON.stringify({
         claim_token: claimToken,
         password,
+        first_name: firstName || undefined,
+        last_name: lastName || undefined,
         display_name: displayName || undefined
       })
     });

@@ -126,7 +126,7 @@
 
       <!-- Action Button Footer (Sticky & always visible) -->
       <div class="modal-footer">
-        <button class="btn btn-gold btn-block confirm-btn" onclick={handleDismiss}>
+        <button class="confirm-btn" onclick={handleDismiss}>
           Ho capito, iniziamo!
         </button>
       </div>
@@ -139,7 +139,7 @@
     position: fixed;
     inset: 0;
     z-index: 999999;
-    background: rgba(15, 12, 8, 0.78);
+    background: rgba(26, 12, 20, 0.62);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     display: flex;
@@ -152,21 +152,21 @@
   .modal-card {
     position: relative;
     width: 100%;
-    max-width: 440px;
-    max-height: min(86dvh, calc(100svh - 24px));
+    max-width: 460px;
+    max-height: min(88dvh, calc(100svh - 24px));
     display: flex;
     flex-direction: column;
-    background: #ffffff;
-    border-radius: var(--radius-lg);
-    border: 1px solid rgba(201, 169, 110, 0.45);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(201, 169, 110, 0.25);
-    animation: popUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    background: #fff;
+    border-radius: 28px;
+    border: 1px solid rgba(36, 28, 32, 0.07);
+    box-shadow: 0 30px 70px rgba(74, 31, 51, 0.32), 0 4px 14px rgba(140, 47, 75, 0.12);
+    animation: popUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
   }
 
   .modal-header {
     position: relative;
-    padding: 20px 20px 10px 20px;
+    padding: 26px 22px 14px;
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -178,51 +178,81 @@
     position: absolute;
     top: 14px;
     right: 14px;
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.05);
-    border: none;
-    font-size: 1.1rem;
+    background: var(--bg-primary);
+    border: 1px solid rgba(36, 28, 32, 0.07);
     color: var(--text-muted);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: background 0.2s, color 0.2s, transform 0.15s;
     z-index: 2;
   }
 
   .close-x-btn:active {
-    background: rgba(0, 0, 0, 0.15);
     transform: scale(0.92);
   }
 
+  @media (hover: hover) {
+    .close-x-btn:hover {
+      background: var(--wine-tint);
+      color: var(--wine);
+    }
+  }
+
+  .close-x-btn:focus-visible,
+  .confirm-btn:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: 2px;
+  }
+
   .modal-rings-icon {
-    width: 48px;
-    height: 48px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    background: rgba(201, 169, 110, 0.14);
-    border: 1px solid rgba(201, 169, 110, 0.35);
-    color: var(--gold-dark);
+    background: var(--grad-dusk);
+    border: 1px solid rgba(233, 201, 143, 0.4);
+    color: var(--gold-bright);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 8px 20px rgba(74, 31, 51, 0.25);
   }
 
   .modal-title {
-    font-size: 1.3rem;
-    font-weight: 800;
+    font-size: 1.85rem;
+    font-weight: 600;
     color: var(--text-main);
     margin: 0;
-    line-height: 1.25;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+
+  .modal-title::after {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--wine);
+    margin: 12px auto 0;
   }
 
   .modal-subtitle {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin-top: 3px;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.1rem;
+    color: #6b5f64;
+    margin-top: 10px;
+  }
+
+  .modal-subtitle strong {
+    color: var(--wine);
+    font-weight: 600;
   }
 
   .modal-scroll-body {
@@ -230,44 +260,46 @@
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    padding: 6px 18px 12px 18px;
+    padding: 6px 20px 14px;
   }
 
   .intro-text {
-    font-size: 0.84rem;
+    font-size: 0.88rem;
     color: var(--text-main);
-    line-height: 1.45;
+    line-height: 1.5;
     text-align: center;
-    margin: 0 0 12px 0;
-    background: rgba(201, 169, 110, 0.08);
-    border: 1px solid rgba(201, 169, 110, 0.25);
-    border-radius: var(--radius-md);
-    padding: 8px 12px;
+    margin: 0 0 14px 0;
+    background: var(--wine-tint);
+    border: 1px solid rgba(140, 47, 75, 0.12);
+    border-radius: 18px;
+    padding: 10px 14px;
+  }
+
+  .intro-text strong {
+    color: var(--wine-deep);
   }
 
   .timing-box {
-    background: var(--bg-surface-elevated);
-    border: 1px solid rgba(201, 169, 110, 0.3);
-    border-radius: var(--radius-md);
-    padding: 8px 12px;
-    margin-bottom: 12px;
-    font-size: 0.8rem;
+    background: #fbf5e9;
+    border: 1px solid rgba(201, 169, 110, 0.35);
+    border-radius: 18px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 0.82rem;
   }
 
   .timing-header {
     display: flex;
     align-items: center;
     gap: 6px;
-    color: var(--gold-dark);
-    font-size: 0.76rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    color: var(--wine);
+    font-size: 0.85rem;
     margin-bottom: 3px;
   }
 
   .timing-desc {
-    color: var(--text-muted);
-    line-height: 1.35;
+    color: #6b5f64;
+    line-height: 1.4;
   }
 
   .rules-section {
@@ -275,82 +307,80 @@
   }
 
   .rules-label {
-    font-size: 0.74rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    font-weight: 700;
-    margin-bottom: 6px;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    color: var(--text-main);
+    font-weight: 600;
+    margin-bottom: 8px;
   }
 
   .rules-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
 
   .rule-item {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    padding: 7px 10px;
+    gap: 12px;
+    background: #fff;
+    border: 1px solid rgba(36, 28, 32, 0.07);
+    border-radius: 18px;
+    padding: 10px 12px;
   }
 
   .rule-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
     flex-shrink: 0;
-    margin-top: 1px;
   }
 
   .rule-icon.photo-icon {
-    background: rgba(212, 132, 154, 0.15);
-    color: var(--rose-primary);
+    background: var(--wine-tint);
+    color: var(--wine);
   }
 
   .rule-icon.hunt-icon {
-    background: rgba(201, 169, 110, 0.15);
-    color: var(--gold-dark);
+    background: #f6ecd6;
+    color: #8a6a2c;
   }
 
   .rule-icon.quiz-icon {
-    background: rgba(142, 68, 173, 0.12);
-    color: #8e44ad;
+    background: #e3f0e9;
+    color: #3f7a5f;
   }
 
   .rule-icon.vote-icon {
-    background: rgba(232, 160, 180, 0.15);
-    color: var(--rose-primary);
+    background: #fbe6ec;
+    color: #b94b68;
   }
 
   .rule-text {
     display: flex;
     flex-direction: column;
-    gap: 1px;
-    font-size: 0.78rem;
+    gap: 2px;
+    font-size: 0.8rem;
   }
 
   .rule-text strong {
     color: var(--text-main);
+    font-size: 0.88rem;
   }
 
   .rule-text span {
-    color: var(--text-muted);
-    line-height: 1.3;
+    color: #6b5f64;
+    line-height: 1.35;
   }
 
   .modal-footer {
-    padding: 12px 18px max(14px, env(safe-area-inset-bottom, 0px)) 18px;
-    background: #ffffff;
-    border-top: 1px solid var(--border-subtle);
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+    padding: 14px 20px max(16px, env(safe-area-inset-bottom, 0px));
+    background: #fff;
+    border-top: 1px solid rgba(36, 28, 32, 0.07);
     flex-shrink: 0;
   }
 
@@ -359,8 +389,13 @@
     padding: 12px;
     font-size: 0.95rem;
     font-weight: 700;
-    min-height: 46px;
-    box-shadow: 0 4px 14px rgba(201, 169, 110, 0.35);
+    min-height: 48px;
+    border-radius: 9999px;
+    border: none;
+    color: #fff;
+    background: var(--grad-gold-rose);
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(140, 47, 75, 0.28);
   }
 
   @keyframes fadeIn {
@@ -371,11 +406,18 @@
   @keyframes popUp {
     from {
       opacity: 0;
-      transform: scale(0.92) translateY(10px);
+      transform: scale(0.94) translateY(10px);
     }
     to {
       opacity: 1;
       transform: scale(1) translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modal-backdrop,
+    .modal-card {
+      animation: none;
     }
   }
 </style>

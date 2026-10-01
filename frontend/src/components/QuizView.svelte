@@ -137,7 +137,7 @@
     <!-- QUIZ SECTION -->
     <div class="section-box">
       <div class="header-box">
-        <h1 class="page-title font-serif gold-gradient-text">Quiz sugli Sposi</h1>
+        <h1 class="page-title font-serif">Quiz sugli Sposi</h1>
         <p class="page-desc">Rispondi alle domande e dimostra quanto conosci gli sposi!</p>
       </div>
 
@@ -193,15 +193,15 @@
 
             <div class="game-card glass-card {isDone ? 'quiz-done' : ''}">
               <div class="card-top-row">
-                <span class="badge badge-purple">+{quiz.points} PT</span>
+                <span class="badge badge-gold">+{quiz.points} pt</span>
                 {#if isDone}
                   <span class="badge {isCorrect ? 'badge-green' : 'badge-rose'}">
                     {#if isCorrect}
                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      Risposta Esatta (+{quiz.points} PT)
+                      Risposta esatta (+{quiz.points} pt)
                     {:else}
                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      Risposta Errata (0 PT)
+                      Risposta errata (0 pt)
                     {/if}
                   </span>
                 {:else if eventTimer.status === 'ended'}
@@ -229,7 +229,7 @@
                     </div>
                     <div class="recap-sub">
                       {#if isCorrect}
-                        Risposta esatta! Punti assegnati: +{quiz.points} PT
+                        Risposta esatta! Punti assegnati: +{quiz.points} pt
                       {:else}
                         Risposta non corretta. Quella corretta era: <strong>{correctAnswer || 'N/D'}</strong>
                       {/if}
@@ -294,7 +294,7 @@
     <!-- MOMENTS & THOUGHTS SECTION (TEXT-ONLY) -->
     <div class="section-box">
       <div class="header-box">
-        <h1 class="page-title font-serif rose-gradient-text">Momenti Migliori</h1>
+        <h1 class="page-title font-serif">Momenti Migliori</h1>
         <p class="page-desc">Condividi pensieri, ricordi ed emozioni della festa! Puoi compilare e modificare le risposte fino alla fine dell'evento.</p>
       </div>
 
@@ -347,7 +347,7 @@
 
             <div class="game-card glass-card {isAnswered ? 'moment-card-answered' : ''}">
               <div class="card-top-row">
-                <span class="badge badge-gold">+{vote.points} PT</span>
+                <span class="badge badge-gold">+{vote.points} pt</span>
                 {#if isAnswered}
                   <span class="badge badge-green">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -444,16 +444,19 @@
   .games-container {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 20px;
   }
 
+  /* Sub-navigation pill */
   .sub-nav {
     display: flex;
-    background: var(--bg-surface);
+    gap: 4px;
+    background: #fff;
     padding: 4px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-subtle);
-    box-shadow: var(--shadow-sm);
+    border-radius: 999px;
+    border: 1px solid rgba(36, 28, 32, 0.07);
+    box-shadow: 0 14px 28px -22px rgba(106, 32, 55, 0.4);
+    max-width: 480px;
   }
 
   .sub-btn {
@@ -461,82 +464,122 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 10px 14px;
-    border-radius: var(--radius-sm);
+    gap: 7px;
+    padding: 11px 14px;
+    border-radius: 999px;
     background: transparent;
     border: none;
-    color: var(--text-muted);
+    color: #6b5f64;
+    font-family: var(--font-sans);
     font-weight: 600;
     font-size: 0.88rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background 0.2s, color 0.2s;
   }
 
   .sub-btn.active {
-    background: linear-gradient(135deg, rgba(201, 169, 110, 0.12) 0%, rgba(201, 169, 110, 0.2) 100%);
-    color: var(--gold-dark);
-    border: 1px solid rgba(201, 169, 110, 0.3);
+    background: var(--wine);
+    color: #fff;
     font-weight: 700;
+    box-shadow: 0 10px 18px -10px rgba(140, 47, 75, 0.6);
+  }
+
+  .sub-btn:focus-visible,
+  .option-btn:focus-visible,
+  .moment-textarea:focus-visible,
+  .moment-action-btn:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) {
+    .sub-btn:not(.active):hover {
+      background: var(--wine-tint);
+      color: var(--wine);
+    }
   }
 
   .section-box {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 18px;
   }
 
+  /* Editorial header */
   .header-box {
-    padding: 0 4px;
+    padding: 4px 4px 0;
   }
 
   .page-title {
-    font-size: 1.55rem;
-    font-weight: 800;
+    font-family: var(--font-display);
+    font-size: 2.3rem;
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+  }
+
+  .page-title::after {
+    content: '';
+    display: block;
+    width: 44px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--wine);
+    margin-top: 12px;
   }
 
   .page-desc {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin-top: 4px;
-    line-height: 1.4;
+    font-size: 0.95rem;
+    font-style: italic;
+    color: #6b5f64;
+    margin-top: 12px;
+    line-height: 1.5;
+    max-width: 52ch;
   }
 
   .cards-list {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
   }
 
   .game-card {
-    padding: 18px 16px;
+    padding: 22px 20px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
+    background: #fff;
+    border-radius: 28px;
   }
 
   .card-top-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
   .quiz-question {
-    font-size: 1.15rem;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
     color: var(--text-main);
-    line-height: 1.35;
+    line-height: 1.2;
   }
 
   .quiz-subtext {
-    font-size: 0.85rem;
-    color: var(--text-muted);
+    font-size: 0.88rem;
+    color: #6b5f64;
+    line-height: 1.5;
   }
 
   .options-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-top: 4px;
+    gap: 10px;
+    margin-top: 2px;
   }
 
   .option-btn {
@@ -544,90 +587,106 @@
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    background: #fff;
+    border: 1px solid rgba(36, 28, 32, 0.1);
+    border-radius: 18px;
     color: var(--text-main);
+    font-family: var(--font-sans);
     cursor: pointer;
     text-align: left;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
   }
 
-  .option-btn:not(:disabled):hover {
-    border-color: rgba(201, 169, 110, 0.3);
-    background: rgba(201, 169, 110, 0.04);
+  @media (hover: hover) {
+    .option-btn:not(:disabled):hover {
+      border-color: rgba(140, 47, 75, 0.45);
+      background: var(--wine-tint);
+    }
   }
 
   .option-btn:not(:disabled):active {
-    transform: scale(0.98);
-    border-color: var(--gold-primary);
+    transform: scale(0.985);
+    border-color: var(--wine);
   }
 
   .opt-letter {
-    width: 28px;
-    min-width: 28px;
-    max-width: 28px;
-    height: 28px;
+    width: 30px;
+    min-width: 30px;
+    max-width: 30px;
+    height: 30px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--wine-tint);
+    color: var(--wine);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 800;
-    font-size: 0.82rem;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1rem;
     flex-shrink: 0;
-    color: var(--text-muted);
     overflow: hidden;
     line-height: 1;
     text-align: center;
   }
 
   .opt-text {
-    font-size: 0.9rem;
+    font-size: 0.92rem;
     font-weight: 500;
     flex: 1;
   }
 
+  .option-btn.selected {
+    border-color: var(--wine);
+    background: var(--wine-tint);
+  }
+
+  .option-btn.selected .opt-letter {
+    background: var(--wine);
+    color: #fff;
+  }
+
   .option-btn.correct {
-    background: rgba(123, 184, 158, 0.1);
-    border-color: rgba(123, 184, 158, 0.5);
-    color: #3a7d5e;
+    background: rgba(127, 169, 148, 0.14);
+    border-color: rgba(127, 169, 148, 0.7);
+    color: #2f5f4a;
   }
 
   .option-btn.correct .opt-letter {
-    background: var(--accent-emerald);
+    background: #7fa994;
     color: #fff;
   }
 
   .option-btn.incorrect {
-    background: rgba(212, 132, 154, 0.1);
-    border-color: rgba(212, 132, 154, 0.5);
-    color: var(--rose-primary);
+    background: rgba(168, 74, 74, 0.08);
+    border-color: rgba(168, 74, 74, 0.45);
+    color: #8a3a3f;
   }
 
   .option-btn.incorrect .opt-letter {
-    background: var(--rose-primary);
+    background: #a84a4a;
     color: #fff;
   }
 
-  /* Vote options */
+  /* Vote options (kept for compatibility) */
   .vote-option-btn {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 14px 16px;
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    background: #fff;
+    border: 1px solid rgba(36, 28, 32, 0.1);
+    border-radius: 18px;
     color: var(--text-main);
     cursor: pointer;
     text-align: left;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, background 0.2s ease;
   }
 
-  .vote-option-btn:not(:disabled):hover {
-    border-color: rgba(201, 169, 110, 0.3);
-    background: rgba(201, 169, 110, 0.04);
+  @media (hover: hover) {
+    .vote-option-btn:not(:disabled):hover {
+      border-color: rgba(140, 47, 75, 0.45);
+      background: var(--wine-tint);
+    }
   }
 
   .vote-left {
@@ -647,8 +706,8 @@
   }
 
   .vote-radio.radio-filled {
-    border-color: var(--gold-primary);
-    background: var(--gold-primary);
+    border-color: var(--wine);
+    background: var(--wine);
     box-shadow: inset 0 0 0 3px #fff;
   }
 
@@ -658,38 +717,38 @@
   }
 
   .vote-chosen {
-    border-color: rgba(201, 169, 110, 0.4);
-    background: linear-gradient(135deg, rgba(201, 169, 110, 0.08) 0%, rgba(255, 255, 255, 0.95) 100%);
-    box-shadow: 0 2px 10px rgba(201, 169, 110, 0.1);
+    border-color: var(--wine);
+    background: var(--wine-tint);
   }
 
   .chosen-tag {
     font-size: 0.72rem;
-    font-weight: 800;
-    color: var(--gold-dark);
-    background: rgba(201, 169, 110, 0.12);
+    font-weight: 700;
+    color: var(--wine);
+    background: var(--wine-tint);
     padding: 3px 8px;
-    border-radius: var(--radius-full);
+    border-radius: 999px;
   }
 
   .empty-state {
     text-align: center;
-    padding: 40px 20px;
+    padding: 44px 20px;
   }
 
   .empty-icon {
-    color: var(--accent-purple);
+    color: var(--wine);
     margin-bottom: 10px;
   }
 
   .empty-title {
-    font-size: 1.1rem;
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    font-weight: 600;
   }
 
   .empty-desc {
-    font-size: 0.85rem;
-    color: var(--text-muted);
+    font-size: 0.88rem;
+    color: #6b5f64;
     margin-top: 4px;
   }
 
@@ -698,21 +757,21 @@
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    padding: 12px 14px;
-    border-radius: var(--radius-md);
-    margin: 2px 0 6px 0;
+    padding: 14px 16px;
+    border-radius: 20px;
+    margin: 2px 0 4px 0;
   }
 
   .quiz-recap-box.recap-correct {
-    background: rgba(123, 184, 158, 0.12);
-    border: 1px solid rgba(123, 184, 158, 0.35);
-    color: #2b6a4d;
+    background: rgba(127, 169, 148, 0.14);
+    border: 1px solid rgba(127, 169, 148, 0.4);
+    color: #2f5f4a;
   }
 
   .quiz-recap-box.recap-incorrect {
-    background: rgba(212, 132, 154, 0.12);
-    border: 1px solid rgba(212, 132, 154, 0.35);
-    color: #9c3f56;
+    background: rgba(168, 74, 74, 0.08);
+    border: 1px solid rgba(168, 74, 74, 0.28);
+    color: #8a3a3f;
   }
 
   .recap-icon {
@@ -727,28 +786,28 @@
   }
 
   .recap-correct .recap-icon {
-    background: #3a7d5e;
-    color: #ffffff;
+    background: #7fa994;
+    color: #fff;
   }
 
   .recap-incorrect .recap-icon {
-    background: var(--rose-primary);
-    color: #ffffff;
+    background: #a84a4a;
+    color: #fff;
   }
 
   .recap-content {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    font-size: 0.88rem;
+    font-size: 0.9rem;
   }
 
   .recap-title {
-    font-weight: 700;
+    font-weight: 600;
   }
 
   .recap-sub {
-    font-size: 0.82rem;
+    font-size: 0.83rem;
     opacity: 0.9;
   }
 
@@ -758,23 +817,23 @@
     gap: 4px;
     font-size: 0.72rem;
     font-weight: 700;
-    padding: 3px 8px;
-    border-radius: var(--radius-full);
+    padding: 3px 9px;
+    border-radius: 999px;
     margin-left: auto;
     white-space: nowrap;
     flex-shrink: 0;
   }
 
   .opt-status-tag.tag-green {
-    background: rgba(123, 184, 158, 0.2);
-    color: #2b6a4d;
-    border: 1px solid rgba(123, 184, 158, 0.4);
+    background: rgba(127, 169, 148, 0.2);
+    color: #2f5f4a;
+    border: 1px solid rgba(127, 169, 148, 0.45);
   }
 
   .opt-status-tag.tag-rose {
-    background: rgba(212, 132, 154, 0.2);
-    color: #9c3f56;
-    border: 1px solid rgba(212, 132, 154, 0.4);
+    background: rgba(168, 74, 74, 0.12);
+    color: #8a3a3f;
+    border: 1px solid rgba(168, 74, 74, 0.3);
   }
 
   .option-btn.done-locked {
@@ -782,9 +841,9 @@
   }
 
   .game-card.quiz-done .option-btn:not(.selected):not(.correct) {
-    opacity: 0.55;
-    background: rgba(0, 0, 0, 0.02);
-    border-color: var(--border-subtle);
+    opacity: 0.5;
+    background: rgba(36, 28, 32, 0.02);
+    border-color: rgba(36, 28, 32, 0.07);
   }
 
   /* Moment free text input */
@@ -792,30 +851,29 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    margin-top: 6px;
+    margin-top: 4px;
   }
 
   .moment-textarea {
     width: 100%;
-    padding: 12px 14px;
-    background: var(--bg-surface-elevated);
-    border: 1.5px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid rgba(36, 28, 32, 0.12);
+    border-radius: 20px;
     color: var(--text-main);
-    font-family: inherit;
-    font-size: 0.92rem;
-    line-height: 1.45;
+    font-family: var(--font-sans);
+    font-size: 0.94rem;
+    line-height: 1.5;
     resize: vertical;
-    min-height: 90px;
-    transition: all 0.2s ease;
+    min-height: 96px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
     box-sizing: border-box;
   }
 
   .moment-textarea:focus {
     outline: none;
-    border-color: var(--gold-primary);
-    background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.15);
+    border-color: var(--wine);
+    box-shadow: 0 0 0 3px rgba(140, 47, 75, 0.14);
   }
 
   .moment-footer {
@@ -823,8 +881,7 @@
     justify-content: space-between;
     align-items: center;
     gap: 12px;
-    margin-top: 4px;
-    min-height: 38px;
+    min-height: 40px;
     flex-wrap: wrap;
   }
 
@@ -836,44 +893,50 @@
 
   .moment-hint {
     font-size: 0.8rem;
-    color: var(--text-muted);
+    color: #6b5f64;
     display: flex;
     align-items: center;
     gap: 5px;
   }
 
   .moment-hint.hint-saved {
-    color: #2b6a4d;
+    color: #3f7a60;
     font-weight: 600;
   }
 
   .moment-hint.hint-editing {
-    color: var(--rose-primary);
+    color: var(--wine);
     font-weight: 600;
   }
 
   .moment-action-btn {
-    padding: 8px 18px;
-    font-size: 0.85rem;
+    padding: 10px 20px;
+    font-size: 0.86rem;
     font-weight: 700;
     cursor: pointer;
-    border-radius: var(--radius-sm);
+    border: none;
+    border-radius: 999px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     margin-left: auto;
-    transition: all 0.2s ease;
+    transition: filter 0.2s ease, opacity 0.2s ease;
+  }
+
+  .moment-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .btn-save-modifications {
-    background: linear-gradient(135deg, #c9a96e 0%, #b8985e 100%);
-    box-shadow: 0 2px 8px rgba(201, 169, 110, 0.25);
+    background: var(--grad-gold-rose);
+    box-shadow: 0 12px 22px -10px rgba(140, 47, 75, 0.55);
   }
 
   .badge-neutral {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--text-muted);
-    border: 1px solid var(--border-subtle);
+    background: rgba(36, 28, 32, 0.05);
+    color: #6b5f64;
+    border: 1px solid rgba(36, 28, 32, 0.08);
   }
 
   .btn-spinner {
@@ -896,14 +959,14 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 14px 16px;
-    background: linear-gradient(135deg, rgba(212, 163, 115, 0.1) 0%, rgba(255, 255, 255, 0.85) 100%);
-    border: 1px solid rgba(212, 163, 115, 0.3);
-    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(233, 201, 143, 0.22) 0%, var(--paper) 80%);
+    border: 1px solid rgba(201, 169, 110, 0.35);
+    border-radius: 22px;
   }
 
   .ended-banner-icon {
-    color: var(--accent-gold);
+    color: #a07a35;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -914,13 +977,13 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    font-size: 0.82rem;
-    color: var(--text-main);
+    font-size: 0.83rem;
+    color: #6b5f64;
   }
 
   .ended-banner-text strong {
-    font-size: 0.88rem;
-    color: var(--accent-gold);
+    font-size: 0.9rem;
+    color: var(--text-main);
   }
 
   .ended-notice-inline {
@@ -928,17 +991,16 @@
     align-items: center;
     gap: 7px;
     font-size: 0.82rem;
-    color: var(--text-muted);
-    padding: 8px 12px;
-    background: rgba(140, 120, 110, 0.08);
-    border-radius: var(--radius-sm);
-    margin-top: 4px;
+    color: #6b5f64;
+    padding: 9px 14px;
+    background: rgba(36, 28, 32, 0.04);
+    border-radius: 999px;
     font-weight: 500;
   }
 
   .moment-textarea-locked {
-    background: rgba(0, 0, 0, 0.02) !important;
-    border-color: rgba(140, 120, 110, 0.2) !important;
+    background: rgba(36, 28, 32, 0.03) !important;
+    border-color: rgba(36, 28, 32, 0.08) !important;
     cursor: default;
     color: var(--text-main);
   }
@@ -948,12 +1010,24 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 18px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 245, 235, 0.9));
-    border: 1px solid rgba(201, 169, 110, 0.35);
+    padding: 14px 18px;
+    border-radius: 22px;
+    background: var(--wine-tint);
+    border: 1px solid rgba(140, 47, 75, 0.18);
+    box-shadow: none;
     font-size: 0.88rem;
-    margin-bottom: 16px;
+    color: var(--wine-deep);
+  }
+
+  .inline-svg-icon {
+    vertical-align: -3px;
+    color: var(--wine);
+  }
+
+  @media (min-width: 900px) {
+    .page-title { font-size: 3rem; }
+    .cards-list { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    .game-card { padding: 26px; }
   }
 
   @media (max-width: 600px) {
@@ -962,5 +1036,10 @@
       align-items: flex-start;
       gap: 10px;
     }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-spinner { animation-duration: 2s; }
+    .option-btn, .sub-btn { transition: none; }
   }
 </style>

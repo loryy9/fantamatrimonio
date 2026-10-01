@@ -7,6 +7,12 @@
 
   let siteHeaderHeight = $state(72);
 
+  const isLanding = $derived(!appState.pendingInvite && appState.authView !== 'create' && appState.authView !== 'join');
+
+  function scrollToId(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   onMount(() => {
     const sync = () => {
       if (appState.pendingInvite) return;
@@ -27,21 +33,29 @@
       </button>
 
       <nav class="top-nav">
+        {#if isLanding}
+          <button class="nav-link nav-anchor" onclick={() => scrollToId('come-funziona')}>Come funziona</button>
+          <button class="nav-link nav-anchor" onclick={() => scrollToId('giochi')}>I giochi</button>
+        {/if}
         <button class="nav-link" class:active={appState.authView === 'join'} onclick={() => appState.setAuthView('join')}>Entra con un codice</button>
         <button class="btn btn-primary nav-cta" onclick={() => appState.setAuthView('create')}>Crea il matrimonio</button>
       </nav>
     </div>
   </header>
 
-  <main class="site-main">
-    {#if appState.pendingInvite || appState.authView === 'create'}
-      <CreateEventView />
-    {:else if appState.authView === 'join'}
-      <LoginView />
-    {:else}
+  {#if isLanding}
+    <main class="site-landing">
       <LandingView />
-    {/if}
-  </main>
+    </main>
+  {:else}
+    <main class="site-main">
+      {#if appState.pendingInvite || appState.authView === 'create'}
+        <CreateEventView />
+      {:else}
+        <LoginView />
+      {/if}
+    </main>
+  {/if}
 
   <footer class="site-footer">
     <span>Fanta Matrimonio · Gioca, scatta, rispondi e scala la classifica</span>
@@ -128,6 +142,15 @@
   .admin-link-subtle:hover {
     color: var(--gold-dark);
     text-decoration: underline;
+  }
+
+  .site-landing {
+    flex: 1;
+    width: 100%;
+  }
+
+  @media (max-width: 899px) {
+    .nav-anchor { display: none; }
   }
 
   @media (max-width: 560px) {

@@ -65,7 +65,7 @@
     border-radius: 28px;
     background: rgba(255, 255, 255, 0.72);
     border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 12px 24px rgba(138, 109, 59, 0.14);
+    box-shadow: 0 12px 24px rgba(36, 28, 32, 0.16);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
   }
@@ -110,7 +110,7 @@
     padding: 10px 14px;
     color: #fff;
     background: var(--grad-gold-rose);
-    box-shadow: 0 6px 14px rgba(212, 132, 154, 0.35);
+    box-shadow: 0 8px 16px -4px rgba(140, 47, 75, 0.4);
   }
 
   .nav-btn.active .nav-label {

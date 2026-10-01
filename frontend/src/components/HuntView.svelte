@@ -54,7 +54,7 @@
 
 <div class="hunt-container">
   <div class="header-box">
-    <h1 class="page-title font-serif gold-gradient-text">Caccia al Tesoro</h1>
+    <h1 class="page-title font-serif">Caccia al Tesoro</h1>
     <p class="page-desc">
       Trova i soggetti, scatta le foto richieste e conquista punti per scalare la classifica!
     </p>
@@ -177,196 +177,37 @@
 </div>
 
 <style>
-  .hunt-container {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
+  .header-box { padding: 0 4px; }
+  .header-box::after { content: ''; display: block; width: 44px; height: 2px; border-radius: 2px; background: var(--wine); margin-top: 14px; }
+  .page-title { font-family: var(--font-display); font-size: clamp(2rem, 6vw, 2.8rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; color: var(--text-main); }
+  .page-desc { font-size: 0.92rem; font-style: italic; color: #6b5f64; margin-top: 8px; line-height: 1.5; max-width: 560px; }
 
-  .header-box {
-    padding: 0 4px;
-  }
-
-  .page-title {
-    font-size: 1.6rem;
-    font-weight: 800;
-  }
-
-  .page-desc {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin-top: 4px;
-    line-height: 1.4;
-  }
-
-  .hunt-list {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .hunt-card {
-    padding: 18px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .card-completed {
-    border-color: rgba(123, 184, 158, 0.35);
-    background: linear-gradient(135deg, rgba(123, 184, 158, 0.06) 0%, rgba(255, 255, 255, 0.85) 100%);
-  }
-
-  .hunt-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .done-check {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.8rem;
-    font-weight: 800;
-    color: var(--accent-emerald);
-  }
-
-  .done-icon {
-    color: var(--accent-emerald);
-  }
-
-  .hunt-title {
-    font-size: 1.15rem;
-    color: var(--text-main);
-  }
-
-  .hunt-desc {
-    font-size: 0.88rem;
-    color: var(--text-muted);
-    line-height: 1.4;
-  }
-
-  .completed-box {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(123, 184, 158, 0.06);
-    border: 1px dashed rgba(123, 184, 158, 0.3);
-    padding: 10px 12px;
-    border-radius: var(--radius-md);
-    margin-top: 4px;
-  }
-
-  .completed-info {
-    display: flex;
-    flex-direction: column;
-    font-size: 0.8rem;
-    color: var(--text-main);
-  }
-
-  .points-awarded {
-    font-weight: 800;
-    color: var(--accent-emerald);
-    font-size: 0.85rem;
-  }
-
-  .completed-thumb {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius-sm);
-    object-fit: cover;
-    border: 1px solid var(--border-subtle);
-  }
-
-  .hidden-file {
-    display: none;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 40px 20px;
-  }
-
-  .empty-icon {
-    color: var(--accent-purple);
-    margin-bottom: 10px;
-  }
-
-  .empty-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-  }
-
-  .empty-desc {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin-top: 4px;
-  }
-
-  .ended-banner {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    background: linear-gradient(135deg, rgba(212, 163, 115, 0.1) 0%, rgba(255, 255, 255, 0.85) 100%);
-    border: 1px solid rgba(212, 163, 115, 0.3);
-    border-radius: var(--radius-md);
-  }
-
-  .ended-banner-icon {
-    color: var(--accent-gold);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .ended-banner-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 0.82rem;
-    color: var(--text-main);
-  }
-
-  .ended-banner-text strong {
-    font-size: 0.88rem;
-    color: var(--accent-gold);
-  }
-
-  .ended-mission-notice {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 10px 14px;
-    background: rgba(140, 120, 110, 0.08);
-    border: 1px dashed rgba(140, 120, 110, 0.25);
-    border-radius: var(--radius-md);
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    font-weight: 600;
-  }
-
-  .couple-hint-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 18px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 245, 235, 0.9));
-    border: 1px solid rgba(201, 169, 110, 0.35);
-    font-size: 0.88rem;
-    margin-bottom: 14px;
-  }
-
-  @media (max-width: 600px) {
-    .couple-hint-banner {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 10px;
-    }
-  }
+  .hunt-container { display: flex; flex-direction: column; gap: 22px; }
+  .hunt-list { display: flex; flex-direction: column; gap: 14px; }
+  .hunt-card { position: relative; padding: 22px 20px; display: flex; flex-direction: column; gap: 10px; border-radius: 26px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 18px 34px -24px rgba(106,32,55,.4); overflow: hidden; }
+  .hunt-card::before { content: ''; position: absolute; left: 0; top: 22px; bottom: 22px; width: 3px; border-radius: 0 3px 3px 0; background: var(--wine); }
+  .card-completed { background: linear-gradient(160deg, rgba(127,169,148,.12) 0%, #fff 55%); border-color: rgba(127,169,148,.4); }
+  .card-completed::before { background: #7fa994; }
+  .hunt-card-header { display: flex; justify-content: space-between; align-items: center; }
+  .done-check { display: flex; align-items: center; gap: 5px; font-size: .8rem; font-weight: 700; color: #3f6d58; }
+  .done-icon { color: #7fa994; }
+  .hunt-title { font-size: 1.45rem; font-weight: 600; line-height: 1.15; color: var(--text-main); }
+  .hunt-desc { font-size: .9rem; color: #6b5f64; line-height: 1.5; }
+  .completed-box { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(127,169,148,.14); border: 1px solid rgba(127,169,148,.35); padding: 12px 14px; border-radius: 18px; margin-top: 4px; }
+  .completed-info { display: flex; flex-direction: column; font-size: .82rem; color: var(--text-main); }
+  .points-awarded { font-weight: 700; color: #7a5a1c; font-size: .85rem; }
+  .completed-thumb { width: 48px; height: 48px; border-radius: 14px; object-fit: cover; border: 2px solid #fff; box-shadow: 0 6px 12px -6px rgba(36,28,32,.4); }
+  .hidden-file { display: none; }
+  .empty-state { text-align: center; padding: 44px 20px; border-radius: 26px; }
+  .empty-icon { width: 68px; height: 68px; margin: 0 auto 12px; border-radius: 50%; background: var(--wine-tint); color: var(--wine); display: flex; align-items: center; justify-content: center; }
+  .empty-title { font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; color: var(--text-main); }
+  .empty-desc { font-size: .85rem; color: #6b5f64; margin-top: 4px; }
+  .ended-banner { display: flex; align-items: center; gap: 12px; padding: 16px 18px; background: var(--wine-tint); border: 1px solid rgba(140,47,75,.18); border-radius: 22px; box-shadow: none; }
+  .ended-banner-icon { color: var(--wine); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .ended-banner-text { display: flex; flex-direction: column; gap: 2px; font-size: .82rem; color: #6b5f64; }
+  .ended-banner-text strong { font-size: .9rem; color: var(--wine-deep); }
+  .ended-mission-notice { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 14px; background: var(--bg-surface-elevated); border: 1px dashed rgba(36,28,32,.18); border-radius: 999px; color: #6b5f64; font-size: .82rem; font-weight: 600; }
+  .couple-hint-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-radius: 22px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 18px 34px -26px rgba(106,32,55,.4); font-size: .88rem; color: var(--text-main); }
+  .couple-hint-banner :global(.inline-svg-icon) { color: var(--wine); vertical-align: -3px; }
+  @media (max-width: 600px) { .couple-hint-banner { flex-direction: column; align-items: flex-start; gap: 10px; } }
 </style>

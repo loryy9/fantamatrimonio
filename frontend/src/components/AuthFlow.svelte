@@ -10,17 +10,25 @@
   const isLanding = $derived(!appState.pendingInvite && appState.authView !== 'create' && appState.authView !== 'join');
 
   function scrollToId(id) {
+    if (!isLanding) {
+      appState.setAuthView('entry');
+      requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      return;
+    }
+
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   onMount(() => {
     const sync = () => {
       if (appState.pendingInvite) return;
-      const h = window.location.hash;
-      appState.authView = h === '#/crea' ? 'create' : h === '#/entra' ? 'join' : 'entry';
+      const path = window.location.pathname;
+      appState.authView = path === '/crea' ? 'create' : path === '/entra' ? 'join' : 'entry';
     };
-    window.addEventListener('hashchange', sync);
-    return () => window.removeEventListener('hashchange', sync);
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
   });
 </script>
 
@@ -33,10 +41,8 @@
       </button>
 
       <nav class="top-nav">
-        {#if isLanding}
-          <button class="nav-link nav-anchor" onclick={() => scrollToId('come-funziona')}>Come funziona</button>
-          <button class="nav-link nav-anchor" onclick={() => scrollToId('giochi')}>I giochi</button>
-        {/if}
+        <button class="nav-link nav-anchor" onclick={() => scrollToId('come-funziona')}>Come funziona</button>
+        <button class="nav-link nav-anchor" onclick={() => scrollToId('giochi')}>I giochi</button>
         <button class="nav-link" class:active={appState.authView === 'join'} onclick={() => appState.setAuthView('join')}>Entra con un codice</button>
         <button class="btn btn-primary nav-cta" onclick={() => appState.setAuthView('create')}>Crea il matrimonio</button>
       </nav>

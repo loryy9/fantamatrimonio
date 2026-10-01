@@ -4,8 +4,8 @@ import { formatName } from './formatters.js';
 
 function readAuthView() {
   if (new URLSearchParams(window.location.search).get('code')) return 'join';
-  if (window.location.hash === '#/crea') return 'create';
-  if (window.location.hash === '#/entra') return 'join';
+  if (window.location.pathname === '/crea') return 'create';
+  if (window.location.pathname === '/entra') return 'join';
   return 'entry';
 }
 
@@ -105,8 +105,8 @@ class AppState {
 
   setAuthView(view) {
     this.authView = view;
-    const hash = view === 'create' ? '#/crea' : view === 'join' ? '#/entra' : '';
-    history.replaceState(null, '', window.location.pathname + window.location.search + hash);
+    const path = view === 'create' ? '/crea' : view === 'join' ? '/entra' : '/';
+    history.pushState(null, '', path + window.location.search);
     window.scrollTo({ top: 0 });
   }
 
@@ -129,7 +129,7 @@ class AppState {
 
   async finishOnboarding() {
     this.pendingInvite = null;
-    history.replaceState(null, '', window.location.pathname);
+    history.replaceState(null, '', '/');
     await this.loadInitialData();
     this.startPolling();
     this.activeTab = 'home';

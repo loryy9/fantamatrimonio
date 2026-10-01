@@ -27,6 +27,9 @@ class AppState {
   quizSubTab = $state('quiz'); // 'quiz' | 'vote'
   showInstructionsModal = $state(false);
   showUpgradeModal = $state(false); // modal per registrazione account
+  showClaimModal = $state(false); // modal per completamento account da link email
+  pendingClaimToken = $state(null);
+  claimData = $state(null);
 
   challenges = $state([]);
   mySubmissions = $state([]);
@@ -128,7 +131,15 @@ class AppState {
     this.isLoadingAuth = true;
     try {
       const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const claimParam = urlParams?.get('claim')?.trim() || urlParams?.get('claim_token')?.trim();
       const codeParam = urlParams?.get('code')?.trim();
+
+      // Se l'utente clicca il link ricevuto via mail (claim token)
+      if (claimParam) {
+        await this.resolveClaim(claimParam);
+        this.isLoadingAuth = false;
+        return;
+      }
 
       if (codeParam) {
         this.authView = 'join';
@@ -178,8 +189,18 @@ class AppState {
     if (typeof window === 'undefined') return;
     const path = window.location.pathname.toLowerCase();
     const urlParams = new URLSearchParams(window.location.search);
+    const claimParam = urlParams.get('claim')?.trim() || urlParams.get('claim_token')?.trim();
     const codeParam = urlParams.get('code')?.trim();
     if (this.pendingInvite) return;
+
+    if (claimParam && !this.showClaimModal && !this.claimData) {
+      this.resolveClaim(claimParam);
+      return;
+    }
+
+    if (urlParams.get('upgrade') === '1' && (this.user || this.token)) {
+      this.showUpgradeModal = true;
+    }
 
     if (codeParam) {
       this.authView = 'join';
@@ -428,12 +449,73 @@ class AppState {
     }
   }
 
+  async resolveClaim(claimToken) {
+    try {
+      const res = await api.getClaimInfo(claimToken);
+      if (res.token) {
+        this.token = res.token;
+        localStorage.setItem('fm_auth_token', res.token);
+      }
+      if (res.user) {
+        this.setUser(res.user);
+      }
+      if (res.event) {
+        this.event = res.event;
+      }
+      if (res.already_registered) {
+        if (res.jwt) {
+          this.jwtToken = res.jwt;
+          localStorage.setItem('fm_jwt_token', res.jwt);
+        }
+        if (res.account) {
+          this.account = res.account;
+        }
+        this.showToast('Bentornato! Il tuo account è già registrato.', 'success');
+        this.openDashboard();
+        return;
+      }
+
+      this.pendingClaimToken = claimToken;
+      this.claimData = res;
+      this.showClaimModal = true;
+      if (this.event) {
+        await this.loadInitialData();
+      }
+    } catch (err) {
+      console.error('Errore claim link:', err);
+      this.showToast(err.message || 'Il link via email non è valido o è scaduto.', 'error');
+      this.syncRouteFromUrl();
+    }
+  }
+
+  async completeClaim(password, displayName = null) {
+    if (!this.pendingClaimToken) {
+      return { success: false, error: 'Token di recupero non trovato' };
+    }
+    try {
+      const res = await api.completeClaim(this.pendingClaimToken, password, displayName);
+      this._saveTokens(res.token, res.jwt, res.account);
+      if (res.user) this.setUser(res.user);
+      if (res.event) this.event = res.event;
+      this.showClaimModal = false;
+      this.pendingClaimToken = null;
+      this.claimData = null;
+      this.showToast('Account registrato con successo! Benvenuto nella tua dashboard!', 'success');
+      this.openDashboard();
+      return { success: true };
+    } catch (err) {
+      this.showToast(err.message || 'Errore nella creazione account', 'error');
+      return { success: false, error: err.message };
+    }
+  }
+
   async upgradeAccount(email, password, displayName = null, verificationCode = null) {
     try {
       const res = await api.upgradeAccount(email, password, displayName, verificationCode);
       this._saveTokens(null, res.jwt, res.account);
       this.showUpgradeModal = false;
       this.showToast('Account registrato! Ora puoi accedere con email e password.', 'success');
+      this.openDashboard();
       return { success: true };
     } catch (err) {
       this.showToast(err.message || 'Errore nell\'upgrade', 'error');

@@ -66,6 +66,16 @@ class UpgradeRequest(BaseModel):
     verification_code: str | None = None
 
 
+class ClaimInfoRequest(BaseModel):
+    claim_token: str
+
+
+class CompleteClaimRequest(BaseModel):
+    claim_token: str
+    password: str
+    display_name: str | None = None
+
+
 from verification import create_and_send_code, verify_code, normalize_email
 
 
@@ -379,6 +389,170 @@ def upgrade_account(body: UpgradeRequest, current_user: dict = Depends(get_curre
         "jwt": jwt_token,
         "account": account_out(account),
         "user": user_out(current_user),
+    }
+
+
+@router.post("/claim-info")
+def get_claim_info(body: ClaimInfoRequest):
+    """
+    Risolve il link di reminder/recupero inviato via email.
+    Ritorna i dati dell'ospite (nome, email, evento) e riattiva la sua sessione in gioco,
+    in modo che possa confermare la password e collegare l'account permanente.
+    """
+    from dependencies import decode_jwt
+    payload = decode_jwt(body.claim_token)
+    if not payload or payload.get("type") != "claim_guest":
+        raise HTTPException(status_code=400, detail="Il link di recupero non è valido o è scaduto.")
+
+    user_id = payload.get("sub")
+    event_id = payload.get("event_id")
+    email = (payload.get("email") or "").strip().lower()
+
+    user = db.query_one("SELECT * FROM users WHERE id = %s", (user_id,))
+    if not user:
+        raise HTTPException(status_code=404, detail="Profilo utente non trovato.")
+
+    event = db.query_one("SELECT * FROM events WHERE id = %s", (event_id or user.get("event_id"),))
+
+    # Cerca se l'utente ha già un account permanente registrato
+    account = None
+    if user.get("account_id"):
+        account = db.query_one("SELECT * FROM accounts WHERE id = %s", (user["account_id"],))
+    elif email:
+        account = db.query_one("SELECT * FROM accounts WHERE email = %s", (email,))
+
+    # Genera o recupera un session token attivo per riaccedere istantaneamente alla festa
+    sess = db.query_one(
+        "SELECT token FROM sessions WHERE user_id = %s AND expires_at > NOW() ORDER BY expires_at DESC LIMIT 1",
+        (user["id"],),
+    )
+    if sess:
+        session_token = sess["token"]
+    else:
+        import uuid
+        session_token = str(uuid.uuid4())
+        db.execute(
+            "INSERT INTO sessions (user_id, token, expires_at) VALUES (%s, %s, NOW() + INTERVAL '30 days')",
+            (user["id"], session_token),
+        )
+
+    # Se l'account è già completamente registrato (ha password_hash), genera direttamente il JWT
+    if account and account.get("password_hash"):
+        jwt_token = create_jwt(str(account["id"]))
+        return {
+            "valid": True,
+            "already_registered": True,
+            "jwt": jwt_token,
+            "account": account_out(account),
+            "user": user_out(user),
+            "event": event_out(event) if event else None,
+            "token": session_token,
+        }
+
+    first = user.get("first_name") or ""
+    last = user.get("last_name") or ""
+    display_name = f"{first} {last}".strip()
+
+    return {
+        "valid": True,
+        "already_registered": False,
+        "email": email or user.get("email") or "",
+        "first_name": first,
+        "last_name": last,
+        "display_name": display_name,
+        "event": event_out(event) if event else None,
+        "user": user_out(user),
+        "token": session_token,
+    }
+
+
+@router.post("/complete-claim")
+def complete_claim(body: CompleteClaimRequest):
+    """
+    Completa la registrazione dell'account dal link di invito/reminder via email:
+    l'email è già verificata (poiché aperta dal link firmato).
+    Salva la password, collega l'utente e restituisce JWT e sessione per la dashboard.
+    """
+    from dependencies import decode_jwt, hash_password
+    payload = decode_jwt(body.claim_token)
+    if not payload or payload.get("type") != "claim_guest":
+        raise HTTPException(status_code=400, detail="Il link di recupero non è valido o è scaduto.")
+
+    if not body.password or len(body.password) < 6:
+        raise HTTPException(status_code=422, detail="La password deve contenere almeno 6 caratteri.")
+
+    user_id = payload.get("sub")
+    event_id = payload.get("event_id")
+    email = (payload.get("email") or "").strip().lower()
+
+    user = db.query_one("SELECT * FROM users WHERE id = %s", (user_id,))
+    if not user:
+        raise HTTPException(status_code=404, detail="Profilo utente non trovato.")
+
+    if not email and user.get("email"):
+        email = user["email"].strip().lower()
+
+    if not email:
+        raise HTTPException(status_code=422, detail="Email non associata a questo invito.")
+
+    first = user.get("first_name") or ""
+    last = user.get("last_name") or ""
+    default_name = f"{first} {last}".strip() or "Invitato"
+    display = (body.display_name or "").strip() or default_name
+
+    # Controlla se esiste già un account con questa email
+    existing = db.query_one("SELECT * FROM accounts WHERE email = %s", (email,))
+    if existing:
+        db.execute(
+            """
+            UPDATE accounts
+            SET password_hash = %s, display_name = %s, is_verified = TRUE
+            WHERE id = %s
+            """,
+            (hash_password(body.password), display, existing["id"]),
+        )
+        account = db.query_one("SELECT * FROM accounts WHERE id = %s", (existing["id"],))
+    else:
+        account = db.execute(
+            """
+            INSERT INTO accounts (email, password_hash, display_name, is_verified, registered_at)
+            VALUES (%s, %s, %s, TRUE, NOW())
+            RETURNING *
+            """,
+            (email, hash_password(body.password), display),
+        )
+
+    # Collega il profilo user all'account permanente
+    db.execute("UPDATE users SET account_id = %s WHERE id = %s", (account["id"], user["id"]))
+    db.execute("UPDATE users SET account_id = %s WHERE email = %s AND account_id IS NULL", (account["id"], email))
+
+    # Segna reminder come inviato/completato
+    db.execute("UPDATE registration_reminders SET sent_at = NOW() WHERE email = %s", (email,))
+
+    # Session token per la festa
+    sess = db.query_one(
+        "SELECT token FROM sessions WHERE user_id = %s AND expires_at > NOW() ORDER BY expires_at DESC LIMIT 1",
+        (user["id"],),
+    )
+    if sess:
+        session_token = sess["token"]
+    else:
+        import uuid
+        session_token = str(uuid.uuid4())
+        db.execute(
+            "INSERT INTO sessions (user_id, token, expires_at) VALUES (%s, %s, NOW() + INTERVAL '30 days')",
+            (user["id"], session_token),
+        )
+
+    jwt_token = create_jwt(str(account["id"]))
+    event = db.query_one("SELECT * FROM events WHERE id = %s", (event_id or user.get("event_id"),))
+
+    return {
+        "jwt": jwt_token,
+        "account": account_out(account),
+        "user": user_out(user),
+        "event": event_out(event) if event else None,
+        "token": session_token,
     }
 
 

@@ -4,6 +4,7 @@
   import Toast from './components/Toast.svelte';
   import InstructionsModal from './components/InstructionsModal.svelte';
   import UpgradeAccountModal from './components/UpgradeAccountModal.svelte';
+  import ClaimAccountModal from './components/ClaimAccountModal.svelte';
   import Navbar from './components/Navbar.svelte';
   import BottomNav from './components/BottomNav.svelte';
   import LandingView from './components/LandingView.svelte';
@@ -78,6 +79,7 @@
 {#if !isAdminRoute}
   <InstructionsModal />
   <UpgradeAccountModal />
+  <ClaimAccountModal />
 {/if}
 
 {#if isAdminRoute}

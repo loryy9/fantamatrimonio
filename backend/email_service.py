@@ -183,7 +183,10 @@ def process_due_reminders(limit: int = 50) -> dict:
         spouse1 = rem["spouse1_name"]
         spouse2 = rem.get("spouse2_name") or ""
         code = rem["invite_code"]
-        reg_url = f"{FRONTEND_URL}/entra?code={code}&upgrade=1"
+
+        from dependencies import create_claim_token
+        claim_token = create_claim_token(str(rem["user_id"]), str(rem["event_id"]), rem["email"])
+        reg_url = f"{FRONTEND_URL}/completa-account?claim={claim_token}&code={code}"
 
         subject = f"💍 I ricordi del matrimonio di {spouse1} & {spouse2} ti aspettano!"
         html = build_reminder_email_html(

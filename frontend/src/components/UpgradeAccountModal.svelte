@@ -13,6 +13,12 @@
     appState.user ? `${appState.user.first_name} ${appState.user.last_name}` : ''
   );
 
+  $effect(() => {
+    if (appState.user?.email && !email) {
+      email = appState.user.email;
+    }
+  });
+
   function close() {
     appState.showUpgradeModal = false;
     errorMessage = '';

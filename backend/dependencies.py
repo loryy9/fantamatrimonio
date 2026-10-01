@@ -54,6 +54,19 @@ def decode_jwt(token: str) -> dict | None:
         return None
 
 
+def create_claim_token(user_id: str, event_id: str, email: str, days: int = 30) -> str:
+    """Crea un token firmato per il link di recupero e completamento account inviato via email."""
+    payload = {
+        "sub": str(user_id),
+        "event_id": str(event_id),
+        "email": email.strip().lower(),
+        "type": "claim_guest",
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(days=days),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
 # ── Auth dependencies ────────────────────────────────────────────────────────
 
 def _is_jwt(token: str) -> bool:

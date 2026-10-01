@@ -133,6 +133,24 @@ export const api = {
     });
   },
 
+  async getClaimInfo(claimToken) {
+    return await request('/auth/claim-info', {
+      method: 'POST',
+      body: JSON.stringify({ claim_token: claimToken })
+    });
+  },
+
+  async completeClaim(claimToken, password, displayName = null) {
+    return await request('/auth/complete-claim', {
+      method: 'POST',
+      body: JSON.stringify({
+        claim_token: claimToken,
+        password,
+        display_name: displayName || undefined
+      })
+    });
+  },
+
   async createEvent(payload) {
     return await request('/events', {
       method: 'POST',

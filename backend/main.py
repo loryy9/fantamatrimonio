@@ -5,6 +5,7 @@ Punto di ingresso dell'applicazione FastAPI.
 - Serve i file statici del frontend Svelte (cartella ../frontend/dist)
 - Qualsiasi route non trovata → index.html (SPA client-side routing)
 """
+from contextlib import asynccontextmanager
 import logging
 import os
 from pathlib import Path
@@ -20,7 +21,22 @@ from routers import auth, challenges, submissions, leaderboard, events, admin, d
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Fanta Matrimonio API", version="1.0.0")
+
+# ── LIFECYCLE ─────────────────────────────────────────────────────────────────
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    db.init_pool()
+    logger.info("Applicazione avviata.")
+    yield
+    # Shutdown
+    if db._pool:
+        db._pool.closeall()
+    logger.info("Pool chiuso.")
+
+
+app = FastAPI(title="Fanta Matrimonio API", version="1.0.0", lifespan=lifespan)
 
 # ── CORS ─────────────────────────────────────────────────────────────────────
 # Permissivo in sviluppo; in produzione Railway serve tutto dalla stessa origin.
@@ -31,20 +47,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ── LIFECYCLE ─────────────────────────────────────────────────────────────────
-
-@app.on_event("startup")
-def startup():
-    db.init_pool()
-    logger.info("Applicazione avviata.")
-
-
-@app.on_event("shutdown")
-def shutdown():
-    if db._pool:
-        db._pool.closeall()
-    logger.info("Pool chiuso.")
 
 
 # ── ROUTER API ────────────────────────────────────────────────────────────────

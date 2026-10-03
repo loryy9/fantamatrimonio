@@ -137,6 +137,7 @@ authRouter.post("/register", async (c) => {
 
   return c.json({
     token,
+    jwt: token,
     account: {
       id: account.id,
       email: account.email,
@@ -160,13 +161,23 @@ authRouter.post("/login-secure", async (c) => {
 
   const token = await createJwt({ sub: account.id, type: "account" }, c.env.JWT_SECRET || "default_jwt_secret");
 
+  // Cerca tutti gli eventi dell'account
+  const { data: userRows } = await supabase
+    .from("users")
+    .select("event_id, events(*)")
+    .eq("account_id", account.id);
+
+  const events = (userRows || []).map((r: any) => r.events).filter(Boolean);
+
   return c.json({
     token,
+    jwt: token,
     account: {
       id: account.id,
       email: account.email,
       display_name: account.display_name,
     },
+    events,
   });
 });
 
@@ -205,9 +216,58 @@ authRouter.get("/me", async (c) => {
 });
 
 authRouter.post("/send-verification-code", async (c) => {
-  return c.json({ success: true, message: "Codice verificato", expires_in_minutes: 15 });
+  const body = await c.req.json();
+  const email = (body.email || "").trim().toLowerCase();
+  const purpose = body.purpose || "register_account";
+
+  if (!email || !email.includes("@")) {
+    return c.json({ detail: "Email non valida." }, 400);
+  }
+
+  // Genera codice OTP a 6 cifre
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+
+  // Salva nel DB con scadenza 15 minuti
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  await supabase.from("email_verification_codes").insert({
+    email,
+    code,
+    purpose,
+    expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+  });
+
+  // ⚠️ MODALITÀ DEV: stampa il codice in console (guarda i log di wrangler)
+  console.log(`\n╔══════════════════════════════════════╗`);
+  console.log(`║  📧 CODICE OTP PER: ${email}`);
+  console.log(`║  🔑 CODICE: ${code}`);
+  console.log(`║  📋 SCOPO: ${purpose}`);
+  console.log(`╚══════════════════════════════════════╝\n`);
+
+  return c.json({ success: true, message: `Codice inviato a ${email}`, expires_in_minutes: 15 });
 });
 
 authRouter.post("/verify-code", async (c) => {
-  return c.json({ success: true, verified: true });
+  const body = await c.req.json();
+  const email = (body.email || "").trim().toLowerCase();
+  const code = (body.code || "").trim();
+  const purpose = body.purpose || "register_account";
+
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  const { data: row } = await supabase
+    .from("email_verification_codes")
+    .select("id")
+    .eq("email", email)
+    .eq("code", code)
+    .eq("purpose", purpose)
+    .is("used_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!row) {
+    return c.json({ detail: "Codice non valido o scaduto." }, 400);
+  }
+
+  return c.json({ valid: true, message: "Codice verificato con successo." });
 });

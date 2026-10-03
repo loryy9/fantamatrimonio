@@ -12,9 +12,14 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi import _rate_limit_exceeded_handler
 
+from limiter import limiter
 import db
 from routers import auth, challenges, submissions, leaderboard, events, admin, dashboard
 
@@ -37,6 +42,43 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Fanta Matrimonio API", version="1.0.0", lifespan=lifespan)
+
+# Collega slowapi all'app FastAPI
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+# ── SECURITY HEADERS & SIZE LIMIT MIDDLEWARE ──────────────────────────────────
+# Massimo 55MB per supportare gli upload fotografici senza consentire payload infiniti (DoS via upload)
+MAX_CONTENT_LENGTH = 55 * 1024 * 1024
+
+class SecurityAndLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # 1. Protezione anti-DoS sul payload size
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > MAX_CONTENT_LENGTH:
+                    return JSONResponse(
+                        status_code=413,
+                        content={"detail": "Payload troppo grande. Dimensione massima consentita: 50MB."}
+                    )
+            except ValueError:
+                pass
+
+        # 2. Esecuzione richiesta
+        response = await call_next(request)
+
+        # 3. Security headers (OWASP best practices: XSS, Clickjacking, MIME-Sniffing)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=*, microphone=(), geolocation=()"
+
+        return response
+
+app.add_middleware(SecurityAndLimitMiddleware)
 
 # ── CORS ─────────────────────────────────────────────────────────────────────
 # Permissivo in sviluppo; in produzione Railway serve tutto dalla stessa origin.

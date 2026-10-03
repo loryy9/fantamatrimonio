@@ -10,6 +10,8 @@ if DATABASE_URL.startswith("postgres://"):
 SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "").strip().strip('"').strip("'").rstrip("/")
 SUPABASE_SERVICE_KEY: str = os.environ.get("SUPABASE_SERVICE_KEY", "").strip().strip('"').strip("'")
 STORAGE_BUCKET: str = os.environ.get("STORAGE_BUCKET", "wedding-photos").strip().strip('"').strip("'")
+STORAGE_PROVIDER: str = os.environ.get("STORAGE_PROVIDER", "r2").strip().lower() # 'r2' o 'supabase'
+R2_WORKER_URL: str = os.environ.get("R2_WORKER_URL", "http://localhost:8787").strip().rstrip("/")
 PORT: int = int(os.environ.get("PORT", 8000))
 
 # ── Auth & JWT ───────────────────────────────────────────────────────────────

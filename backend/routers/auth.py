@@ -10,9 +10,10 @@ GET  /api/auth/me             → dati utente + evento correnti dalla sessione
 import uuid
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Header, Query
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Header, Query, Request
 from pydantic import BaseModel, EmailStr
 
+from limiter import limiter
 import db
 from serializers import event_out, user_out, account_out
 from dependencies import (
@@ -90,7 +91,8 @@ def _normalize(s: str) -> str:
 
 
 @router.post("/login")
-def login(body: LoginRequest, background_tasks: BackgroundTasks):
+@limiter.limit("15/minute")
+def login(request: Request, body: LoginRequest, background_tasks: BackgroundTasks):
     """
     Login veloce per gli invitati:
     1. Modalità con email (predefinita): chiede email (verificata via codice a 6 cifre) e un nickname.
@@ -256,7 +258,8 @@ def login(body: LoginRequest, background_tasks: BackgroundTasks):
 
 
 @router.post("/send-verification-code")
-def send_code(body: SendVerificationCodeRequest):
+@limiter.limit("5/minute")
+def send_code(request: Request, body: SendVerificationCodeRequest):
     """Invia il codice di verifica a 6 cifre via email prima di completare la registrazione."""
     email = normalize_email(body.email)
     if body.purpose in ("register_couple", "register_account"):
@@ -267,7 +270,8 @@ def send_code(body: SendVerificationCodeRequest):
 
 
 @router.post("/verify-code")
-def check_code(body: VerifyCodeRequest):
+@limiter.limit("15/minute")
+def check_code(request: Request, body: VerifyCodeRequest):
     """Verifica la correttezza del codice senza consumarlo."""
     valid = verify_code(body.email, body.code, body.purpose, mark_used=False)
     if not valid:
@@ -276,7 +280,8 @@ def check_code(body: VerifyCodeRequest):
 
 
 @router.post("/register")
-def register(body: RegisterRequest):
+@limiter.limit("10/minute")
+def register(request: Request, body: RegisterRequest):
     """
     Registrazione sicura: crea un account con email + password.
     Verifica il codice a 6 cifre ricevuto via email.
@@ -316,7 +321,8 @@ def register(body: RegisterRequest):
 
 
 @router.post("/login-secure")
-def login_secure(body: LoginSecureRequest):
+@limiter.limit("10/minute")
+def login_secure(request: Request, body: LoginSecureRequest):
     """
     Login con email + password. Ritorna JWT + account + lista eventi.
     """

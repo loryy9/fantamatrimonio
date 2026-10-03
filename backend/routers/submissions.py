@@ -9,8 +9,9 @@ GET  /api/submissions/gallery            → galleria pubblica (no auth)
 GET  /api/submissions/mine               → submission dell'utente corrente
 """
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from pydantic import BaseModel
+from limiter import limiter
 import db
 import storage
 from dependencies import get_current_user
@@ -99,7 +100,9 @@ async def _read_and_validate_upload(file: UploadFile) -> bytes:
 # ── GALLERY (type=photo) ─────────────────────────────────────────────────────
 
 @router.post("/photo")
+@limiter.limit("30/minute")
 async def upload_gallery_photo(
+    request: Request,
     award_points: bool = True,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
@@ -138,7 +141,9 @@ async def upload_gallery_photo(
 
 
 @router.post("/photos")
+@limiter.limit("20/minute")
 async def upload_multiple_gallery_photos(
+    request: Request,
     award_points: bool = True,
     files: list[UploadFile] = File(...),
     current_user: dict = Depends(get_current_user),
@@ -238,7 +243,9 @@ async def delete_gallery_photo(
 # ── CACCIA FOTOGRAFICA (type=hunt) ───────────────────────────────────────────
 
 @router.post("/hunt/{challenge_id}")
+@limiter.limit("20/minute")
 async def submit_hunt_photo(
+    request: Request,
     challenge_id: int,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
@@ -292,7 +299,9 @@ class VoteRequest(BaseModel):
 
 
 @router.post("/vote/{challenge_id}")
+@limiter.limit("30/minute")
 def submit_vote(
+    request: Request,
     challenge_id: int,
     body: VoteRequest,
     current_user: dict = Depends(get_current_user),
@@ -344,7 +353,9 @@ class QuizRequest(BaseModel):
 
 
 @router.post("/quiz/{challenge_id}")
+@limiter.limit("30/minute")
 def submit_quiz(
+    request: Request,
     challenge_id: int,
     body: QuizRequest,
     current_user: dict = Depends(get_current_user),

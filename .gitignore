@@ -48,3 +48,8 @@ desktop.ini
 *.njsproj
 *.sln
 *.sw?
+".wrangler/" 
+SETUP_GUIDE.md
+.dev.vars
+.wrangler/
+MIGRATION_PLAN_CLOUDFLARE.md

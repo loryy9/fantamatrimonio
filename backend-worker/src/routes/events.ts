@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { Env, getSupabase } from "../db";
+import { Env, getDb } from "../db";
 import { verifyJwt, generateInviteCode } from "../auth";
 
 export const eventsRouter = new Hono<{ Bindings: Env }>();
@@ -14,15 +14,13 @@ async function getAuth(c: any) {
 // GET /api/events/preview/:inviteCode
 eventsRouter.get("/preview/:inviteCode", async (c) => {
   const code = c.req.param("inviteCode").trim().toUpperCase();
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  const event = await getDb(c.env).one(
+    `SELECT id, spouse1_name, spouse2_name, enable_timer, start_time, end_time, invite_code
+     FROM events WHERE lower(invite_code) = lower($1) LIMIT 1`,
+    [code]
+  );
 
-  const { data: event, error } = await supabase
-    .from("events")
-    .select("id, spouse1_name, spouse2_name, enable_timer, start_time, end_time, invite_code")
-    .ilike("invite_code", code)
-    .maybeSingle();
-
-  if (error || !event) return c.json({ detail: "Evento non trovato" }, 404);
+  if (!event) return c.json({ detail: "Evento non trovato" }, 404);
   return c.json(event);
 });
 
@@ -44,35 +42,19 @@ eventsRouter.post("/", async (c) => {
   }
 
   const inviteCode = generateInviteCode(6);
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  const db = getDb(c.env);
 
-  const { data: event, error: eventErr } = await supabase
-    .from("events")
-    .insert({
-      spouse1_name: spouse1,
-      spouse2_name: spouse2,
-      enable_timer: enableTimer,
-      start_time: startTime,
-      end_time: endTime,
-      invite_code: inviteCode,
-    })
-    .select()
-    .single();
+  const event = await db.one(
+    `INSERT INTO events (spouse1_name, spouse2_name, enable_timer, start_time, end_time, invite_code)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [spouse1, spouse2, enableTimer, startTime, endTime, inviteCode]
+  );
 
-  if (eventErr) return c.json({ detail: eventErr.message }, 500);
-
-  const { data: coupleUser } = await supabase
-    .from("users")
-    .insert({
-      event_id: event.id,
-      first_name: coupleFirst,
-      last_name: coupleLast,
-      secret_word: "sposi",
-      role: "couple",
-      account_id: auth?.sub || null,
-    })
-    .select()
-    .single();
+  const coupleUser = await db.one(
+    `INSERT INTO users (event_id, first_name, last_name, secret_word, role, account_id)
+     VALUES ($1, $2, $3, 'sposi', 'couple', $4) RETURNING *`,
+    [event.id, coupleFirst, coupleLast, auth?.type === "account" ? auth.sub : null]
+  );
 
   return c.json({
     event,
@@ -86,23 +68,20 @@ eventsRouter.get("/me", async (c) => {
   const auth = await getAuth(c);
   if (!auth) return c.json({ detail: "Non autorizzato." }, 401);
 
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  const db = getDb(c.env);
   let eventId = auth.event_id;
 
   if (!eventId && auth.type === "account") {
-    const { data: user } = await supabase
-      .from("users")
-      .select("event_id")
-      .eq("account_id", auth.sub)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const user = await db.one(
+      "SELECT event_id FROM users WHERE account_id = $1 ORDER BY created_at DESC LIMIT 1",
+      [auth.sub]
+    );
     eventId = user?.event_id;
   }
 
   if (!eventId) return c.json({ detail: "Nessun evento associato." }, 404);
 
-  const { data: event } = await supabase.from("events").select("*").eq("id", eventId).single();
+  const event = await db.one("SELECT * FROM events WHERE id = $1", [eventId]);
   return c.json(event);
 });
 
@@ -112,23 +91,27 @@ eventsRouter.patch("/me", async (c) => {
   if (!auth) return c.json({ detail: "Non autorizzato." }, 401);
 
   const body = await c.req.json();
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  const db = getDb(c.env);
 
-  const updates: any = {};
+  const updates: Record<string, any> = {};
   if (body.spouse1_name !== undefined) updates.spouse1_name = body.spouse1_name;
   if (body.spouse2_name !== undefined) updates.spouse2_name = body.spouse2_name;
   if (body.enable_timer !== undefined) updates.enable_timer = body.enable_timer;
   if (body.start_time !== undefined) updates.start_time = body.start_time;
   if (body.end_time !== undefined) updates.end_time = body.end_time;
 
-  const { data: event, error } = await supabase
-    .from("events")
-    .update(updates)
-    .eq("id", auth.event_id)
-    .select()
-    .single();
+  const columns = Object.keys(updates);
+  if (columns.length === 0) {
+    return c.json(await db.one("SELECT * FROM events WHERE id = $1", [auth.event_id]));
+  }
 
-  if (error) return c.json({ detail: error.message }, 500);
+  // I nomi delle colonne arrivano solo dalla whitelist sopra, mai dall'input.
+  const setClause = columns.map((col, i) => `${col} = $${i + 1}`).join(", ");
+  const event = await db.one(
+    `UPDATE events SET ${setClause} WHERE id = $${columns.length + 1} RETURNING *`,
+    [...columns.map((col) => updates[col]), auth.event_id]
+  );
+  if (!event) return c.json({ detail: "Evento non trovato." }, 404);
   return c.json(event);
 });
 
@@ -137,7 +120,6 @@ eventsRouter.get("/me/invite", async (c) => {
   const auth = await getAuth(c);
   if (!auth) return c.json({ detail: "Non autorizzato." }, 401);
 
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
-  const { data: event } = await supabase.from("events").select("invite_code").eq("id", auth.event_id).single();
+  const event = await getDb(c.env).one("SELECT invite_code FROM events WHERE id = $1", [auth.event_id]);
   return c.json({ invite_code: event?.invite_code });
 });

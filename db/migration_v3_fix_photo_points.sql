@@ -2,7 +2,7 @@
 -- Fanta Matrimonio — Migrazione v3
 -- Aggiorna i punti per la challenge 'photo' (Gallery della festa)
 -- portandoli da 1 a 10 e ricalcola i punti totali degli utenti.
--- Da eseguire nell'SQL Editor di Supabase.
+-- Da eseguire nello SQL Editor di Neon.
 -- ============================================================
 
 -- 1. Aggiorna la challenge photo a 10 punti

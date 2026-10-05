@@ -1,10 +1,10 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { neon } from "@neondatabase/serverless";
+import type { EventRoom } from "./realtime";
 
 export type Env = {
   PHOTOS_BUCKET: R2Bucket;
-  DATABASE_URL?: string;
-  SUPABASE_URL?: string;
-  SUPABASE_SERVICE_KEY?: string;
+  EVENT_ROOM: DurableObjectNamespace<EventRoom>;
+  DATABASE_URL: string;
   JWT_SECRET: string;
   JWT_EXPIRE_HOURS?: string;
   ADMIN_USERNAME?: string;
@@ -13,16 +13,21 @@ export type Env = {
   ENVIRONMENT?: string;
 };
 
-let _client: SupabaseClient | null = null;
+export type Db = {
+  /** Esegue una query parametrizzata ($1, $2, ...) e restituisce tutte le righe. */
+  all: (text: string, params?: any[]) => Promise<any[]>;
+  /** Come `all`, ma restituisce solo la prima riga (o null). */
+  one: (text: string, params?: any[]) => Promise<any | null>;
+};
 
-export function getSupabase(url?: string, key?: string): SupabaseClient {
-  if (!url || !key) {
-    throw new Error("SUPABASE_URL e SUPABASE_SERVICE_KEY devono essere configurate nelle variabili d'ambiente");
+export function getDb(env: Env): Db {
+  if (!env.DATABASE_URL) {
+    throw new Error("DATABASE_URL deve essere configurata nelle variabili d'ambiente");
   }
-  if (!_client) {
-    _client = createClient(url, key, {
-      auth: { persistSession: false },
-    });
-  }
-  return _client;
+  const sql = neon(env.DATABASE_URL);
+  const all = async (text: string, params: any[] = []) => (await sql.query(text, params)) as any[];
+  return {
+    all,
+    one: async (text, params) => (await all(text, params))[0] ?? null,
+  };
 }

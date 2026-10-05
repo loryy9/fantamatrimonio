@@ -1,6 +1,6 @@
 -- ============================================================
 -- Migrazione v5: sistema account + login sicuro
--- Esegui nell'SQL Editor di Supabase sul database esistente.
+-- Esegui nello SQL Editor di Neon sul database esistente.
 -- ============================================================
 
 -- 1. Tabella accounts: identità permanente cross-evento

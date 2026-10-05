@@ -1,4 +1,4 @@
-DATABASE_URL=postgresql://postgres.qvjiyfqgkkcgrtwrerhs:fantamatrimonio@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
+DATABASE_URL=postgresql://USER:PASSWORD@ep-xxxx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
 JWT_SECRET=OuXr9anOryxDIVgT19FD76bpPMSm-CviC19FR5SYpHo
 JWT_EXPIRE_HOURS=720
 ADMIN_USERNAME=admin

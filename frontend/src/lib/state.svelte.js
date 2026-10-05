@@ -1,21 +1,39 @@
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
 import { api } from './api.js';
+import { RealtimeClient } from './realtime.js';
 import { fireCelebration } from './confetti.js';
 import { formatName } from './formatters.js';
 
-function readAuthView() {
-  if (typeof window !== 'undefined') {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('code')) return 'join';
-    const path = window.location.pathname.toLowerCase();
-    if (path === '/crea') return 'create';
-    if (path === '/entra') return 'join';
-    if (path === '/dashboard_utente' || path === '/login' || path === '/dashboard') return 'login-secure';
-  }
-  return 'entry';
+// Ogni "tab" dell'app corrisponde a una route SvelteKit: l'URL è la fonte di verità.
+export const TAB_PATHS = {
+  entry: '/',
+  create: '/crea',
+  join: '/entra',
+  'login-secure': '/login',
+  dashboard: '/dashboard',
+  home: '/gioco/home',
+  gallery: '/gioco/gallery',
+  hunt: '/gioco/hunt',
+  quiz: '/gioco/quiz',
+  leaderboard: '/gioco/leaderboard',
+  manage: '/gioco/manage',
+};
+
+export const GAME_TABS = ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'manage'];
+
+function normalizePath(pathname) {
+  const p = (pathname || '/').toLowerCase();
+  return p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p;
+}
+
+function tabFromPath(pathname) {
+  const p = normalizePath(pathname);
+  const found = Object.entries(TAB_PATHS).find(([, path]) => path === p);
+  return found ? found[0] : 'entry';
 }
 
 class AppState {
-  authView = $state(readAuthView()); // 'entry' | 'join' | 'create' | 'login-secure' | 'dashboard'
   pendingInvite = $state(null); // invite code shown right after creating an event
   user = $state(null);
   event = $state(null);
@@ -23,7 +41,6 @@ class AppState {
   token = $state(localStorage.getItem('fm_auth_token') || null);
   jwtToken = $state(localStorage.getItem('fm_jwt_token') || null);
   isLoadingAuth = $state(true);
-  activeTab = $state(readAuthView());
   quizSubTab = $state('quiz'); // 'quiz' | 'vote'
   showInstructionsModal = $state(false);
   showUpgradeModal = $state(false); // modal per registrazione account
@@ -43,6 +60,25 @@ class AppState {
   toasts = $state([]);
   isPolling = $state(false);
   pollingTimer = null;
+  realtimeConnected = $state(false);
+  realtime = null;
+  realtimeTopics = [];
+  leaderboardTimer = null;
+
+  // Tab corrente, derivato dall'URL. Assegnarlo naviga alla route corrispondente.
+  get activeTab() {
+    return tabFromPath(page.url.pathname);
+  }
+
+  set activeTab(tab) {
+    goto(TAB_PATHS[tab] ?? '/');
+  }
+
+  // 'entry' | 'join' | 'create' | 'login-secure' | 'dashboard' (o una tab di gioco)
+  get authView() {
+    const tab = this.activeTab;
+    return GAME_TABS.includes(tab) ? 'entry' : tab;
+  }
 
   get isAuthenticated() {
     return (!!this.token || !!this.jwtToken) && (!!this.user || !!this.account);
@@ -57,17 +93,7 @@ class AppState {
   }
 
   get isInGame() {
-    return Boolean(
-      this.event &&
-      this.user &&
-      !this.pendingInvite &&
-      this.activeTab !== 'dashboard' &&
-      this.activeTab !== 'create' &&
-      this.activeTab !== 'join' &&
-      this.activeTab !== 'entry' &&
-      this.activeTab !== 'login-secure' &&
-      ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'manage'].includes(this.activeTab)
-    );
+    return Boolean(this.event && this.user && !this.pendingInvite && GAME_TABS.includes(this.activeTab));
   }
 
   get mySubmissionsByChallenge() {
@@ -141,9 +167,11 @@ class AppState {
         return;
       }
 
+      // Link di invito condiviso (/?code=XXXX): porta alla pagina "Entra"
       if (codeParam) {
-        this.authView = 'join';
-        this.activeTab = 'join';
+        if (normalizePath(window.location.pathname) === '/') {
+          await goto('/entra' + window.location.search, { replaceState: true });
+        }
         this.isLoadingAuth = false;
         return;
       }
@@ -158,7 +186,6 @@ class AppState {
           if (this.jwtToken && !this.token) {
             this.user = null;
             this.event = null;
-            this.activeTab = 'dashboard';
             await this.loadDashboardEvents();
           } else if (res.user) {
             this.setUser(res.user);
@@ -177,7 +204,19 @@ class AppState {
           this.logout();
         }
       }
-      this.syncRouteFromUrl();
+
+      if (urlParamsHas(urlParams, 'upgrade', '1') && (this.user || this.token)) {
+        this.showUpgradeModal = true;
+      }
+
+      // Dalla landing "/" rientra direttamente nella propria area
+      if (normalizePath(window.location.pathname) === '/') {
+        if (this.user && this.event) {
+          await goto(TAB_PATHS[this.isCouple ? 'manage' : 'home'], { replaceState: true });
+        } else if (this.hasAccount) {
+          await goto(TAB_PATHS.dashboard, { replaceState: true });
+        }
+      }
     } catch (err) {
       console.error('Fatal init error:', err);
     } finally {
@@ -185,90 +224,17 @@ class AppState {
     }
   }
 
-  syncRouteFromUrl() {
-    if (typeof window === 'undefined') return;
-    const path = window.location.pathname.toLowerCase();
-    const urlParams = new URLSearchParams(window.location.search);
-    const claimParam = urlParams.get('claim')?.trim() || urlParams.get('claim_token')?.trim();
-    const codeParam = urlParams.get('code')?.trim();
-    if (this.pendingInvite) return;
-
-    if (claimParam && !this.showClaimModal && !this.claimData) {
-      this.resolveClaim(claimParam);
-      return;
-    }
-
-    if (urlParams.get('upgrade') === '1' && (this.user || this.token)) {
-      this.showUpgradeModal = true;
-    }
-
-    if (codeParam) {
-      this.authView = 'join';
-      this.activeTab = 'join';
-      return;
-    }
-
-    if (path === '/crea') {
-      this.authView = 'create';
-      this.activeTab = 'create';
-    } else if (path === '/entra') {
-      this.authView = 'join';
-      this.activeTab = 'join';
-    } else if (path === '/dashboard_utente' || path === '/login' || path === '/dashboard') {
-      if (this.hasAccount) {
-        this.authView = 'dashboard';
-        this.activeTab = 'dashboard';
-        this.loadDashboardEvents();
-      } else {
-        this.authView = 'login-secure';
-        this.activeTab = 'login-secure';
-      }
-    } else if (path === '/' && !this.isInGame) {
-      if (this.hasAccount && !this.event) {
-        this.activeTab = 'dashboard';
-        this.authView = 'dashboard';
-        this.loadDashboardEvents();
-      } else {
-        this.authView = 'entry';
-        this.activeTab = 'entry';
-      }
-    }
-  }
-
   openDashboard() {
-    this.activeTab = 'dashboard';
-    this.authView = 'dashboard';
     this.stopPolling();
-    history.pushState(null, '', '/dashboard_utente');
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    goto(TAB_PATHS.dashboard);
     this.loadDashboardEvents();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   setAuthView(view) {
-    this.authView = view;
-    if (view === 'create') {
-      this.activeTab = 'create';
-    } else if (view === 'join') {
-      this.activeTab = 'join';
-    } else if (view === 'login-secure') {
-      this.activeTab = 'login-secure';
-    } else if (view === 'dashboard') {
-      this.activeTab = 'dashboard';
-    } else if (view === 'entry') {
-      this.activeTab = 'entry';
-    }
-    const pathMap = {
-      'create': '/crea',
-      'join': '/entra',
-      'login-secure': '/dashboard_utente',
-      'dashboard': '/dashboard_utente',
-      'entry': '/',
-    };
-    const path = pathMap[view] || '/';
+    const path = TAB_PATHS[view] || '/';
     const search = view === 'join' ? window.location.search : '';
-    history.pushState(null, '', path + search);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    goto(path + search);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -290,9 +256,7 @@ class AppState {
 
   async finishOnboarding(targetTab = null) {
     this.pendingInvite = null;
-    this.authView = 'entry';
-    this.activeTab = targetTab || (this.isCouple ? 'manage' : 'home');
-    history.replaceState(null, '', '/');
+    await goto(TAB_PATHS[targetTab || (this.isCouple ? 'manage' : 'home')], { replaceState: true });
     await this.loadInitialData();
     this.startPolling();
   }
@@ -337,23 +301,19 @@ class AppState {
       const storageKey = `fm_logged_in_before_${this.user.id}`;
       const isFirstTime = res.is_new === true || (!localStorage.getItem(storageKey) && res.is_new !== false);
 
+      let targetTab = 'home';
       if (this.isCouple) {
         const coupleNames = [this.event?.spouse1_name, this.event?.spouse2_name].filter(Boolean).join(' & ');
         this.showToast(coupleNames ? `Bentornati ${coupleNames}!` : 'Bentornati Sposi!', 'success');
-        this.activeTab = 'manage';
+        targetTab = 'manage';
       } else if (isFirstTime) {
         this.showToast(`Benvenuto/a ${this.user.first_name}!`, 'success');
-        this.activeTab = 'home';
       } else {
         this.showToast(`Bentornato/a ${this.user.first_name}!`, 'success');
-        this.activeTab = 'home';
       }
 
-      this.authView = 'entry';
-      history.pushState(null, '', '/');
-      window.dispatchEvent(new PopStateEvent('popstate'));
-
       localStorage.setItem(storageKey, 'true');
+      await goto(TAB_PATHS[targetTab]);
 
       await this.loadInitialData();
       this.startPolling();
@@ -380,9 +340,7 @@ class AppState {
       this.stopPolling();
 
       // Vai SEMPRE e subito alla dashboard utente!
-      this.activeTab = 'dashboard';
-      history.pushState(null, '', '/dashboard_utente');
-      window.dispatchEvent(new PopStateEvent('popstate'));
+      await goto(TAB_PATHS.dashboard);
 
       // Carica i dati dashboard
       await this.loadDashboardEvents();
@@ -411,9 +369,7 @@ class AppState {
       this.galleryPhotos = [];
       this.stopPolling();
 
-      this.activeTab = 'dashboard';
-      history.pushState(null, '', '/dashboard_utente');
-      window.dispatchEvent(new PopStateEvent('popstate'));
+      await goto(TAB_PATHS.dashboard);
 
       await this.loadDashboardEvents();
       this.showToast('Account creato con successo!', 'success');
@@ -435,9 +391,7 @@ class AppState {
         }
         this.setUser(res.user);
         this.event = res.event;
-        this.authView = 'entry';
-        this.activeTab = targetTab || ((res.user.role === 'couple') ? 'manage' : 'home');
-        history.pushState(null, '', '/');
+        await goto(TAB_PATHS[targetTab || ((res.user.role === 'couple') ? 'manage' : 'home')]);
         await this.loadInitialData();
         this.startPolling();
         this.showToast(`Entrato nel matrimonio di ${this.event.spouse1_name} & ${this.event.spouse2_name}`, 'info');
@@ -485,7 +439,6 @@ class AppState {
     } catch (err) {
       console.error('Errore claim link:', err);
       this.showToast(err.message || 'Il link via email non è valido o è scaduto.', 'error');
-      this.syncRouteFromUrl();
     }
   }
 
@@ -551,7 +504,6 @@ class AppState {
     localStorage.removeItem('fm_auth_token');
     localStorage.removeItem('fm_jwt_token');
     this.stopPolling();
-    this.activeTab = 'entry';
     this.setAuthView('entry');
   }
 
@@ -633,11 +585,12 @@ class AppState {
   }
 
   startPolling() {
+    this._startRealtime();
     if (this.pollingTimer) return;
     this.isPolling = true;
-    // Polling ogni 20 secondi per punteggio e classifica live
+    // Fallback: polling ogni 20 secondi solo se il WebSocket non è connesso
     this.pollingTimer = setInterval(async () => {
-      if (this.isAuthenticated) {
+      if (this.isAuthenticated && !this.realtimeConnected) {
         await Promise.allSettled([
           this.refreshUser(true),
           this.refreshLeaderboard()
@@ -647,12 +600,81 @@ class AppState {
   }
 
   stopPolling() {
+    this.realtime?.disconnect();
+    this.realtime = null;
+    clearTimeout(this.leaderboardTimer);
     if (this.pollingTimer) {
       clearInterval(this.pollingTimer);
       this.pollingTimer = null;
     }
     this.isPolling = false;
   }
+
+  _startRealtime() {
+    if (this.realtime) return;
+    let everOpened = false;
+    this.realtime = new RealtimeClient({
+      getToken: () => this.jwtToken || this.token,
+      onStatus: (connected) => { this.realtimeConnected = connected; },
+      onMessage: (msg) => this._onRealtimeMessage(msg),
+      onOpen: () => {
+        // Dopo una riconnessione si riallineano i dati che potrebbero essere stati persi
+        if (everOpened) this._resyncRealtime();
+        everOpened = true;
+      }
+    });
+    this.realtime.setTopics(this.realtimeTopics);
+    this.realtime.connect();
+  }
+
+  // Topic in base alla pagina: la classifica serve sempre (rank e punti), la galleria solo nella sua tab
+  setRealtimeTab(tab) {
+    const topics = ['leaderboard'];
+    if (tab === 'gallery') topics.push('gallery');
+    const enteringGallery = tab === 'gallery' && !this.realtimeTopics.includes('gallery');
+    this.realtimeTopics = topics;
+    this.realtime?.setTopics(topics);
+    // Le foto arrivate mentre non si era iscritti al topic vanno recuperate
+    if (enteringGallery && this.isAuthenticated) this.refreshGallery();
+  }
+
+  _resyncRealtime() {
+    this.refreshUser(true);
+    this.refreshLeaderboard();
+    if (this.realtimeTopics.includes('gallery')) this.refreshGallery();
+  }
+
+  _onRealtimeMessage(msg) {
+    switch (msg.type) {
+      case 'photo_added': {
+        const photo = msg.photo;
+        // Le proprie foto sono già gestite dall'upload (aggiornamento ottimistico)
+        if (!photo || photo.user_id === this.user?.id) return;
+        if (this.galleryPhotos.some(p => p.id === photo.id)) return;
+        this.galleryPhotos = [{
+          ...photo,
+          first_name: formatName(photo.first_name),
+          last_name: formatName(photo.last_name)
+        }, ...this.galleryPhotos];
+        break;
+      }
+      case 'photo_removed':
+        this.galleryPhotos = this.galleryPhotos.filter(p => p.id !== msg.id);
+        break;
+      case 'leaderboard_changed':
+        // Debounce: più eventi ravvicinati producono un solo refresh
+        clearTimeout(this.leaderboardTimer);
+        this.leaderboardTimer = setTimeout(() => {
+          this.refreshUser(true);
+          this.refreshLeaderboard();
+        }, 300);
+        break;
+    }
+  }
+}
+
+function urlParamsHas(params, key, value) {
+  return params?.get(key) === value;
 }
 
 export const appState = new AppState();

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { Env, getSupabase } from "../db";
+import { Env, getDb } from "../db";
 import { createAdminToken, verifyAdminToken } from "../auth";
 
 export const adminRouter = new Hono<{ Bindings: Env }>();
@@ -40,9 +40,9 @@ adminRouter.get("/events", async (c) => {
   const admin = getAdmin(c);
   if (!admin) return c.json({ detail: "Non autorizzato." }, 401);
 
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
-  const { data: events } = await supabase.from("events").select("*").order("created_at", { ascending: false });
-  return c.json(events || []);
+  const db = getDb(c.env);
+  const events = await db.all("SELECT * FROM events ORDER BY created_at DESC");
+  return c.json(events);
 });
 
 // DELETE /api/admin/events/:id
@@ -51,7 +51,7 @@ adminRouter.delete("/events/:id", async (c) => {
   if (!admin) return c.json({ detail: "Non autorizzato." }, 401);
 
   const id = c.req.param("id");
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
-  await supabase.from("events").delete().eq("id", id);
+  const db = getDb(c.env);
+  await db.all("DELETE FROM events WHERE id = $1", [id]);
   return c.json({ success: true, deleted_id: id });
 });

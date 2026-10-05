@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { Env } from "./db";
+import { Env, getDb } from "./db";
+import { verifyJwt } from "./auth";
+import { EventRoom } from "./realtime";
 import { authRouter } from "./routes/auth";
 import { eventsRouter } from "./routes/events";
 import { challengesRouter } from "./routes/challenges";
@@ -84,6 +86,32 @@ app.delete("/api/photos/:filename", async (c) => {
   return c.json({ success: true, message: `Foto ${filename} eliminata.` });
 });
 
+// WebSocket realtime: una stanza (Durable Object) per matrimonio.
+// Il browser non può mandare header sul WebSocket, quindi il JWT arriva nel
+// subprotocol: new WebSocket(url, ["fm.v1", "token.<jwt>"]).
+app.get("/api/realtime", async (c) => {
+  if (c.req.header("Upgrade") !== "websocket") {
+    return c.json({ detail: "Richiesta WebSocket attesa." }, 426);
+  }
+  const protocols = (c.req.header("Sec-WebSocket-Protocol") || "").split(",").map((p) => p.trim());
+  const token = protocols.find((p) => p.startsWith("token."))?.slice("token.".length);
+  const payload = token ? await verifyJwt(token, c.env.JWT_SECRET || "default_jwt_secret") : null;
+  if (!payload || !payload.sub) return c.json({ detail: "Non autorizzato." }, 401);
+
+  let eventId = payload.event_id;
+  if (!eventId && payload.type === "account") {
+    const u = await getDb(c.env).one(
+      "SELECT event_id FROM users WHERE account_id = $1 ORDER BY created_at DESC LIMIT 1",
+      [payload.sub]
+    );
+    eventId = u?.event_id;
+  }
+  if (!eventId) return c.json({ detail: "Nessun evento associato." }, 403);
+
+  const room = c.env.EVENT_ROOM.get(c.env.EVENT_ROOM.idFromName(String(eventId)));
+  return room.fetch(c.req.raw);
+});
+
 // Mount dei router REST del backend migrato
 app.route("/api/auth", authRouter);
 app.route("/api/events", eventsRouter);
@@ -93,4 +121,11 @@ app.route("/api/leaderboard", leaderboardRouter);
 app.route("/api/dashboard", dashboardRouter);
 app.route("/api/admin", adminRouter);
 
+// Errori DB (es. UUID malformato, vincoli violati) -> risposta JSON invece di 500 generico
+app.onError((err, c) => {
+  console.error(err);
+  return c.json({ detail: "Errore interno del server." }, 500);
+});
+
+export { EventRoom };
 export default app;

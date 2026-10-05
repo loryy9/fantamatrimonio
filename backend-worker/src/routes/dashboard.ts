@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { Env, getSupabase } from "../db";
+import { Env, getDb } from "../db";
 import { verifyJwt } from "../auth";
 
 export const dashboardRouter = new Hono<{ Bindings: Env }>();
@@ -10,9 +10,7 @@ async function getAccount(c: any) {
   if (!token) return null;
   const payload = await verifyJwt(token, c.env.JWT_SECRET || "default_jwt_secret");
   if (!payload || !payload.sub || payload.type !== "account") return null;
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
-  const { data: account } = await supabase.from("accounts").select("*").eq("id", payload.sub).single();
-  return account;
+  return await getDb(c.env).one("SELECT * FROM accounts WHERE id = $1", [payload.sub]);
 }
 
 // GET /api/dashboard/events
@@ -20,26 +18,16 @@ dashboardRouter.get("/events", async (c) => {
   const account = await getAccount(c);
   if (!account) return c.json({ detail: "Non autorizzato." }, 401);
 
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
-
-  const { data: usersWithEvents, error } = await supabase
-    .from("users")
-    .select(`
-      id,
-      role,
-      total_points,
-      first_name,
-      last_name,
-      event_id,
-      events:event_id (*)
-    `)
-    .eq("account_id", account.id)
-    .order("created_at", { ascending: false });
-
-  if (error) return c.json({ detail: error.message }, 500);
+  const usersWithEvents = await getDb(c.env).all(
+    `SELECT u.id, u.role, u.total_points, u.first_name, u.last_name, u.event_id, to_jsonb(e) AS events
+     FROM users u JOIN events e ON e.id = u.event_id
+     WHERE u.account_id = $1
+     ORDER BY u.created_at DESC`,
+    [account.id]
+  );
 
   return c.json(
-    (usersWithEvents || []).map((u: any) => ({
+    usersWithEvents.map((u: any) => ({
       event: u.events,
       role: u.role,
       total_points: u.total_points,
@@ -57,23 +45,23 @@ dashboardRouter.get("/events/:eventId", async (c) => {
   if (!account) return c.json({ detail: "Non autorizzato." }, 401);
 
   const eventId = c.req.param("eventId");
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  const db = getDb(c.env);
 
-  const { data: event } = await supabase.from("events").select("*").eq("id", eventId).single();
+  const event = await db.one("SELECT * FROM events WHERE id = $1", [eventId]);
   if (!event) return c.json({ detail: "Evento non trovato." }, 404);
 
-  const { data: participants } = await supabase
-    .from("users")
-    .select("id, first_name, last_name, role, total_points")
-    .eq("event_id", eventId)
-    .order("total_points", { ascending: false });
+  const participants = await db.all(
+    `SELECT id, first_name, last_name, role, total_points FROM users
+     WHERE event_id = $1 ORDER BY total_points DESC`,
+    [eventId]
+  );
 
   return c.json({
     event,
     participants: participants || [],
     photos: [],
     stats: {
-      guests_count: (participants || []).filter((p: any) => p.role === "guest").length,
+      guests_count: participants.filter((p: any) => p.role === "guest").length,
       photos_count: 0,
     },
   });

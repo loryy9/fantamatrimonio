@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { Env, getSupabase } from "../db";
+import { Env, getDb } from "../db";
 import { hashPassword, verifyPassword, createJwt, verifyJwt } from "../auth";
 
 export const authRouter = new Hono<{ Bindings: Env }>();
@@ -17,44 +17,28 @@ authRouter.post("/login", async (c) => {
     return c.json({ detail: "Codice evento obbligatorio." }, 400);
   }
 
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  const db = getDb(c.env);
 
-  const { data: event, error: eventErr } = await supabase
-    .from("events")
-    .select("*")
-    .ilike("invite_code", inviteCode)
-    .single();
+  const event = await db.one("SELECT * FROM events WHERE lower(invite_code) = lower($1) LIMIT 1", [inviteCode]);
 
-  if (eventErr || !event) {
+  if (!event) {
     return c.json({ detail: "Codice evento non valido o matrimonio inesistente." }, 404);
   }
 
   if (firstName && lastName) {
-    let { data: user } = await supabase
-      .from("users")
-      .select("*")
-      .eq("event_id", event.id)
-      .ilike("first_name", firstName)
-      .ilike("last_name", lastName)
-      .maybeSingle();
+    let user = await db.one(
+      `SELECT * FROM users
+       WHERE event_id = $1 AND lower(first_name) = lower($2) AND lower(last_name) = lower($3)
+       LIMIT 1`,
+      [event.id, firstName, lastName]
+    );
 
     if (!user) {
-      const { data: newUser, error: createErr } = await supabase
-        .from("users")
-        .insert({
-          event_id: event.id,
-          first_name: firstName,
-          last_name: lastName,
-          secret_word: secretWord || "ospite",
-          role: isCouple ? "couple" : "guest",
-        })
-        .select()
-        .single();
-
-      if (createErr) {
-        return c.json({ detail: createErr.message }, 500);
-      }
-      user = newUser;
+      user = await db.one(
+        `INSERT INTO users (event_id, first_name, last_name, secret_word, role)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [event.id, firstName, lastName, secretWord || "ospite", isCouple ? "couple" : "guest"]
+      );
     }
 
     const token = await createJwt(
@@ -107,31 +91,20 @@ authRouter.post("/register", async (c) => {
     return c.json({ detail: "Email e password obbligatorie." }, 400);
   }
 
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  const db = getDb(c.env);
 
-  const { data: existing } = await supabase
-    .from("accounts")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
+  const existing = await db.one("SELECT id FROM accounts WHERE email = $1", [email]);
 
   if (existing) {
     return c.json({ detail: "Un account con questa email esiste già." }, 409);
   }
 
   const passwordHash = hashPassword(password);
-  const { data: account, error } = await supabase
-    .from("accounts")
-    .insert({
-      email,
-      password_hash: passwordHash,
-      display_name: displayName,
-      is_verified: true,
-    })
-    .select()
-    .single();
-
-  if (error) return c.json({ detail: error.message }, 500);
+  const account = await db.one(
+    `INSERT INTO accounts (email, password_hash, display_name, is_verified)
+     VALUES ($1, $2, $3, TRUE) RETURNING *`,
+    [email, passwordHash, displayName]
+  );
 
   const token = await createJwt({ sub: account.id, type: "account" }, c.env.JWT_SECRET || "default_jwt_secret");
 
@@ -152,8 +125,8 @@ authRouter.post("/login-secure", async (c) => {
   const email = (body.email || "").trim().toLowerCase();
   const password = body.password || "";
 
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
-  const { data: account } = await supabase.from("accounts").select("*").eq("email", email).maybeSingle();
+  const db = getDb(c.env);
+  const account = await db.one("SELECT * FROM accounts WHERE email = $1", [email]);
 
   if (!account || !verifyPassword(password, account.password_hash)) {
     return c.json({ detail: "Credenziali non valide." }, 401);
@@ -162,12 +135,10 @@ authRouter.post("/login-secure", async (c) => {
   const token = await createJwt({ sub: account.id, type: "account" }, c.env.JWT_SECRET || "default_jwt_secret");
 
   // Cerca tutti gli eventi dell'account
-  const { data: userRows } = await supabase
-    .from("users")
-    .select("event_id, events(*)")
-    .eq("account_id", account.id);
-
-  const events = (userRows || []).map((r: any) => r.events).filter(Boolean);
+  const events = await db.all(
+    `SELECT e.* FROM users u JOIN events e ON e.id = u.event_id WHERE u.account_id = $1`,
+    [account.id]
+  );
 
   return c.json({
     token,
@@ -191,17 +162,17 @@ authRouter.get("/me", async (c) => {
   const payload = await verifyJwt(token, c.env.JWT_SECRET || "default_jwt_secret");
   if (!payload) return c.json({ detail: "Token non valido o scaduto." }, 401);
 
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  const db = getDb(c.env);
 
   if (payload.type === "account") {
-    const { data: account } = await supabase.from("accounts").select("*").eq("id", payload.sub).single();
+    const account = await db.one("SELECT * FROM accounts WHERE id = $1", [payload.sub]);
     return c.json({ account });
   }
 
-  const { data: user } = await supabase.from("users").select("*").eq("id", payload.sub).single();
+  const user = await db.one("SELECT * FROM users WHERE id = $1", [payload.sub]);
   if (!user) return c.json({ detail: "Utente non trovato." }, 404);
 
-  const { data: event } = await supabase.from("events").select("*").eq("id", user.event_id).single();
+  const event = await db.one("SELECT * FROM events WHERE id = $1", [user.event_id]);
 
   return c.json({
     user: {
@@ -228,13 +199,11 @@ authRouter.post("/send-verification-code", async (c) => {
   const code = String(Math.floor(100000 + Math.random() * 900000));
 
   // Salva nel DB con scadenza 15 minuti
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
-  await supabase.from("email_verification_codes").insert({
-    email,
-    code,
-    purpose,
-    expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-  });
+  const db = getDb(c.env);
+  await db.all(
+    "INSERT INTO email_verification_codes (email, code, purpose, expires_at) VALUES ($1, $2, $3, $4)",
+    [email, code, purpose, new Date(Date.now() + 15 * 60 * 1000).toISOString()]
+  );
 
   // ⚠️ MODALITÀ DEV: stampa il codice in console (guarda i log di wrangler)
   console.log(`\n╔══════════════════════════════════════╗`);
@@ -252,18 +221,13 @@ authRouter.post("/verify-code", async (c) => {
   const code = (body.code || "").trim();
   const purpose = body.purpose || "register_account";
 
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
-  const { data: row } = await supabase
-    .from("email_verification_codes")
-    .select("id")
-    .eq("email", email)
-    .eq("code", code)
-    .eq("purpose", purpose)
-    .is("used_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const db = getDb(c.env);
+  const row = await db.one(
+    `SELECT id FROM email_verification_codes
+     WHERE email = $1 AND code = $2 AND purpose = $3 AND used_at IS NULL AND expires_at > NOW()
+     ORDER BY created_at DESC LIMIT 1`,
+    [email, code, purpose]
+  );
 
   if (!row) {
     return c.json({ detail: "Codice non valido o scaduto." }, 400);

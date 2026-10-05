@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { Env, getSupabase } from "../db";
+import { Env, getDb } from "../db";
 import { verifyJwt } from "../auth";
 
 export const leaderboardRouter = new Hono<{ Bindings: Env }>();
@@ -10,9 +10,7 @@ async function getUser(c: any) {
   if (!token) return null;
   const payload = await verifyJwt(token, c.env.JWT_SECRET || "default_jwt_secret");
   if (!payload || !payload.sub) return null;
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
-  const { data: user } = await supabase.from("users").select("*").eq("id", payload.sub).single();
-  return user;
+  return await getDb(c.env).one("SELECT * FROM users WHERE id = $1", [payload.sub]);
 }
 
 // GET /api/leaderboard
@@ -20,19 +18,15 @@ leaderboardRouter.get("/", async (c) => {
   const user = await getUser(c);
   if (!user) return c.json({ detail: "Non autorizzato." }, 401);
 
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
-  const { data: users, error } = await supabase
-    .from("users")
-    .select("id, first_name, last_name, total_points")
-    .eq("event_id", user.event_id)
-    .eq("role", "guest")
-    .order("total_points", { ascending: false })
-    .order("first_name", { ascending: true });
-
-  if (error) return c.json({ detail: error.message }, 500);
+  const users = await getDb(c.env).all(
+    `SELECT id, first_name, last_name, total_points FROM users
+     WHERE event_id = $1 AND role = 'guest'
+     ORDER BY total_points DESC, first_name ASC`,
+    [user.event_id]
+  );
 
   return c.json(
-    (users || []).map((u: any, idx: number) => ({
+    users.map((u: any, idx: number) => ({
       rank: idx + 1,
       id: String(u.id),
       first_name: u.first_name,
@@ -49,33 +43,27 @@ leaderboardRouter.get("/:userId", async (c) => {
   if (!user) return c.json({ detail: "Non autorizzato." }, 401);
 
   const targetId = c.req.param("userId");
-  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_KEY);
+  const db = getDb(c.env);
 
-  const { data: targetUser } = await supabase
-    .from("users")
-    .select("id, first_name, last_name, total_points")
-    .eq("id", targetId)
-    .eq("event_id", user.event_id)
-    .maybeSingle();
+  const targetUser = await db.one(
+    "SELECT id, first_name, last_name, total_points FROM users WHERE id = $1 AND event_id = $2",
+    [targetId, user.event_id]
+  );
 
   if (!targetUser) return c.json({ detail: "Utente non trovato." }, 404);
 
-  const { data: breakdown } = await supabase
-    .from("user_submissions")
-    .select(`
-      id,
-      answer_text,
-      image_url,
-      created_at,
-      challenges:challenge_id (title, type, points)
-    `)
-    .eq("user_id", targetId)
-    .order("created_at", { ascending: false });
+  const breakdown = await db.all(
+    `SELECT s.id, s.answer_text, s.image_url, s.created_at, c.title, c.type, c.points
+     FROM user_submissions s JOIN challenges c ON c.id = s.challenge_id
+     WHERE s.user_id = $1
+     ORDER BY s.created_at DESC`,
+    [targetId]
+  );
 
   const pointsByType: Record<string, number> = {};
-  for (const row of breakdown || []) {
-    const t = (row.challenges as any)?.type || "other";
-    const pts = (row.challenges as any)?.points || 0;
+  for (const row of breakdown) {
+    const t = row.type || "other";
+    const pts = row.points || 0;
     pointsByType[t] = (pointsByType[t] || 0) + pts;
   }
 
@@ -86,12 +74,12 @@ leaderboardRouter.get("/:userId", async (c) => {
     name: `${targetUser.first_name} ${targetUser.last_name}`,
     total_points: targetUser.total_points || 0,
     points_by_type: pointsByType,
-    submissions: (breakdown || []).map((r: any) => ({
+    submissions: breakdown.map((r: any) => ({
       id: String(r.id),
-      challenge_title: (r.challenges as any)?.title,
-      challenge_type: (r.challenges as any)?.type,
-      points: (r.challenges as any)?.points || 0,
-      points_awarded: (r.challenges as any)?.points || 0,
+      challenge_title: r.title,
+      challenge_type: r.type,
+      points: r.points || 0,
+      points_awarded: r.points || 0,
       answer_text: r.answer_text,
       image_url: r.image_url,
       created_at: r.created_at,

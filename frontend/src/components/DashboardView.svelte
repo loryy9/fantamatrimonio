@@ -250,6 +250,15 @@
             </span>
           </button>
         {/each}
+        <div class="event-card event-actions-card">
+          <span class="event-actions-icon">＋</span>
+          <span class="event-names font-serif">Aggiungi un matrimonio</span>
+          <span class="event-actions-hint">Crea un nuovo evento oppure partecipa con un codice invito.</span>
+          <div class="event-actions-buttons">
+            <button class="btn btn-primary btn-sm" onclick={() => appState.setAuthView('create')}>Crea matrimonio</button>
+            <button class="btn btn-secondary btn-sm" onclick={() => appState.setAuthView('join')}>Partecipa</button>
+          </div>
+        </div>
       </div>
     {/if}
   </div>
@@ -322,6 +331,37 @@
     transform: translateY(-3px);
     box-shadow: 0 12px 32px rgba(138, 109, 59, 0.16);
     border-color: rgba(201, 169, 110, 0.4);
+  }
+
+  .event-actions-card {
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 180px;
+    border-style: dashed;
+    background: rgba(201, 169, 110, 0.04);
+  }
+
+  .event-actions-card:hover {
+    transform: none;
+  }
+
+  .event-actions-icon {
+    color: var(--gold-dark);
+    font-size: 2rem;
+    line-height: 1;
+  }
+
+  .event-actions-hint {
+    color: var(--text-dim);
+    font-size: 0.84rem;
+    line-height: 1.4;
+  }
+
+  .event-actions-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
   }
 
   .event-card:active {

@@ -18,6 +18,7 @@
 
   let isSubmitting = $state(false);
   let errorMessage = $state('');
+  const isAccountJoin = $derived(appState.hasAccount);
 
   let eventPreview = $state(null);
   let previewLoading = $state(false);
@@ -103,7 +104,7 @@
       return;
     }
 
-    if (!noEmail) {
+    if (!noEmail && !isAccountJoin) {
       if (!email.trim()) {
         errorMessage = 'Inserisci il tuo indirizzo email.';
         return;
@@ -145,8 +146,12 @@
     <span class="eyebrow">Invitati</span>
     <h1 class="page-title">Entra nel <span class="gold-gradient-text">matrimonio</span></h1>
     <p class="page-lead">
-      Bastano la tua email e un nickname per scendere in pista! Niente password o parole complicate:
-      riceverai subito un codice a 6 cifre per accedere e iniziare a giocare.
+      {#if isAccountJoin}
+        Inserisci il codice del matrimonio e il nickname con cui vuoi partecipare. Il tuo account verrà collegato automaticamente.
+      {:else}
+        Bastano la tua email e un nickname per scendere in pista! Niente password o parole complicate:
+        riceverai subito un codice a 6 cifre per accedere e iniziare a giocare.
+      {/if}
     </p>
 
     <ul class="tips">
@@ -230,28 +235,48 @@
       />
     </div>
 
-    <!-- OPZIONE SENZA EMAIL (PER PARENTI ANZIANI) -->
-    <div
-      class="no-email-card"
-      class:selected={noEmail}
-      onclick={() => { noEmail = !noEmail; errorMessage = ''; }}
-      role="checkbox"
-      aria-checked={noEmail}
-      tabindex="0"
-      onkeydown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); noEmail = !noEmail; errorMessage = ''; } }}
-    >
-      <div class="no-email-checkbox">
-        {#if noEmail}
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        {/if}
+    {#if isAccountJoin}
+      <div class="account-join-notice" role="status">
+        <strong>Sei già autenticato</strong>
+        <span>Non serve inserire email o codice di verifica.</span>
       </div>
-      <div class="no-email-text">
-        <strong>Non possiedo un indirizzo email</strong>
-        <span>Opzione per parenti anziani o chi non usa la posta elettronica</span>
+      <div class="input-group">
+        <label for="accountGuestNick" class="input-label">Il tuo nickname</label>
+        <input
+          id="accountGuestNick"
+          type="text"
+          class="input-field"
+          placeholder="Es. Zia Pina, Testimone Matteo..."
+          bind:value={nickname}
+          required
+          disabled={isSubmitting}
+        />
+        <span class="field-hint">Sarà il nome visibile in questo matrimonio.</span>
       </div>
-    </div>
+    {:else}
+      <!-- OPZIONE SENZA EMAIL (PER PARENTI ANZIANI) -->
+      <div
+        class="no-email-card"
+        class:selected={noEmail}
+        onclick={() => { noEmail = !noEmail; errorMessage = ''; }}
+        role="checkbox"
+        aria-checked={noEmail}
+        tabindex="0"
+        onkeydown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); noEmail = !noEmail; errorMessage = ''; } }}
+      >
+        <div class="no-email-checkbox">
+          {#if noEmail}
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          {/if}
+        </div>
+        <div class="no-email-text">
+          <strong>Non possiedo un indirizzo email</strong>
+          <span>Opzione per parenti anziani o chi non usa la posta elettronica</span>
+        </div>
+      </div>
+    {/if}
 
-    {#if !noEmail}
+    {#if !isAccountJoin && !noEmail}
       <!-- MODALITÀ STANDARD (EMAIL VERIFICATA + NICKNAME) -->
       <EmailVerificationField
         bind:email={email}
@@ -275,7 +300,7 @@
         />
         <span class="field-hint">Sarà il nome visibile in classifica, nelle foto e nelle sfide!</span>
       </div>
-    {:else}
+    {:else if !isAccountJoin}
       <!-- MODALITÀ SENZA EMAIL (NICKNAME + PAROLA SEGRETA) -->
       <div class="no-email-notice" role="alert">
         <span class="notice-icon">👵👴</span>

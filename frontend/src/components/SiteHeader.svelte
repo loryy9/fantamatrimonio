@@ -71,6 +71,15 @@
           <span class="nav-text">Crea matrimonio</span>
         </button>
 
+        <button
+          class="btn btn-secondary nav-action-btn"
+          class:active={appState.authView === 'join'}
+          onclick={() => appState.setAuthView('join')}
+          title="Partecipa a un matrimonio"
+        >
+          <span class="nav-text">Partecipa</span>
+        </button>
+
         {#if appState.account}
           <div class="user-chip" title="Account: {appState.account.email}">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>

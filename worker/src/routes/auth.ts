@@ -96,8 +96,43 @@ router.post("/login", async (c) => {
 
   let user: Row | null = null;
   let isNew = false;
+  let accountId: string | null = null;
 
-  if (body.is_couple) {
+  // Un account gia' autenticato puo' partecipare senza OTP: bastano codice e nickname.
+  const authorization = c.req.header("authorization");
+  if (!body.is_couple && !body.no_email && authorization?.startsWith("Bearer ")) {
+    const token = authorization.slice("Bearer ".length).trim();
+    if (isJwt(token)) {
+      const payload = await decodeJwt(cfg, token);
+      if (payload?.type === "account") {
+        const account = await db.queryOne("SELECT * FROM accounts WHERE id = $1", [String(payload.sub)]);
+        if (account?.email) {
+          accountId = String(account.id);
+          const nick = (body.nickname || "").trim();
+          if (!nick) throw new ApiError(422, "Inserisci un nickname per partecipare.");
+
+          user = await db.queryOne(
+            "SELECT * FROM users WHERE event_id = $1 AND account_id = $2",
+            [event.id, accountId],
+          );
+          if (!user) {
+            isNew = true;
+            user = await db.execute(
+              `INSERT INTO users (event_id, role, first_name, last_name, secret_word, account_id, email)
+               VALUES ($1, 'guest', $2, '', '', $3, $4) RETURNING *`,
+              [event.id, nick, accountId, account.email],
+            );
+          } else if (nick !== user.first_name) {
+            user = await db.execute("UPDATE users SET first_name = $1 WHERE id = $2 RETURNING *", [nick, user.id]);
+          }
+        }
+      }
+    }
+  }
+
+  if (user) {
+    // Accesso completato sopra per account autenticato.
+  } else if (body.is_couple) {
     // 1. Accesso sposi (parola segreta sposi)
     const word = normalize(body.secret_word ?? "");
     if (!coupleUser) throw new ApiError(404, "Nessun account sposi trovato per questo matrimonio.");
@@ -196,7 +231,11 @@ router.post("/login", async (c) => {
 
   const u = user!;
   const token = crypto.randomUUID();
-  await db.execute("INSERT INTO sessions (token, user_id) VALUES ($1, $2)", [token, u.id]);
+  await db.execute("INSERT INTO sessions (token, user_id, account_id) VALUES ($1, $2, $3)", [
+    token,
+    u.id,
+    accountId || u.account_id || null,
+  ]);
 
   const result: Row = { token, is_new: isNew, user: userOut(u), event: eventOut(event) };
 

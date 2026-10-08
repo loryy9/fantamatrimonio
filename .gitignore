@@ -48,3 +48,8 @@ desktop.ini
 *.njsproj
 *.sln
 *.sw?
+
+# Cloudflare Worker
+.dev.vars
+.wrangler/
+worker/node_modules/

@@ -1,84 +1,85 @@
-"""
-Servizio per l'invio delle email di notifica e reminder registrazione.
-Supporta qualsiasi provider SMTP standard (SendGrid, Resend, Brevo, Gmail, custom SMTP).
-Se SMTP non e' configurato, le email vengono loggate in console (modalita' sviluppo).
-"""
-import logging
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from datetime import datetime, timezone
+/**
+ * Invio email di notifica, codici di verifica e reminder di registrazione.
+ * SMTP standard (Gmail, SendGrid, Brevo, ...) via worker-mailer (socket TCP + STARTTLS).
+ * Se SMTP non e' configurato le email vengono solo loggate (modalita' sviluppo).
+ */
+import { WorkerMailer } from "worker-mailer";
+import type { Config } from "./config";
+import type { Db } from "./db";
+import { createClaimToken } from "./auth";
 
-import db
-from config import (
-    SMTP_HOST,
-    SMTP_PORT,
-    SMTP_USER,
-    SMTP_PASSWORD,
-    SMTP_FROM,
-    FRONTEND_URL,
-)
+const esc = (s: unknown): string =>
+  String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
-logger = logging.getLogger(__name__)
+export const isSmtpConfigured = (cfg: Config): boolean => !!(cfg.smtpHost && cfg.smtpUser && cfg.smtpPassword);
 
+/** "Nome <a@b.it>" -> {name, email}; "a@b.it" -> stringa. */
+function parseAddress(addr: string): string | { name: string; email: string } {
+  const m = addr.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  return m ? { name: m[1].replace(/^"|"$/g, ""), email: m[2] } : addr.trim();
+}
 
-def is_smtp_configured() -> bool:
-    """Verifica se i parametri minimi per l'invio email sono configurati."""
-    return bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD)
+/** Invia un'email HTML. Ritorna true se inviata (o loggata in modalita' mock), false se l'invio fallisce. */
+export async function sendEmail(
+  cfg: Config,
+  to: string,
+  subject: string,
+  html: string,
+  text?: string,
+): Promise<boolean> {
+  if (!isSmtpConfigured(cfg)) {
+    console.log(
+      `[MOCK EMAIL] To: ${to} | Subject: ${subject}\n` +
+        "SMTP non configurato. Per inviare email reali imposta SMTP_HOST, SMTP_USER, SMTP_PASSWORD (o GMAIL_*).",
+    );
+    return true;
+  }
 
+  try {
+    await WorkerMailer.send(
+      {
+        host: cfg.smtpHost!,
+        port: cfg.smtpPort,
+        secure: cfg.smtpPort === 465,
+        startTls: cfg.smtpPort !== 465,
+        credentials: { username: cfg.smtpUser!, password: cfg.smtpPassword! },
+        authType: "plain",
+        socketTimeoutMs: 15000,
+        responseTimeoutMs: 15000,
+      },
+      { from: parseAddress(cfg.smtpFrom), to, subject, html, ...(text ? { text } : {}) },
+    );
+    console.log(`Email inviata con successo a ${to}`);
+    return true;
+  } catch (e) {
+    console.error(`Errore durante l'invio dell'email a ${to}: ${e}`);
+    return false;
+  }
+}
 
-def send_email(to_email: str, subject: str, html_content: str, text_content: str | None = None) -> bool:
-    """
-    Invia un'email HTML a to_email.
-    Se SMTP non e' configurato, logga il messaggio per debug e ritorna True.
-    """
-    if not is_smtp_configured():
-        logger.info(
-            f"[MOCK EMAIL] To: {to_email} | Subject: {subject}\n"
-            f"SMTP non configurato. Per inviare email reali, imposta SMTP_HOST, SMTP_USER, SMTP_PASSWORD in .env."
-        )
-        return True
+export function buildReminderEmailHtml(p: {
+  guestName: string;
+  spouse1: string;
+  spouse2: string;
+  inviteCode: string;
+  registrationUrl: string;
+}): string {
+  const couplesLabel = esc(p.spouse2 ? `${p.spouse1} & ${p.spouse2}` : p.spouse1);
+  const guestName = esc(p.guestName);
+  const inviteCode = esc(p.inviteCode);
+  const registrationUrl = esc(p.registrationUrl);
 
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = SMTP_FROM
-        msg["To"] = to_email
-
-        if text_content:
-            msg.attach(MIMEText(text_content, "plain", "utf-8"))
-        msg.attach(MIMEText(html_content, "html", "utf-8"))
-
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(SMTP_FROM, [to_email], msg.as_string())
-
-        logger.info(f"Email inviata con successo a {to_email}")
-        return True
-    except Exception as e:
-        logger.error(f"Errore durante l'invio dell'email a {to_email}: {e}")
-        return False
-
-
-def build_reminder_email_html(
-    guest_name: str,
-    spouse1: str,
-    spouse2: str,
-    invite_code: str,
-    registration_url: str,
-) -> str:
-    """Template email curato con design coordinato all'app (colori oro/bordeaux)."""
-    couples_label = f"{spouse1} & {spouse2}" if spouse2 else spouse1
-
-    return f"""<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>I ricordi del matrimonio di {couples_label}</title>
+  <title>I ricordi del matrimonio di ${couplesLabel}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #0d0a0b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f5f0eb;">
   <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0d0a0b; padding: 40px 10px;">
@@ -102,10 +103,10 @@ def build_reminder_email_html(
           <tr>
             <td style="padding: 32px 32px 24px;">
               <p style="font-size: 17px; line-height: 1.5; color: #ffffff; margin: 0 0 16px;">
-                Ciao <strong>{guest_name}</strong>,
+                Ciao <strong>${guestName}</strong>,
               </p>
               <p style="font-size: 15px; line-height: 1.6; color: #d6cfc7; margin: 0 0 20px;">
-                Che festa indimenticabile! Il matrimonio di <strong style="color: #f0d8a8;">{couples_label}</strong> è stato ricco di momenti speciali, risate e foto meravigliose.
+                Che festa indimenticabile! Il matrimonio di <strong style="color: #f0d8a8;">${couplesLabel}</strong> è stato ricco di momenti speciali, risate e foto meravigliose.
               </p>
               <p style="font-size: 15px; line-height: 1.6; color: #d6cfc7; margin: 0 0 28px;">
                 Se vuoi conservare per sempre lo storico dei tuoi quiz, il punteggio finale e tutte le foto scattate durante i giochi, puoi <strong>registrare il tuo account gratuito</strong> in un click.
@@ -115,7 +116,7 @@ def build_reminder_email_html(
               <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin: 0 auto 28px;">
                 <tr>
                   <td align="center" style="border-radius: 999px; background: linear-gradient(135deg, #d4af37 0%, #aa820a 100%); box-shadow: 0 6px 20px rgba(212, 175, 55, 0.35);">
-                    <a href="{registration_url}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 15px; font-weight: 700; color: #160e12; text-decoration: none; border-radius: 999px; letter-spacing: 0.5px;">
+                    <a href="${registrationUrl}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 15px; font-weight: 700; color: #160e12; text-decoration: none; border-radius: 999px; letter-spacing: 0.5px;">
                       Salva i tuoi ricordi &rarr;
                     </a>
                   </td>
@@ -126,7 +127,7 @@ def build_reminder_email_html(
               <div style="background: rgba(255, 255, 255, 0.03); border: 1px dashed rgba(240, 216, 168, 0.2); border-radius: 12px; padding: 16px 20px; text-align: center; margin-bottom: 20px;">
                 <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #a89f91;">Codice invito matrimonio:</span>
                 <div style="font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 3px; color: #f0d8a8; margin-top: 4px;">
-                  {invite_code}
+                  ${inviteCode}
                 </div>
               </div>
 
@@ -150,79 +151,11 @@ def build_reminder_email_html(
   </table>
 </body>
 </html>
-"""
+`;
+}
 
-
-def process_due_reminders(limit: int = 50) -> dict:
-    """
-    Trova i reminder scaduti (send_after <= NOW() e sent_at IS NULL),
-    invia le email e aggiorna sent_at.
-    Ritorna un sommario con il numero di email inviate e fallite.
-    """
-    now = datetime.now(timezone.utc)
-    reminders = db.query(
-        """
-        SELECT r.id, r.email, r.user_id, r.event_id,
-               u.first_name, u.last_name,
-               e.spouse1_name, e.spouse2_name, e.invite_code
-        FROM registration_reminders r
-        JOIN users u ON u.id = r.user_id
-        JOIN events e ON e.id = r.event_id
-        WHERE r.sent_at IS NULL AND r.send_after <= %s
-        ORDER BY r.send_after ASC
-        LIMIT %s
-        """,
-        (now, limit),
-    )
-
-    sent_count = 0
-    failed_count = 0
-
-    for rem in reminders:
-        guest_name = f"{rem['first_name']} {rem['last_name']}".strip()
-        spouse1 = rem["spouse1_name"]
-        spouse2 = rem.get("spouse2_name") or ""
-        code = rem["invite_code"]
-
-        from dependencies import create_claim_token
-        claim_token = create_claim_token(str(rem["user_id"]), str(rem["event_id"]), rem["email"])
-        reg_url = f"{FRONTEND_URL}/completa-account?claim={claim_token}&code={code}"
-
-        subject = f"💍 I ricordi del matrimonio di {spouse1} & {spouse2} ti aspettano!"
-        html = build_reminder_email_html(
-            guest_name=guest_name,
-            spouse1=spouse1,
-            spouse2=spouse2,
-            invite_code=code,
-            registration_url=reg_url,
-        )
-        text = (
-            f"Ciao {guest_name}!\n\n"
-            f"I ricordi del matrimonio di {spouse1} & {spouse2} sono pronti.\n"
-            f"Per salvare il tuo storico e vedere tutte le foto, registrati qui: {reg_url}\n\n"
-            f"Codice evento: {code}"
-        )
-
-        ok = send_email(rem["email"], subject, html, text)
-        if ok:
-            db.execute(
-                "UPDATE registration_reminders SET sent_at = NOW() WHERE id = %s",
-                (rem["id"],),
-            )
-            sent_count += 1
-        else:
-            failed_count += 1
-
-    return {
-        "processed": len(reminders),
-        "sent": sent_count,
-        "failed": failed_count,
-    }
-
-
-def build_verification_code_email_html(code: str, purpose_label: str = "registrazione") -> str:
-    """Template email elegante per l'invio del codice di verifica a 6 cifre."""
-    return f"""<!DOCTYPE html>
+export function buildVerificationCodeEmailHtml(code: string, purposeLabel = "registrazione"): string {
+  return `<!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="utf-8">
@@ -251,7 +184,7 @@ def build_verification_code_email_html(code: str, purpose_label: str = "registra
           <tr>
             <td style="padding: 32px 32px 28px; text-align: center;">
               <p style="font-size: 16px; line-height: 1.5; color: #ffffff; margin: 0 0 16px;">
-                Per completare la tua <strong>{purpose_label}</strong> su Fanta Matrimonio, inserisci questo codice di sicurezza:
+                Per completare la tua <strong>${esc(purposeLabel)}</strong> su Fanta Matrimonio, inserisci questo codice di sicurezza:
               </p>
 
               <!-- OTP Box -->
@@ -259,7 +192,7 @@ def build_verification_code_email_html(code: str, purpose_label: str = "registra
                 <tr>
                   <td style="background: rgba(240, 216, 168, 0.12); border: 2px dashed rgba(240, 216, 168, 0.55); border-radius: 14px; padding: 18px 36px; text-align: center;">
                     <span style="font-family: 'Courier New', Courier, monospace, sans-serif; font-size: 34px; font-weight: 700; letter-spacing: 10px; color: #f0d8a8; display: block; margin-right: -10px;">
-                      {code}
+                      ${esc(code)}
                     </span>
                   </td>
                 </tr>
@@ -287,24 +220,79 @@ def build_verification_code_email_html(code: str, purpose_label: str = "registra
   </table>
 </body>
 </html>
-"""
+`;
+}
 
+const PURPOSE_LABELS: Record<string, string> = {
+  register_couple: "creazione del matrimonio",
+  register_account: "registrazione account",
+  upgrade_account: "registrazione del tuo profilo",
+  join_guest: "partecipazione al matrimonio",
+};
 
-def send_verification_email(to_email: str, code: str, purpose: str = "registration") -> bool:
-    """Invia il codice di verifica a 6 cifre via email all'utente."""
-    purpose_labels = {
-        "register_couple": "creazione del matrimonio",
-        "register_account": "registrazione account",
-        "upgrade_account": "registrazione del tuo profilo",
-        "join_guest": "partecipazione al matrimonio",
+/** Invia il codice di verifica a 6 cifre. */
+export function sendVerificationEmail(cfg: Config, to: string, code: string, purpose = "registration"): Promise<boolean> {
+  const label = PURPOSE_LABELS[purpose] ?? "partecipazione";
+  return sendEmail(
+    cfg,
+    to,
+    `💍 Il tuo codice di verifica Fanta Matrimonio: ${code}`,
+    buildVerificationCodeEmailHtml(code, label),
+    `Il tuo codice di verifica Fanta Matrimonio è: ${code}\n\n` +
+      `Inseriscilo sul sito per confermare la tua ${label}.\n` +
+      `Il codice è valido per 15 minuti.`,
+  );
+}
+
+/**
+ * Invia i reminder scaduti (send_after <= NOW() e sent_at IS NULL) e aggiorna sent_at.
+ * Ritorna il numero di email processate / inviate / fallite.
+ */
+export async function processDueReminders(
+  db: Db,
+  cfg: Config,
+  limit = 50,
+): Promise<{ processed: number; sent: number; failed: number }> {
+  const reminders = await db.query(
+    `SELECT r.id, r.email, r.user_id, r.event_id,
+            u.first_name, u.last_name,
+            e.spouse1_name, e.spouse2_name, e.invite_code
+     FROM registration_reminders r
+     JOIN users u ON u.id = r.user_id
+     JOIN events e ON e.id = r.event_id
+     WHERE r.sent_at IS NULL AND r.send_after <= $1
+     ORDER BY r.send_after ASC
+     LIMIT $2`,
+    [new Date(), limit],
+  );
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const rem of reminders) {
+    const guestName = `${rem.first_name} ${rem.last_name}`.trim();
+    const spouse1: string = rem.spouse1_name;
+    const spouse2: string = rem.spouse2_name || "";
+    const code: string = rem.invite_code;
+
+    const claimToken = await createClaimToken(cfg, String(rem.user_id), String(rem.event_id), rem.email);
+    const regUrl = `${cfg.frontendUrl}/completa-account?claim=${claimToken}&code=${code}`;
+
+    const subject = `💍 I ricordi del matrimonio di ${spouse1} & ${spouse2} ti aspettano!`;
+    const html = buildReminderEmailHtml({ guestName, spouse1, spouse2, inviteCode: code, registrationUrl: regUrl });
+    const text =
+      `Ciao ${guestName}!\n\n` +
+      `I ricordi del matrimonio di ${spouse1} & ${spouse2} sono pronti.\n` +
+      `Per salvare il tuo storico e vedere tutte le foto, registrati qui: ${regUrl}\n\n` +
+      `Codice evento: ${code}`;
+
+    if (await sendEmail(cfg, rem.email, subject, html, text)) {
+      await db.execute("UPDATE registration_reminders SET sent_at = NOW() WHERE id = $1", [rem.id]);
+      sent++;
+    } else {
+      failed++;
     }
-    purpose_label = purpose_labels.get(purpose, "partecipazione")
-    subject = f"💍 Il tuo codice di verifica Fanta Matrimonio: {code}"
-    html = build_verification_code_email_html(code, purpose_label)
-    text = (
-        f"Il tuo codice di verifica Fanta Matrimonio è: {code}\n\n"
-        f"Inseriscilo sul sito per confermare la tua {purpose_label}.\n"
-        f"Il codice è valido per 15 minuti."
-    )
-    return send_email(to_email, subject, html, text)
+  }
 
+  return { processed: reminders.length, sent, failed };
+}

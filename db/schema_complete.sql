@@ -1,6 +1,6 @@
 -- ============================================================
--- Fanta Matrimonio — Schema SQL Completo per Supabase
--- Da eseguire nell'SQL Editor di Supabase
+-- Fanta Matrimonio — Schema SQL Completo per Neon
+-- Da eseguire nell'SQL Editor di Neon
 -- Include tutte le tabelle, estensioni, indici e trigger aggiornati (v1 -> v6).
 -- ============================================================
 

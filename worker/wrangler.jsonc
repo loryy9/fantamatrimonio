@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fantamatrimonio",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  // nodejs_compat: richiesto da worker-mailer (SMTP) e dal driver Neon
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // Frontend Svelte (build in ../frontend/dist) servito come static assets.
+  // /api/* passa SEMPRE dal Worker; tutto il resto e' SPA (fallback su index.html).
+  "assets": {
+    "directory": "../frontend/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Foto degli invitati. Creazione: npx wrangler r2 bucket create fantamatrimonio-photos
+  "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "fantamatrimonio-photos" }],
+
+  // Invia ogni ora i reminder di registrazione scaduti.
+  "triggers": { "crons": ["0 * * * *"] },
+
+  // Porta di sviluppo: coincide con il proxy di vite (frontend/vite.config.js).
+  "dev": { "port": 8000 },
+
+  // Variabili NON segrete. I segreti (DATABASE_URL, JWT_SECRET, ...) vanno con `wrangler secret put`.
+  "vars": {
+    "JWT_EXPIRE_HOURS": "720",
+    "REGISTRATION_REMINDER_DAYS": "7",
+    "FRONTEND_URL": "https://fantamatrimonio.<TUO-SUBDOMINIO>.workers.dev"
+  }
+
+  // ── OPZIONALE ────────────────────────────────────────────────────────────
+  // KV per il rate limit di POST /api/events (altrimenti best-effort in memoria, per istanza).
+  //   npx wrangler kv namespace create RATE_LIMIT_KV
+  // "kv_namespaces": [{ "binding": "RATE_LIMIT_KV", "id": "<ID>" }]
+}

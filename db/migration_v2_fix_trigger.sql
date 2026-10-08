@@ -2,7 +2,7 @@
 -- Fanta Matrimonio — Migrazione v2
 -- Corregge il trigger update_user_points per gestire il quiz:
 -- i punti vengono assegnati SOLO se la risposta è corretta.
--- Da eseguire nell'SQL Editor di Supabase dopo schema.sql.
+-- Da eseguire nell'SQL Editor di Neon dopo schema.sql.
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION update_user_points()

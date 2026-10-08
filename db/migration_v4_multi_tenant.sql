@@ -1,6 +1,6 @@
 -- ============================================================
 -- Migrazione v4: multi-tenancy (eventi/matrimoni multipli)
--- Esegui nell'SQL Editor di Supabase sul database esistente.
+-- Esegui nell'SQL Editor di Neon sul database esistente.
 -- ⚠ PERSONALIZZA i valori dell'evento legacy prima di eseguire!
 -- ============================================================
 

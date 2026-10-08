@@ -1,9 +1,9 @@
 -- ============================================================
 -- Fanta Matrimonio — Schema SQL
--- Da eseguire nell'SQL Editor di Supabase
+-- Da eseguire nell'SQL Editor di Neon
 -- ============================================================
 
--- Abilita l'estensione UUID (di solito già attiva su Supabase)
+-- Abilita l'estensione UUID (già disponibile su Neon)
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ CREATE TABLE user_submissions (
     id           UUID           PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id      UUID           NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     challenge_id INTEGER        NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
-    image_url    TEXT,          -- URL Supabase Storage, nullable
+    image_url    TEXT,          -- URL della foto (R2), nullable
     answer_text  TEXT,          -- risposta quiz, opzione voto, nullable
     created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
@@ -106,7 +106,7 @@ CREATE TABLE user_submissions (
 -- via logica applicativa nel backend (INSERT ... ON CONFLICT
 -- solo sulle challenge di tipo vote).
 
--- Indice UNIQUE parziale: funziona in PostgreSQL/Supabase ma
+-- Indice UNIQUE parziale: funziona in PostgreSQL/Neon ma
 -- non può riferirsi a un'altra tabella nella WHERE clause.
 -- Soluzione: usiamo un check applicativo nel backend.
 -- L'unicità per i voti è garantita da:

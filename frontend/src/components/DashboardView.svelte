@@ -10,12 +10,16 @@
   let detailLoading = $state(false);
   let activeSection = $state('photos'); // 'photos' | 'quiz' | 'participants'
 
-  onMount(() => {
-    appState.loadDashboardEvents();
+  onMount(async () => {
+    await appState.loadDashboardEvents();
+    const eventId = new URLSearchParams(window.location.search).get('event');
+    const event = eventId ? appState.dashboardEvents.find((item) => item.event?.id === eventId) : null;
+    if (event) await openEvent(event);
   });
 
   async function openEvent(ev) {
     selectedEvent = ev;
+    history.replaceState(null, '', `/dashboard_utente?event=${encodeURIComponent(ev.event.id)}`);
     detailLoading = true;
     activeSection = 'photos';
     try {
@@ -36,6 +40,7 @@
     selectedEvent = null;
     eventDetail = null;
     eventSubmissions = null;
+    history.replaceState(null, '', '/dashboard_utente');
   }
 
   function enterEvent(ev) {

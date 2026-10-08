@@ -47,7 +47,7 @@
       progress: beforeStart || !totalHunts ? null : completedHunts / totalHunts,
       accent: '#e9c98f',
       icon: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/>',
-      go: () => { appState.activeTab = 'hunt'; }
+      go: () => { appState.setGameTab('hunt'); }
     },
     {
       id: 'gallery',
@@ -57,7 +57,7 @@
       progress: null,
       accent: '#c9627f',
       icon: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
-      go: () => { appState.activeTab = 'gallery'; }
+      go: () => { appState.setGameTab('gallery'); }
     },
     {
       id: 'quiz',
@@ -67,7 +67,7 @@
       progress: beforeStart || !totalQuiz ? null : completedQuiz / totalQuiz,
       accent: '#c9a96e',
       icon: '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
-      go: () => { appState.quizSubTab = 'quiz'; appState.activeTab = 'quiz'; }
+      go: () => { appState.quizSubTab = 'quiz'; appState.setGameTab('quiz'); }
     },
     {
       id: 'vote',
@@ -77,7 +77,7 @@
       progress: null,
       accent: '#7fa994',
       icon: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
-      go: () => { appState.quizSubTab = 'vote'; appState.activeTab = 'quiz'; }
+      go: () => { appState.quizSubTab = 'vote'; appState.setGameTab('quiz'); }
     }
   ]);
 </script>
@@ -92,7 +92,7 @@
           <span class="sposi-preview-sub">Stai guardando la festa come la vedono gli invitati</span>
         </div>
       </div>
-      <button class="btn btn-secondary btn-sm sposi-return-btn" onclick={() => appState.activeTab = 'manage'}>
+      <button class="btn btn-secondary btn-sm sposi-return-btn" onclick={() => appState.setGameTab('manage')}>
         Console Sposi →
       </button>
     </div>
@@ -147,7 +147,7 @@
               <div class="status-note strong">Tempo scaduto</div>
             {/if}
           </div>
-          <button class="rank-btn" onclick={() => appState.activeTab = 'leaderboard'} aria-label="Apri la classifica">
+          <button class="rank-btn" onclick={() => appState.setGameTab('leaderboard')} aria-label="Apri la classifica">
             <span>{#if appState.myRank}{appState.myRank}° · {/if}Classifica</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
           </button>
@@ -167,7 +167,7 @@
           <p class="banner-sub">Gestisci quiz, caccia fotografica, momenti e impostazioni.</p>
         </div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick={() => appState.activeTab = 'manage'}>
+      <button class="btn btn-primary btn-sm" onclick={() => appState.setGameTab('manage')}>
         Console Sposi →
       </button>
     </div>

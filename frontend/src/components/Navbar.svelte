@@ -31,7 +31,7 @@
       <div class="user-stats">
         {#if appState.activeTab !== 'dashboard'}
           {#if appState.isCouple}
-            <button class="chip" onclick={() => appState.activeTab = 'manage'} title="Apri console di gestione sposi">
+            <button class="chip" onclick={() => appState.setGameTab('manage')} title="Apri console di gestione sposi">
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
               <span class="chip-text">Console Sposi</span>
             </button>

@@ -7,10 +7,12 @@ function readAuthView() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('code')) return 'join';
     const path = window.location.pathname.toLowerCase();
+    if (path.startsWith('/partita/')) return 'entry';
     if (path === '/crea') return 'create';
     if (path === '/entra') return 'join';
     if (path === '/dashboard_utente' || path === '/login' || path === '/dashboard') return 'login-secure';
   }
+
   return 'entry';
 }
 
@@ -43,6 +45,21 @@ class AppState {
   toasts = $state([]);
   isPolling = $state(false);
   pollingTimer = null;
+
+  get gameRoute() {
+    const code = this.event?.invite_code?.trim().toUpperCase();
+    return code && this.activeTab ? `/partita/${encodeURIComponent(code)}/${this.activeTab}` : '/';
+  }
+
+  setGameTab(tab, replace = false) {
+    const allowed = ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'manage'];
+    if (!allowed.includes(tab)) return;
+    this.activeTab = tab;
+    if (this.event?.invite_code && typeof window !== 'undefined') {
+      const method = replace ? 'replaceState' : 'pushState';
+      history[method](null, '', this.gameRoute);
+    }
+  }
 
   get isAuthenticated() {
     return (!!this.token || !!this.jwtToken) && (!!this.user || !!this.account);
@@ -106,6 +123,7 @@ class AppState {
       this.user = null;
       return;
     }
+
     this.user = {
       ...u,
       first_name: formatName(u.first_name),
@@ -148,6 +166,7 @@ class AppState {
         return;
       }
 
+      const path = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
       if (this.token || this.jwtToken) {
         try {
           const res = await api.getMe();
@@ -206,6 +225,18 @@ class AppState {
       this.authView = 'join';
       this.activeTab = 'join';
       return;
+    }
+
+    const gameMatch = path.match(/^\/partita\/([^/]+)(?:\/([^/]+))?\/?$/);
+    if (gameMatch) {
+      const routeCode = decodeURIComponent(gameMatch[1]).toUpperCase();
+      const tab = gameMatch[2] || 'home';
+      const allowed = ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'manage'];
+      if (this.event?.invite_code?.toUpperCase() === routeCode && allowed.includes(tab)) {
+        this.authView = 'entry';
+        this.activeTab = tab;
+        return;
+      }
     }
 
     if (path === '/crea') {
@@ -291,8 +322,7 @@ class AppState {
   async finishOnboarding(targetTab = null) {
     this.pendingInvite = null;
     this.authView = 'entry';
-    this.activeTab = targetTab || (this.isCouple ? 'manage' : 'home');
-    history.replaceState(null, '', '/');
+    this.setGameTab(targetTab || (this.isCouple ? 'manage' : 'home'), true);
     await this.loadInitialData();
     this.startPolling();
   }
@@ -340,17 +370,17 @@ class AppState {
       if (this.isCouple) {
         const coupleNames = [this.event?.spouse1_name, this.event?.spouse2_name].filter(Boolean).join(' & ');
         this.showToast(coupleNames ? `Bentornati ${coupleNames}!` : 'Bentornati Sposi!', 'success');
-        this.activeTab = 'manage';
+        this.setGameTab('manage', true);
       } else if (isFirstTime) {
         this.showToast(`Benvenuto/a ${this.user.first_name}!`, 'success');
-        this.activeTab = 'home';
+        this.setGameTab('home', true);
       } else {
         this.showToast(`Bentornato/a ${this.user.first_name}!`, 'success');
-        this.activeTab = 'home';
+        this.setGameTab('home', true);
       }
 
       this.authView = 'entry';
-      history.pushState(null, '', '/');
+      history.replaceState(null, '', this.gameRoute);
       window.dispatchEvent(new PopStateEvent('popstate'));
 
       localStorage.setItem(storageKey, 'true');
@@ -436,8 +466,7 @@ class AppState {
         this.setUser(res.user);
         this.event = res.event;
         this.authView = 'entry';
-        this.activeTab = targetTab || ((res.user.role === 'couple') ? 'manage' : 'home');
-        history.pushState(null, '', '/');
+        this.setGameTab(targetTab || ((res.user.role === 'couple') ? 'manage' : 'home'), true);
         await this.loadInitialData();
         this.startPolling();
         this.showToast(`Entrato nel matrimonio di ${this.event.spouse1_name} & ${this.event.spouse2_name}`, 'info');

@@ -16,7 +16,7 @@
     {#each navItems as item (item.id)}
       <button
         class="nav-btn {appState.activeTab === item.id ? 'active' : ''}"
-        onclick={() => appState.activeTab = item.id}
+        onclick={() => appState.setGameTab(item.id)}
         aria-label={item.label}
       >
         <span class="nav-icon">

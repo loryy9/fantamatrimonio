@@ -1,7 +1,17 @@
 <script>
+  import { onMount } from 'svelte';
   import { appState } from '../lib/state.svelte.js';
 
   let { scrollToId } = $props();
+  let showUserMenu = $state(false);
+
+  onMount(() => {
+    const closeMenu = (event) => {
+      if (!event.target.closest('.user-menu')) showUserMenu = false;
+    };
+    document.addEventListener('click', closeMenu);
+    return () => document.removeEventListener('click', closeMenu);
+  });
 
   function handleBrandClick() {
     if (appState.hasAccount) {
@@ -51,15 +61,6 @@
     <nav class="top-nav">
       {#if appState.hasAccount}
         <!-- Menu per utente autenticato con account -->
-        <button
-          class="nav-link"
-          class:active={appState.activeTab === 'dashboard' && appState.authView !== 'create'}
-          onclick={() => appState.openDashboard()}
-          title="I miei matrimoni"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-          <span class="nav-text">I miei matrimoni</span>
-        </button>
 
         <button
           class="btn btn-secondary nav-action-btn"
@@ -81,16 +82,41 @@
         </button>
 
         {#if appState.account}
-          <div class="user-chip" title="Account: {appState.account.email}">
+          <div class="user-menu">
+            <button class="user-chip" class:open={showUserMenu} onclick={() => showUserMenu = !showUserMenu} aria-expanded={showUserMenu} aria-haspopup="true" title="Apri menu account">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span class="user-name">{appState.account.display_name}</span>
+              <svg
+                class="dropdown-chevron"
+                class:rotated={showUserMenu}
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </button>
+            {#if showUserMenu}
+              <div class="user-dropdown">
+                <span class="dropdown-email">{appState.account.email}</span>
+                <button class="dropdown-item" onclick={() => { showUserMenu = false; appState.openDashboard(); }}>I miei matrimoni</button>
+                <button class="dropdown-item dropdown-logout" onclick={() => { showUserMenu = false; handleLogout(); }}>Esci</button>
+              </div>
+            {/if}
           </div>
         {/if}
 
-        <button class="btn-logout" onclick={handleLogout} title="Esci dall'account" aria-label="Esci">
+        <!-- <button class="btn-logout" onclick={handleLogout} title="Esci dall'account" aria-label="Esci">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
           <span class="logout-label">Esci</span>
-        </button>
+        </button> -->
       {:else}
         <!-- Menu pubblico per visitatori non autenticati -->
         <button class="nav-link nav-anchor" onclick={() => handleAnchorClick('come-funziona')}>Come funziona</button>
@@ -270,6 +296,7 @@
   }
 
   .user-chip {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -280,6 +307,76 @@
     font-size: 0.84rem;
     font-weight: 600;
     color: var(--text-main);
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .user-chip.open,
+  .user-chip:hover {
+    background: rgba(201, 169, 110, 0.18);
+    border-color: rgba(201, 169, 110, 0.5);
+  }
+
+  .dropdown-chevron {
+    display: block;
+    flex: 0 0 14px;
+    align-self: center;
+    transition: transform 0.18s ease;
+    margin-top: auto;
+  }
+
+  .dropdown-chevron.rotated {
+    transform: rotate(180deg);
+  }
+
+  .user-menu {
+    position: relative;
+  }
+
+  .user-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 100;
+    min-width: 190px;
+    padding: 8px;
+    border: 1px solid rgba(201, 169, 110, 0.25);
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(36, 28, 32, 0.14);
+  }
+
+  .dropdown-email {
+    display: block;
+    padding: 7px 10px 9px;
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .dropdown-item:hover {
+    background: rgba(201, 169, 110, 0.12);
+  }
+
+  .dropdown-logout {
+    color: #a83232;
   }
 
   .user-name {

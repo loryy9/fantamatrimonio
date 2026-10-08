@@ -190,15 +190,7 @@
         <h1 class="page-title">La tua <span class="gold-gradient-text">Dashboard</span></h1>
         <p class="page-lead">Tutti i matrimoni a cui hai partecipato o che hai creato.</p>
       </div>
-      {#if appState.account}
-        <div class="account-info">
-          <span class="account-badge">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-            {appState.account.display_name}
-          </span>
-          <span class="account-email">{appState.account.email}</span>
-        </div>
-      {/if}
+    
     </div>
 
     {#if appState.dashboardLoading}
@@ -220,6 +212,15 @@
       </div>
     {:else}
       <div class="events-grid">
+        <div class="event-card event-actions-card">
+          <span class="event-actions-icon">＋</span>
+          <span class="event-names font-serif">Aggiungi un matrimonio</span>
+          <span class="event-actions-hint">Crea un nuovo evento oppure partecipa con un codice invito.</span>
+          <div class="event-actions-buttons">
+            <button class="btn btn-primary btn-sm" onclick={() => appState.setAuthView('create')}>Crea matrimonio</button>
+            <button class="btn btn-secondary btn-sm" onclick={() => appState.setAuthView('join')}>Partecipa</button>
+          </div>
+        </div>
         {#each appState.dashboardEvents as ev (ev.event.id)}
           <button class="event-card" onclick={() => openEvent(ev)}>
             <div class="event-card-header">
@@ -250,15 +251,6 @@
             </span>
           </button>
         {/each}
-        <div class="event-card event-actions-card">
-          <span class="event-actions-icon">＋</span>
-          <span class="event-names font-serif">Aggiungi un matrimonio</span>
-          <span class="event-actions-hint">Crea un nuovo evento oppure partecipa con un codice invito.</span>
-          <div class="event-actions-buttons">
-            <button class="btn btn-primary btn-sm" onclick={() => appState.setAuthView('create')}>Crea matrimonio</button>
-            <button class="btn btn-secondary btn-sm" onclick={() => appState.setAuthView('join')}>Partecipa</button>
-          </div>
-        </div>
       </div>
     {/if}
   </div>

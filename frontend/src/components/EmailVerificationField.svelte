@@ -1,5 +1,6 @@
 <script>
   import { api } from '../lib/api.js';
+  import { appState } from '../lib/state.svelte.js';
 
   let {
     email = $bindable(''),
@@ -15,6 +16,8 @@
   let codeSent = $state(false);
   let statusMessage = $state('');
   let isError = $state(false);
+  let existingEmailWarning = $state(false);
+  let existingAccount = $state(false);
   let countdown = $state(0);
   let timer = null;
 
@@ -29,7 +32,7 @@
     }, 1000);
   }
 
-  async function handleSendCode() {
+  async function handleSendCode(confirmExisting = false) {
     const cleanEmail = (email || '').trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
       statusMessage = 'Inserisci un indirizzo email valido prima di richiedere il codice.';
@@ -40,9 +43,17 @@
     sending = true;
     statusMessage = '';
     isError = false;
+    existingEmailWarning = false;
+    existingAccount = false;
 
     try {
-      const res = await api.sendVerificationCode(cleanEmail, purpose);
+      const res = await api.sendVerificationCode(cleanEmail, purpose, confirmExisting);
+      if (res.requires_confirmation) {
+        existingEmailWarning = true;
+        statusMessage = res.message;
+        isError = true;
+        return;
+      }
       codeSent = true;
       statusMessage = `Codice a 6 cifre inviato a ${cleanEmail}! Controlla la posta (incluso Spam).`;
       isError = false;
@@ -50,6 +61,7 @@
     } catch (err) {
       statusMessage = err.message || 'Errore durante l\'invio del codice. Riprova.';
       isError = true;
+      existingAccount = purpose === 'join_guest' && err.status === 409;
     } finally {
       sending = false;
     }
@@ -83,7 +95,7 @@
         class="btn-send-otp"
         class:btn-sent={codeSent}
         disabled={disabled || sending || countdown > 0 || !email?.includes('@')}
-        onclick={handleSendCode}
+        onclick={() => handleSendCode(false)}
       >
         {#if sending}
           <span class="btn-spinner"></span>
@@ -98,6 +110,19 @@
       </button>
     </div>
   </div>
+
+  {#if existingEmailWarning}
+    <div class="existing-email-confirm" role="alert">
+      <span>Vuoi comunque utilizzare questa email per partecipare?</span>
+      <button type="button" class="btn-confirm-existing" onclick={() => handleSendCode(true)} disabled={sending}>
+        Sì, invia comunque il codice
+      </button>
+    </div>
+  {:else if existingAccount}
+    <button type="button" class="link-btn existing-account-login" onclick={() => appState.setAuthView('login-secure')}>
+      Vai al login con email e password →
+    </button>
+  {/if}
 
   <!-- Campo Codice OTP quando inviato -->
   {#if codeSent}
@@ -292,6 +317,40 @@
     background: rgba(239, 68, 68, 0.08);
     color: #b91c1c;
     border: 1px solid rgba(239, 68, 68, 0.25);
+  }
+
+  .existing-email-confirm {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid rgba(201, 169, 110, 0.45);
+    border-radius: 14px;
+    background: rgba(201, 169, 110, 0.1);
+    color: var(--text, #3d2930);
+    font-size: 0.84rem;
+    line-height: 1.4;
+  }
+
+  .btn-confirm-existing {
+    border: 0;
+    border-radius: 10px;
+    padding: 8px 12px;
+    background: var(--wine, #8c2f4b);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .btn-confirm-existing:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+
+  .existing-account-login {
+    align-self: flex-start;
+    color: var(--wine, #8c2f4b);
   }
 
   @media (max-width: 520px) {

@@ -36,7 +36,11 @@ const LoginRequest = z.object({
   is_couple: z.boolean().default(false),
 });
 
-const SendVerificationCodeRequest = z.object({ email: z.string(), purpose: z.string().default("registration") });
+const SendVerificationCodeRequest = z.object({
+  email: z.string(),
+  purpose: z.string().default("registration"),
+  confirm_existing: z.boolean().default(false),
+});
 const VerifyCodeRequest = z.object({ email: z.string(), code: z.string(), purpose: z.string().default("registration") });
 const RegisterRequest = z.object({
   email: z.string(),
@@ -216,6 +220,25 @@ router.post("/send-verification-code", async (c) => {
     const existing = await db.queryOne("SELECT id FROM accounts WHERE email = $1", [email]);
     if (existing && body.purpose === "register_account") {
       throw new ApiError(409, "Esiste già un account con questa email. Prova ad accedere.");
+    }
+  }
+  if (body.purpose === "join_guest") {
+    const existingAccount = await db.queryOne("SELECT id, password_hash FROM accounts WHERE email = $1", [email]);
+    if (existingAccount?.password_hash) {
+      throw new ApiError(409, "Questa email appartiene già a un account. Effettua il login con email e password.");
+    }
+
+    const existingGuest = await db.queryOne(
+      "SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1",
+      [email],
+    );
+    if (existingGuest && !body.confirm_existing) {
+      return c.json({
+        success: false,
+        requires_confirmation: true,
+        message:
+          "Questa email è già associata a un invitato. Sei sicuro di voler inviare un nuovo codice per partecipare a un altro matrimonio?",
+      });
     }
   }
   return c.json(await createAndSendCode(db, c.get("cfg"), email, body.purpose));

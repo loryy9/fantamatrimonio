@@ -102,10 +102,10 @@ export const api = {
   },
 
   // ── Verifica Email OTP ───────────────────────────────────────────────────
-  async sendVerificationCode(email, purpose = 'registration') {
+  async sendVerificationCode(email, purpose = 'registration', confirmExisting = false) {
     return await request('/auth/send-verification-code', {
       method: 'POST',
-      body: JSON.stringify({ email, purpose })
+      body: JSON.stringify({ email, purpose, confirm_existing: confirmExisting })
     });
   },
 

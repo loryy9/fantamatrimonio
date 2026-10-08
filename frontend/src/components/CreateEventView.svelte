@@ -18,6 +18,7 @@
   let couplePassword = $state('');
   let coupleConfirmPassword = $state('');
   let coupleVerificationCode = $state('');
+  let coupleEmailVerified = $state(false);
   let showPassword = $state(false);
   let isSubmitting = $state(false);
   let errorMessage = $state('');
@@ -35,42 +36,41 @@
 
   async function handleSubmit(e) {
     e.preventDefault();
-    errorMessage = '';
 
     if (!spouse1.trim() || !spouse2.trim()) {
-      errorMessage = 'Inserisci il nome di entrambi gli sposi.';
+      appState.showToast('Inserisci il nome di entrambi gli sposi.', 'error');
       return;
     }
     if (enableTimer) {
       if (!startTime || !endTime) {
-        errorMessage = 'Imposta sia l\'orario di inizio che quello di fine.';
+        appState.showToast('Imposta sia l\'orario di inizio che quello di fine.', 'error');
         return;
       }
       if (new Date(endTime) <= new Date(startTime)) {
-        errorMessage = 'L\'orario di fine deve essere successivo a quello di inizio.';
+        appState.showToast('L\'orario di fine deve essere successivo a quello di inizio.', 'error');
         return;
       }
     }
     if (!coupleFirst.trim() || !coupleLast.trim()) {
-      errorMessage = 'Inserisci il nome e cognome del referente per l\'account sposi.';
+      appState.showToast('Inserisci il nome e cognome del referente per l\'account sposi.', 'error');
       return;
     }
 
     if (!isPreAuthenticated) {
       if (!coupleEmail.trim() || !couplePassword.trim()) {
-        errorMessage = 'Email e password sono obbligatorie per creare l\'account con cui gestirete il matrimonio.';
+        appState.showToast('Email e password sono obbligatorie per creare l\'account con cui gestirete il matrimonio.', 'error');
         return;
       }
       if (couplePassword.trim().length < 6) {
-        errorMessage = 'La password deve contenere almeno 6 caratteri.';
+        appState.showToast('La password deve contenere almeno 6 caratteri.', 'error');
         return;
       }
       if (couplePassword !== coupleConfirmPassword) {
-        errorMessage = 'Le password non coincidono.';
+        appState.showToast('Le password non coincidono.', 'error');
         return;
       }
       if (!coupleVerificationCode.trim() || coupleVerificationCode.trim().length !== 6) {
-        errorMessage = 'Inserisci il codice di verifica a 6 cifre inviato alla tua email.';
+        appState.showToast('Inserisci il codice di verifica a 6 cifre inviato alla tua email.', 'error');
         return;
       }
     }
@@ -91,7 +91,7 @@
     isSubmitting = false;
 
     if (!res.success) {
-      errorMessage = res.error || 'Non è stato possibile creare il matrimonio.';
+      appState.showToast(res.error || 'Non è stato possibile creare il matrimonio.', 'error');
     } else {
       // Mostra popup con istruzioni chiare e mini-navbar con pulsante 'Accedi' evidenziato
       showSuccessModal = true;
@@ -219,8 +219,27 @@
         </div>
       {/if}
 
+      {#if !isPreAuthenticated}
+        <fieldset class="account-section email-first-step">
+          <legend><span class="step-num">1</span> Verifica prima la tua email</legend>
+          <p class="section-note">
+            Per continuare devi prima confermare il tuo indirizzo email. Inseriscilo e premi <strong>Invia codice</strong>: dopo averlo verificato potrai completare il matrimonio.
+          </p>
+          <EmailVerificationField
+            bind:email={coupleEmail}
+            bind:verificationCode={coupleVerificationCode}
+            bind:verified={coupleEmailVerified}
+            purpose="register_couple"
+            label="Email degli sposi"
+            placeholder="es. giulia.rossi@email.com"
+            disabled={isSubmitting}
+          />
+        </fieldset>
+      {/if}
+
+      {#if isPreAuthenticated || coupleEmailVerified}
       <fieldset>
-        <legend><span class="step-num">1</span> I vostri nomi</legend>
+        <legend><span class="step-num">{isPreAuthenticated ? '1' : '2'}</span> I vostri nomi</legend>
         <div class="row">
           <div class="input-group">
             <label for="spouse1" class="input-label">Sposo/a 1</label>
@@ -234,7 +253,7 @@
       </fieldset>
 
       <fieldset>
-        <legend><span class="step-num">2</span> Le tempistiche</legend>
+        <legend><span class="step-num">{isPreAuthenticated ? '2' : '3'}</span> Le tempistiche</legend>
         <label class="switch-row">
           <input type="checkbox" bind:checked={enableTimer} />
           <span class="switch-track"><span class="switch-thumb"></span></span>
@@ -259,7 +278,7 @@
       </fieldset>
 
       <fieldset class="account-section">
-        <legend><span class="step-num">3</span> Il vostro account Sposi</legend>
+        <legend><span class="step-num">{isPreAuthenticated ? '3' : '4'}</span> Il vostro account Sposi</legend>
 
         {#if isPreAuthenticated}
           <div class="preauth-box">
@@ -285,19 +304,6 @@
         </div>
 
         {#if !isPreAuthenticated}
-          <p class="section-note">
-            Inserisci la tua email e richiedi il codice di verifica per creare il vostro account sicuro. Vi serviranno per accedere in qualsiasi momento alla <strong>Dashboard Sposi</strong> per gestire il matrimonio e visualizzare foto e classifiche.
-          </p>
-
-          <EmailVerificationField
-            bind:email={coupleEmail}
-            bind:verificationCode={coupleVerificationCode}
-            purpose="register_couple"
-            label="Email sposi"
-            placeholder="es. giulia.rossi@email.com"
-            disabled={isSubmitting}
-          />
-
           <div class="input-group">
             <label for="couplePassword" class="input-label">Password sposi</label>
             <div class="pwd-input-wrap">
@@ -310,12 +316,14 @@
                 autocomplete="new-password"
                 minlength="6"
                 required
+                disabled={!coupleEmailVerified || isSubmitting}
               />
               <button
                 type="button"
                 class="btn-toggle-pwd"
                 onclick={() => showPassword = !showPassword}
                 aria-label={showPassword ? 'Nascondi password' : 'Mostra password'}
+                disabled={!coupleEmailVerified || isSubmitting}
               >
                 {#if showPassword}
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -338,6 +346,7 @@
               autocomplete="new-password"
               minlength="6"
               required
+              disabled={!coupleEmailVerified || isSubmitting}
             />
           </div>
         {/if}
@@ -352,6 +361,12 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
         {/if}
       </button>
+      {:else}
+        <div class="verification-required-note" role="status">
+          <strong>Un passaggio alla volta</strong>
+          <span>Verifica l’email qui sopra per sbloccare i dati del matrimonio.</span>
+        </div>
+      {/if}
     </form>
   </div>
 {/if}
@@ -435,6 +450,22 @@
     grid-template-columns: minmax(0, 380px) 1fr;
     gap: 56px;
     align-items: start;
+  }
+
+  .verification-required-note {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(201, 169, 110, 0.1);
+    border: 1px solid rgba(201, 169, 110, 0.35);
+    color: var(--text-main);
+  }
+
+  .verification-required-note span {
+    color: #6b5f64;
+    font-size: 0.9rem;
   }
 
   .create-aside {

@@ -5,6 +5,7 @@
   let {
     email = $bindable(''),
     verificationCode = $bindable(''),
+    verified = $bindable(false),
     purpose = 'register_account',
     disabled = false,
     label = 'Email',
@@ -21,6 +22,21 @@
   let countdown = $state(0);
   let timer = null;
 
+  function notify(text, type = 'info') {
+    appState.showToast(text, type);
+  }
+
+  function handleEmailInput(e) {
+    const nextEmail = e.target.value;
+    email = nextEmail;
+    if (verified) verified = false;
+    if (codeSent) {
+      codeSent = false;
+      verificationCode = '';
+      statusMessage = '';
+    }
+  }
+
   function startCountdown(seconds = 25) {
     countdown = seconds;
     clearInterval(timer);
@@ -35,12 +51,12 @@
   async function handleSendCode(confirmExisting = false) {
     const cleanEmail = (email || '').trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
-      statusMessage = 'Inserisci un indirizzo email valido prima di richiedere il codice.';
-      isError = true;
+      notify('Inserisci un indirizzo email valido prima di richiedere il codice.', 'error');
       return;
     }
 
     sending = true;
+    verified = false;
     statusMessage = '';
     isError = false;
     existingEmailWarning = false;
@@ -50,18 +66,38 @@
       const res = await api.sendVerificationCode(cleanEmail, purpose, confirmExisting);
       if (res.requires_confirmation) {
         existingEmailWarning = true;
-        statusMessage = res.message;
-        isError = true;
+        notify(res.message, 'info');
         return;
       }
       codeSent = true;
-      statusMessage = `Codice a 6 cifre inviato a ${cleanEmail}! Controlla la posta (incluso Spam).`;
-      isError = false;
+      notify(`Codice a 6 cifre inviato a ${cleanEmail}! Controlla la posta (incluso Spam).`, 'success');
       startCountdown(25);
     } catch (err) {
-      statusMessage = err.message || 'Errore durante l\'invio del codice. Riprova.';
-      isError = true;
+      notify(err.message || 'Errore durante l\'invio del codice. Riprova.', 'error');
       existingAccount = purpose === 'join_guest' && err.status === 409;
+    } finally {
+      sending = false;
+    }
+  }
+
+  async function handleVerifyCode() {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanCode = (verificationCode || '').trim();
+    if (cleanCode.length !== 6) {
+      notify('Inserisci il codice a 6 cifre ricevuto via email.', 'error');
+      return;
+    }
+
+    sending = true;
+    statusMessage = '';
+    isError = false;
+    try {
+      await api.verifyCode(cleanEmail, cleanCode, purpose);
+      verified = true;
+      notify('Email verificata! Ora puoi completare il modulo.', 'success');
+    } catch (err) {
+      verified = false;
+      notify(err.message || 'Codice non valido o scaduto. Riprova.', 'error');
     } finally {
       sending = false;
     }
@@ -70,6 +106,10 @@
   function handleCodeInput(e) {
     const clean = e.target.value.replace(/\D/g, '').slice(0, 6);
     verificationCode = clean;
+    verified = false;
+    if (clean.length === 6) {
+      setTimeout(() => handleVerifyCode(), 0);
+    }
   }
 </script>
 
@@ -84,7 +124,8 @@
         id="vf-email"
         type="email"
         class="input-field email-input"
-        bind:value={email}
+        value={email}
+        oninput={handleEmailInput}
         placeholder={placeholder}
         required={required}
         disabled={disabled}
@@ -94,7 +135,7 @@
         type="button"
         class="btn-send-otp"
         class:btn-sent={codeSent}
-        disabled={disabled || sending || countdown > 0 || !email?.includes('@')}
+        disabled={disabled || sending || countdown > 0 || !email?.includes('@') || verified}
         onclick={() => handleSendCode(false)}
       >
         {#if sending}
@@ -133,20 +174,22 @@
         </label>
         <span class="otp-pill">6 cifre</span>
       </div>
-      <input
-        id="vf-code"
-        type="text"
-        inputmode="numeric"
-        maxlength="6"
-        class="input-field otp-input"
-        value={verificationCode}
-        oninput={handleCodeInput}
-        placeholder="••••••"
-        required
-        disabled={disabled}
-        autocomplete="one-time-code"
-      />
-      <span class="otp-hint">Inserisci il codice ricevuto per confermare che l'indirizzo email ti appartiene.</span>
+      <div class="otp-action-row">
+        <input
+          id="vf-code"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          class="input-field otp-input"
+          value={verificationCode}
+          oninput={handleCodeInput}
+          placeholder="••••••"
+          required
+          disabled={disabled || verified}
+          autocomplete="one-time-code"
+        />
+      </div>
+      <span class="otp-hint">Inserisci le 6 cifre: la verifica partirà automaticamente.</span>
     </div>
   {/if}
 
@@ -282,6 +325,42 @@
     border-radius: 14px;
     padding: 10px 14px;
     color: var(--text-main, #241c20);
+  }
+
+  .otp-action-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .otp-action-row .otp-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .btn-verify-otp {
+    flex-shrink: 0;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--wine, #8c2f4b);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+  }
+
+  .btn-verify-otp:hover:not(:disabled) {
+    opacity: 0.88;
+  }
+
+  .btn-verify-otp:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-verify-otp.btn-verified {
+    background: #3d8060;
   }
 
   .otp-input:focus {

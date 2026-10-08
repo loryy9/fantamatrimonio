@@ -102,7 +102,6 @@
 
   // Salva tutte le sfide selezionate
   async function handleSave(useAllDefaults = false) {
-    errorMessage = '';
     isSaving = true;
 
     try {
@@ -169,7 +168,7 @@
         onComplete();
       }
     } catch (err) {
-      errorMessage = err.message || 'Errore durante il salvataggio delle attività.';
+      appState.showToast(err.message || 'Errore durante il salvataggio delle attività.', 'error');
     } finally {
       isSaving = false;
     }

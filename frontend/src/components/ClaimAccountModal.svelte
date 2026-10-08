@@ -30,20 +30,18 @@
 
   async function handleSubmit(e) {
     e.preventDefault();
-    errorMessage = '';
-
     if (!firstName.trim() || !lastName.trim()) {
-      errorMessage = 'Inserisci sia il nome che il cognome.';
+      appState.showToast('Inserisci sia il nome che il cognome.', 'error');
       return;
     }
 
     if (!password || password.length < 6) {
-      errorMessage = 'La password deve contenere almeno 6 caratteri.';
+      appState.showToast('La password deve contenere almeno 6 caratteri.', 'error');
       return;
     }
 
     if (password !== confirmPassword) {
-      errorMessage = 'Le password non coincidono.';
+      appState.showToast('Le password non coincidono.', 'error');
       return;
     }
 
@@ -51,10 +49,10 @@
     try {
       const res = await appState.completeClaim(password, firstName.trim(), lastName.trim());
       if (!res.success) {
-        errorMessage = res.error || 'Errore durante la creazione dell\'account.';
+        appState.showToast(res.error || 'Errore durante la creazione dell\'account.', 'error');
       }
     } catch (err) {
-      errorMessage = err.message || 'Errore di connessione.';
+      appState.showToast(err.message || 'Errore di connessione.', 'error');
     } finally {
       isSubmitting = false;
     }

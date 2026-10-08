@@ -6,6 +6,7 @@
   let password = $state('');
   let confirmPassword = $state('');
   let verificationCode = $state('');
+  let emailVerified = $state(false);
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
@@ -27,31 +28,30 @@
   async function handleSubmit(e) {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      errorMessage = 'Email e password sono obbligatori.';
+      appState.showToast('Email e password sono obbligatori.', 'error');
       return;
     }
     if (password.length < 6) {
-      errorMessage = 'La password deve essere di almeno 6 caratteri.';
+      appState.showToast('La password deve essere di almeno 6 caratteri.', 'error');
       return;
     }
     if (password !== confirmPassword) {
-      errorMessage = 'Le password non coincidono.';
+      appState.showToast('Le password non coincidono.', 'error');
       return;
     }
     if (!verificationCode.trim() || verificationCode.trim().length !== 6) {
-      errorMessage = 'Inserisci il codice di verifica a 6 cifre inviato alla tua email.';
+      appState.showToast('Inserisci il codice di verifica a 6 cifre inviato alla tua email.', 'error');
       return;
     }
 
-    errorMessage = '';
     isSubmitting = true;
     try {
       const res = await appState.upgradeAccount(email.trim(), password, displayName, verificationCode.trim());
       if (!res.success) {
-        errorMessage = res.error || 'Registrazione non riuscita.';
+        appState.showToast(res.error || 'Registrazione non riuscita.', 'error');
       }
     } catch (err) {
-      errorMessage = err.message || 'Errore di connessione.';
+      appState.showToast(err.message || 'Errore di connessione.', 'error');
     } finally {
       isSubmitting = false;
     }
@@ -86,23 +86,25 @@
         <EmailVerificationField
           bind:email={email}
           bind:verificationCode={verificationCode}
+          bind:verified={emailVerified}
           purpose="upgrade_account"
           label="Email"
           placeholder="es. mario@email.com"
           disabled={isSubmitting}
         />
 
+        {#if emailVerified}
         <div class="input-group">
           <label for="upgradePassword" class="input-label">Password</label>
-          <input id="upgradePassword" type="password" class="input-field" placeholder="Almeno 6 caratteri" bind:value={password} autocomplete="new-password" minlength="6" required />
+          <input id="upgradePassword" type="password" class="input-field" placeholder="Almeno 6 caratteri" bind:value={password} autocomplete="new-password" minlength="6" required disabled={!emailVerified || isSubmitting} />
         </div>
 
-        <div class="input-group">
+        <div class="input-group" class:field-locked={!emailVerified}>
           <label for="upgradeConfirm" class="input-label">Conferma password</label>
-          <input id="upgradeConfirm" type="password" class="input-field" placeholder="Ripeti la password" bind:value={confirmPassword} autocomplete="new-password" required />
+          <input id="upgradeConfirm" type="password" class="input-field" placeholder="Ripeti la password" bind:value={confirmPassword} autocomplete="new-password" required disabled={!emailVerified || isSubmitting} />
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block" disabled={isSubmitting}>
+        <button type="submit" class="btn btn-primary btn-block" disabled={isSubmitting || !emailVerified}>
           {#if isSubmitting}
             <div class="spinner spinner-on-dark"></div>
             <span>Registrazione...</span>
@@ -110,6 +112,12 @@
             <span>Registra account</span>
           {/if}
         </button>
+        {:else}
+          <div class="verification-required-note" role="status">
+            <strong>Verifica prima la tua email</strong>
+            <span>Dopo la verifica potrai impostare la password e registrare l’account.</span>
+          </div>
+        {/if}
       </form>
 
       <button class="skip-btn" onclick={close}>Magari dopo</button>
@@ -129,6 +137,23 @@
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     animation: fadeIn 0.2s ease;
+  }
+
+  .verification-required-note {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    margin-top: 14px;
+    border-radius: 14px;
+    background: rgba(201, 169, 110, 0.1);
+    border: 1px solid rgba(201, 169, 110, 0.35);
+    color: var(--text-main);
+  }
+
+  .verification-required-note span {
+    color: #6b5f64;
+    font-size: 0.9rem;
   }
 
   .modal-card {

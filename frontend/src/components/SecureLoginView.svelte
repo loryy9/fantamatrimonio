@@ -13,22 +13,22 @@
   let regPassword = $state('');
   let regConfirm = $state('');
   let regVerificationCode = $state('');
+  let regEmailVerified = $state(false);
 
   async function handleLogin(e) {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      errorMessage = 'Email e password sono obbligatori.';
+      appState.showToast('Email e password sono obbligatori.', 'error');
       return;
     }
-    errorMessage = '';
     isSubmitting = true;
     try {
       const res = await appState.loginSecure(email.trim(), password.trim());
       if (!res.success) {
-        errorMessage = res.error || 'Email o password non corretti.';
+        appState.showToast(res.error || 'Email o password non corretti.', 'error');
       }
     } catch (err) {
-      errorMessage = err.message || 'Errore di connessione.';
+      appState.showToast(err.message || 'Errore di connessione.', 'error');
     } finally {
       isSubmitting = false;
     }
@@ -37,30 +37,29 @@
   async function handleRegister(e) {
     e.preventDefault();
     if (!regName.trim() || !regEmail.trim() || !regPassword.trim()) {
-      errorMessage = 'Tutti i campi sono obbligatori.';
+      appState.showToast('Tutti i campi sono obbligatori.', 'error');
       return;
     }
     if (regPassword.length < 6) {
-      errorMessage = 'La password deve essere di almeno 6 caratteri.';
+      appState.showToast('La password deve essere di almeno 6 caratteri.', 'error');
       return;
     }
     if (regPassword !== regConfirm) {
-      errorMessage = 'Le password non coincidono.';
+      appState.showToast('Le password non coincidono.', 'error');
       return;
     }
     if (!regVerificationCode.trim() || regVerificationCode.trim().length !== 6) {
-      errorMessage = 'Inserisci il codice di verifica a 6 cifre inviato alla tua email.';
+      appState.showToast('Inserisci il codice di verifica a 6 cifre inviato alla tua email.', 'error');
       return;
     }
-    errorMessage = '';
     isSubmitting = true;
     try {
       const res = await appState.register(regEmail.trim(), regPassword, regName.trim(), regVerificationCode.trim());
       if (!res.success) {
-        errorMessage = res.error || 'Registrazione non riuscita.';
+        appState.showToast(res.error || 'Registrazione non riuscita.', 'error');
       }
     } catch (err) {
-      errorMessage = err.message || 'Errore di connessione.';
+      appState.showToast(err.message || 'Errore di connessione.', 'error');
     } finally {
       isSubmitting = false;
     }
@@ -153,28 +152,30 @@
         </div>
       {/if}
 
-      <div class="input-group">
-        <label for="regName" class="input-label">Il tuo nome</label>
-        <input id="regName" type="text" class="input-field" placeholder="Es. Giulia Bianchi" bind:value={regName} autocomplete="name" required />
-      </div>
-
       <EmailVerificationField
         bind:email={regEmail}
         bind:verificationCode={regVerificationCode}
+        bind:verified={regEmailVerified}
         purpose="register_account"
         label="Email"
         placeholder="es. giulia@email.com"
         disabled={isSubmitting}
       />
 
+      {#if regEmailVerified}
+      <div class="input-group">
+        <label for="regName" class="input-label">Il tuo nome</label>
+        <input id="regName" type="text" class="input-field" placeholder="Es. Giulia Bianchi" bind:value={regName} autocomplete="name" required />
+      </div>
+
       <div class="input-group">
         <label for="regPassword" class="input-label">Password</label>
-        <input id="regPassword" type="password" class="input-field" placeholder="Almeno 6 caratteri" bind:value={regPassword} autocomplete="new-password" minlength="6" required />
+        <input id="regPassword" type="password" class="input-field" placeholder="Almeno 6 caratteri" bind:value={regPassword} autocomplete="new-password" minlength="6" required disabled={!regEmailVerified || isSubmitting} />
       </div>
 
       <div class="input-group">
         <label for="regConfirm" class="input-label">Conferma password</label>
-        <input id="regConfirm" type="password" class="input-field" placeholder="Ripeti la password" bind:value={regConfirm} autocomplete="new-password" required />
+        <input id="regConfirm" type="password" class="input-field" placeholder="Ripeti la password" bind:value={regConfirm} autocomplete="new-password" required disabled={!regEmailVerified || isSubmitting} />
       </div>
 
       <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
@@ -186,6 +187,12 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
         {/if}
       </button>
+      {:else}
+        <div class="verification-required-note" role="status">
+          <strong>Verifica prima la tua email</strong>
+          <span>Dopo la verifica compariranno nome, password e il pulsante per creare l’account.</span>
+        </div>
+      {/if}
     </form>
   {/if}
 </div>
@@ -196,6 +203,22 @@
     grid-template-columns: 1fr minmax(0, 480px);
     gap: 56px;
     align-items: start;
+  }
+
+  .verification-required-note {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(201, 169, 110, 0.1);
+    border: 1px solid rgba(201, 169, 110, 0.35);
+    color: var(--text-main);
+  }
+
+  .verification-required-note span {
+    color: #6b5f64;
+    font-size: 0.9rem;
   }
 
   .secure-intro {

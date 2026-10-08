@@ -13,6 +13,7 @@
   let nickname = $state('');
   let email = $state('');
   let verificationCode = $state('');
+  let emailVerified = $state(false);
   let noEmail = $state(false);
   let secretWord = $state('');
 
@@ -41,6 +42,7 @@
       eventPreview = null;
       if (c.length >= 6) {
         previewError = 'Codice matrimonio non trovato. Controlla il codice ricevuto.';
+        appState.showToast(previewError, 'error');
       }
     } finally {
       previewLoading = false;
@@ -92,30 +94,28 @@
 
   async function handleSubmit(e) {
     e.preventDefault();
-    errorMessage = '';
-
     if (!inviteCode.trim()) {
-      errorMessage = 'Inserisci il codice del matrimonio.';
+      appState.showToast('Inserisci il codice del matrimonio.', 'error');
       return;
     }
 
     if (!nickname.trim()) {
-      errorMessage = 'Inserisci un nickname per partecipare (es. Zia Pina, Fratello sposa).';
+      appState.showToast('Inserisci un nickname per partecipare (es. Zia Pina, Fratello sposa).', 'error');
       return;
     }
 
     if (!noEmail && !isAccountJoin) {
       if (!email.trim()) {
-        errorMessage = 'Inserisci il tuo indirizzo email.';
+        appState.showToast('Inserisci il tuo indirizzo email.', 'error');
         return;
       }
       if (!verificationCode.trim() || verificationCode.trim().length !== 6) {
-        errorMessage = 'Inserisci il codice di verifica a 6 cifre inviato alla tua email.';
+        appState.showToast('Inserisci il codice di verifica a 6 cifre inviato alla tua email.', 'error');
         return;
       }
     } else {
       if (!secretWord.trim()) {
-        errorMessage = 'Inserisci una parola segreta personale per poter rientrare se chiudi il browser.';
+        appState.showToast('Inserisci una parola segreta personale per poter rientrare se chiudi il browser.', 'error');
         return;
       }
     }
@@ -131,10 +131,10 @@
         secretWord: noEmail ? secretWord.trim() : null,
       });
       if (!res.success) {
-        errorMessage = res.error || 'Accesso non riuscito. Controlla il codice o i dati inseriti.';
+        appState.showToast(res.error || 'Accesso non riuscito. Controlla il codice o i dati inseriti.', 'error');
       }
     } catch (err) {
-      errorMessage = err.message || 'Errore di connessione.';
+      appState.showToast(err.message || 'Errore di connessione.', 'error');
     } finally {
       isSubmitting = false;
     }
@@ -211,13 +211,6 @@
       </div>
     {/if}
 
-    {#if errorMessage}
-      <div class="form-error" role="alert">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-        <span>{errorMessage}</span>
-      </div>
-    {/if}
-
     <!-- CODICE INVITO -->
     <div class="input-group">
       <label for="inviteCode" class="input-label">Codice invito matrimonio</label>
@@ -281,12 +274,14 @@
       <EmailVerificationField
         bind:email={email}
         bind:verificationCode={verificationCode}
+        bind:verified={emailVerified}
         purpose="join_guest"
         label="La tua email"
         placeholder="es. mario@email.com"
         disabled={isSubmitting}
       />
 
+      {#if emailVerified}
       <div class="input-group">
         <label for="guestNick" class="input-label">Il tuo Nickname per il gioco</label>
         <input
@@ -300,6 +295,12 @@
         />
         <span class="field-hint">Sarà il nome visibile in classifica, nelle foto e nelle sfide!</span>
       </div>
+      {:else}
+        <div class="verification-required-note" role="status">
+          <strong>Verifica prima la tua email</strong>
+          <span>Dopo la verifica comparirà il nickname e potrai entrare nel gioco.</span>
+        </div>
+      {/if}
     {:else if !isAccountJoin}
       <!-- MODALITÀ SENZA EMAIL (NICKNAME + PAROLA SEGRETA) -->
       <div class="no-email-notice" role="alert">
@@ -340,7 +341,7 @@
       </div>
     {/if}
 
-    <button type="submit" class="btn btn-primary btn-lg btn-block submit-btn" disabled={isSubmitting}>
+    <button type="submit" class="btn btn-primary btn-lg btn-block submit-btn" disabled={isSubmitting || (!isAccountJoin && !noEmail && !emailVerified)}>
       {#if isSubmitting}
         <div class="spinner spinner-on-dark"></div>
         <span>Entrando in pista...</span>
@@ -358,6 +359,22 @@
     grid-template-columns: 1fr minmax(0, 480px);
     gap: 56px;
     align-items: start;
+  }
+
+  .verification-required-note {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(201, 169, 110, 0.1);
+    border: 1px solid rgba(201, 169, 110, 0.35);
+    color: var(--text-main);
+  }
+
+  .verification-required-note span {
+    color: #6b5f64;
+    font-size: 0.9rem;
   }
 
   .join-intro {

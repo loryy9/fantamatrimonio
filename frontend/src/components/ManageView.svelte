@@ -161,20 +161,19 @@
   }
 
   async function handleSaveModal() {
-    modalError = '';
     if (!modalTitle.trim()) {
-      modalError = 'Inserisci il titolo o la domanda.';
+      appState.showToast('Inserisci il titolo o la domanda.', 'error');
       return;
     }
 
     if (modalType === 'quiz') {
       const validOpts = modalOptions.map(o => o.trim()).filter(Boolean);
       if (validOpts.length < 2) {
-        modalError = 'Inserisci almeno due opzioni di risposta per il quiz.';
+        appState.showToast('Inserisci almeno due opzioni di risposta per il quiz.', 'error');
         return;
       }
       if (!modalCorrectAnswer || !validOpts.includes(modalCorrectAnswer.trim())) {
-        modalError = 'Seleziona quale tra le opzioni è la risposta corretta.';
+        appState.showToast('Seleziona quale tra le opzioni è la risposta corretta.', 'error');
         return;
       }
     }
@@ -210,7 +209,7 @@
       await appState.refreshChallenges();
       showModal = false;
     } catch (err) {
-      modalError = err.message || 'Errore durante il salvataggio.';
+      appState.showToast(err.message || 'Errore durante il salvataggio.', 'error');
     } finally {
       isSaving = false;
     }
@@ -219,19 +218,17 @@
   // Salva impostazioni generali evento
   async function handleSaveEvent(e) {
     e.preventDefault();
-    eventMessage = '';
-
     if (!spouse1.trim() || !spouse2.trim()) {
-      eventMessage = 'Inserisci entrambi i nomi degli sposi.';
+      appState.showToast('Inserisci entrambi i nomi degli sposi.', 'error');
       return;
     }
     if (enableTimer) {
       if (!startTime || !endTime) {
-        eventMessage = 'Imposta sia l\'orario di inizio che di fine.';
+        appState.showToast('Imposta sia l\'orario di inizio che di fine.', 'error');
         return;
       }
       if (new Date(endTime) <= new Date(startTime)) {
-        eventMessage = 'L\'orario di fine deve essere successivo a quello di inizio.';
+        appState.showToast('L\'orario di fine deve essere successivo a quello di inizio.', 'error');
         return;
       }
     }
@@ -249,7 +246,7 @@
       appState.event = updated;
       appState.showToast('Impostazioni matrimonio aggiornate!', 'success');
     } catch (err) {
-      eventMessage = err.message || 'Errore durante l\'aggiornamento delle impostazioni.';
+      appState.showToast(err.message || 'Errore durante l\'aggiornamento delle impostazioni.', 'error');
     } finally {
       isSavingEvent = false;
     }

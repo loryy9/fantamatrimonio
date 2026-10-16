@@ -56,7 +56,7 @@
   --wine-tint: #f5e4e9;
   --grad-gold-rose: linear-gradient(135deg, #8c2f4b 0%, #b94b68 100%);
 
-  --site-header-height: 72px;
+  --site-header-height: 61px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
@@ -116,8 +116,9 @@ body {
   width: 100%;
   max-width: 540px;
   margin: 0 auto;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -126,9 +127,44 @@ body {
 
 .main-content {
   flex: 1;
+  min-height: 0;
   padding: 16px 16px calc(112px + var(--safe-bottom)) 16px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Intestazioni fisse: scorre solo il contenuto sotto */
+.sticky-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg-primary);
+}
+
+.games-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 0 12px;
+}
+
+@media (max-width: 600px) {
+  .sticky-head {
+    padding-bottom: 10px;
+  }
+
+  .sticky-head .page-title {
+    font-size: 1.6rem;
+  }
+
+  .sticky-head .page-desc {
+    display: none;
+  }
+
+  .sticky-head::after {
+    margin-top: 8px;
+  }
 }
 
 @media (min-width: 900px) {
@@ -566,4 +602,23 @@ h1, h2, h3, .font-serif {
 .btn-lg {
   padding: 15px 28px;
   font-size: 1rem;
+}
+
+@media (min-width: 641px) {
+  :root {
+    --site-header-height: 71px;
+  }
+}
+
+@media (max-width: 480px) {
+  .site-main {
+    padding: 28px 12px 48px;
+  }
+}
+
+/* Schermi bassi (telefono in orizzontale): le intestazioni scorrono con il contenuto */
+@media (max-height: 500px) {
+  .sticky-head {
+    position: static;
+  }
 }

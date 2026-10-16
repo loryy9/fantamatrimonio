@@ -244,7 +244,7 @@
 
 <div class="gallery-container">
   <!-- Section Title -->
-  <div class="header-box">
+  <div class="header-box sticky-head">
     <h1 class="page-title font-serif">Galleria Condivisa</h1>
     <p class="page-desc">
       {#if eventTimer.status === 'ended'}

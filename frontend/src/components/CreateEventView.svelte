@@ -168,7 +168,7 @@
         Apri Console Sposi (Gestione) →
       </button>
       <button class="btn btn-secondary" onclick={() => appState.finishOnboarding('home')}>
-        👀 Guarda come vedono la festa gli invitati
+        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg> Guarda come vedono la festa gli invitati
       </button>
       <button class="link-btn-subtle" onclick={() => currentStep = 'setup'}>
         ← Modifica ancora le attività
@@ -375,7 +375,7 @@
 {#if showSuccessModal}
   <div class="guide-modal-overlay">
     <div class="guide-modal-card glass-card">
-      <div class="guide-sparkle-icon">💍</div>
+      <div class="guide-sparkle-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg></div>
       
       <div class="guide-modal-header">
         <span class="guide-eyebrow">Matrimonio &amp; Account Creati con Successo!</span>
@@ -928,9 +928,10 @@
     -webkit-backdrop-filter: blur(8px);
     z-index: 1000;
     display: flex;
-    align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     animation: fadeIn 0.25s ease-out;
   }
 
@@ -938,6 +939,7 @@
     background: #ffffff;
     max-width: 640px;
     width: 100%;
+    margin: auto;
     border-radius: 28px;
     padding: 36px 32px 32px;
     box-shadow: 0 25px 60px rgba(0, 0, 0, 0.22);

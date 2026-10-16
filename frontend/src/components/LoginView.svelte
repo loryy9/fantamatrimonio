@@ -162,7 +162,7 @@
 
     <div class="sposi-notice-box">
       <div class="sposi-notice-header">
-        <span class="sposi-notice-ring">💍</span>
+        <span class="sposi-notice-ring"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg></span>
         <strong>Siete gli sposi?</strong>
       </div>
       <p class="sposi-notice-p">
@@ -190,7 +190,7 @@
 
     {#if previewLoading}
       <div class="preview-banner preview-loading">
-        <span class="preview-badge-icon">⏳</span>
+        <span class="preview-badge-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
         <div class="preview-badge-body">
           <span class="preview-badge-label">Verifica codice</span>
           <strong class="preview-badge-names">Ricerca matrimonio in corso...</strong>
@@ -198,7 +198,7 @@
       </div>
     {:else if eventPreview}
       <div class="preview-banner">
-        <span class="preview-badge-icon">💍</span>
+        <span class="preview-badge-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg></span>
         <div class="preview-badge-body">
           <span class="preview-badge-label">Matrimonio confermato</span>
           <strong class="preview-badge-names">{eventPreview.spouse1_name} &amp; {eventPreview.spouse2_name}</strong>
@@ -207,7 +207,7 @@
       </div>
     {:else if previewError}
       <div class="preview-warning" role="alert">
-        <span>⚠️ {previewError}</span>
+        <span><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {previewError}</span>
       </div>
     {/if}
 
@@ -304,7 +304,7 @@
     {:else if !isAccountJoin}
       <!-- MODALITÀ SENZA EMAIL (NICKNAME + PAROLA SEGRETA) -->
       <div class="no-email-notice" role="alert">
-        <span class="notice-icon">👵👴</span>
+        <span class="notice-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
         <div>
           <strong>Partecipazione senza email</strong>
           <p>Potrai giocare a tutte le sfide e caricare foto durante la festa, ma senza email non potrai creare un account permanente né rivedere le tue foto e statistiche in futuro da altri dispositivi.</p>

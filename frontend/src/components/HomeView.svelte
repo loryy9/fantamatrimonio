@@ -86,7 +86,7 @@
   {#if appState.isCouple}
     <div class="sposi-preview-banner">
       <div class="sposi-preview-info">
-        <span class="sposi-crown">👑</span>
+        <span class="sposi-crown"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M3 18h18"/><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z"/></svg></span>
         <div>
           <strong>Modalità Anteprima Sposi</strong>
           <span class="sposi-preview-sub">Stai guardando la festa come la vedono gli invitati</span>
@@ -251,6 +251,7 @@
   }
 
   .rules-link {
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     gap: 6px;

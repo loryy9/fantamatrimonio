@@ -255,7 +255,10 @@
   }
 
   .section {
-    padding-block: clamp(56px, 9vw, 112px);
+    --section-pad: clamp(56px, 9vw, 112px);
+    padding-block: var(--section-pad);
+    /* land with the title just under the sticky header, not behind it or far below */
+    scroll-margin-top: calc(72px - var(--section-pad) + 8px);
   }
 
   .section-tint {

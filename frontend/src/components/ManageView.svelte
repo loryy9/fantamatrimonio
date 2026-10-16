@@ -1,4 +1,6 @@
 <script>
+  import { fly, fade } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import { onMount } from 'svelte';
   import { appState } from '../lib/state.svelte.js';
   import { api } from '../lib/api.js';
@@ -40,6 +42,19 @@
   const huntChallenges = $derived(challenges.filter(c => c.challenge_type === 'hunt' || c.type === 'hunt'));
   const momentChallenges = $derived(challenges.filter(c => c.challenge_type === 'vote' || c.type === 'vote'));
 
+  // Blocca lo scroll della pagina e chiude con Esc mentre il drawer è aperto
+  $effect(() => {
+    if (!showModal) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape') showModal = false; };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  });
+
   async function loadData() {
     isLoading = true;
     try {
@@ -50,7 +65,8 @@
       ]);
 
       if (challengesData.status === 'fulfilled') {
-        challenges = challengesData.value || [];
+        // Più recenti in cima (il server ordina per id crescente)
+        challenges = [...(challengesData.value || [])].reverse();
       }
       if (statsData.status === 'fulfilled') {
         stats = statsData.value || stats;
@@ -202,7 +218,7 @@
         appState.showToast('Sfida aggiornata con successo!', 'success');
       } else {
         const created = await api.createChallenge(payload);
-        challenges = [...challenges, created];
+        challenges = [created, ...challenges];
         appState.showToast('Nuova sfida creata!', 'success');
       }
 
@@ -629,22 +645,23 @@
 
 <!-- MODAL DI CREAZIONE / MODIFICA SFIDA -->
 {#if showModal}
-  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) showModal = false; }}>
-    <div class="modal-content glass-card">
+  <div class="drawer-backdrop" transition:fade={{ duration: 180 }} onclick={() => showModal = false}></div>
+  <div class="drawer" role="dialog" aria-modal="true" aria-label="Editor sfida" transition:fly={{ x: 520, duration: 260, easing: cubicOut, opacity: 1 }}>
+    <div class="drawer-inner">
       <div class="modal-header">
         <h3 class="modal-title font-serif">
           {editingChallenge ? 'Modifica' : 'Nuova'} {modalType === 'quiz' ? 'Domanda Quiz' : modalType === 'hunt' ? 'Missione Fotografica' : 'Domanda Momenti'}
         </h3>
-        <button class="modal-close-btn" onclick={() => showModal = false} aria-label="Chiudi modale">
+        <button class="modal-close-btn" onclick={() => showModal = false} aria-label="Chiudi pannello">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
 
-      {#if modalError}
-        <div class="form-error" role="alert"><span>{modalError}</span></div>
-      {/if}
-
       <div class="modal-body">
+        {#if modalError}
+          <div class="form-error" role="alert"><span>{modalError}</span></div>
+        {/if}
+
         <div class="input-group">
           <label for="modal-title" class="input-label">{modalType === 'quiz' ? 'Domanda' : 'Titolo'}</label>
           <input
@@ -694,7 +711,7 @@
                     title="Imposta come risposta corretta"
                   >
                     {#if isCorrect}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     {/if}
                   </button>
 
@@ -871,7 +888,7 @@
   .sub-nav-tabs {
     position: -webkit-sticky;
     position: sticky;
-    top: calc(64px + var(--safe-top));
+    top: 0;
     z-index: 25;
     display: flex;
     gap: 6px;
@@ -891,13 +908,13 @@
   }
 
   .nav-tab-btn {
-    flex: 1;
-    min-width: 120px;
+    flex: 1 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     padding: 10px 16px;
+    min-height: 44px;
     border: none;
     border-radius: 999px;
     background: transparent;
@@ -1001,6 +1018,7 @@
   }
 
   .toggle-active-btn {
+    min-height: 40px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1080,6 +1098,7 @@
   }
 
   .btn-action {
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1206,61 +1225,74 @@
     gap: 10px;
   }
 
-  /* Modale */
-  .modal-backdrop {
+  /* Drawer laterale (da destra) */
+  .drawer-backdrop {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background: rgba(36, 28, 32, 0.45);
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
   }
 
-  .modal-content,
-  .modal-content.glass-card {
-    width: 100%;
-    max-width: 580px;
-    max-height: 90vh;
-    overflow-y: auto;
-    padding: 26px;
-    border-radius: 28px;
+  .drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(100%, 480px);
+    height: 100dvh;
+    z-index: 1001;
     background: #fff;
-    border: 1px solid var(--hair);
-    box-shadow: 0 30px 60px -24px rgba(106, 32, 55, 0.45);
+    box-shadow: -24px 0 60px -24px rgba(106, 32, 55, 0.45);
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    overscroll-behavior: contain;
+  }
+
+  .drawer-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
   }
 
   .modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+    padding: max(16px, env(safe-area-inset-top, 0px)) 16px 14px 20px;
+    border-bottom: 1px solid var(--hair);
   }
 
   .modal-title {
     margin: 0;
     color: var(--ink);
     font-family: var(--font-display);
-    font-size: 1.7rem;
+    font-size: 1.4rem;
     font-weight: 600;
+    line-height: 1.15;
   }
 
   .modal-close-btn {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 999px;
-    background: transparent;
+    background: var(--bg-primary, #f7f3f1);
     border: none;
-    font-size: 1.1rem;
     color: var(--ink-soft);
     cursor: pointer;
+  }
+
+  .modal-close-btn:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: 2px;
   }
 
   @media (hover: hover) {
@@ -1271,9 +1303,21 @@
   }
 
   .modal-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     display: flex;
     flex-direction: column;
     gap: 14px;
+    padding: 18px 20px;
+  }
+
+  /* 16px evita lo zoom automatico dei campi su iOS */
+  .drawer .input-field {
+    font-size: 16px;
+    min-height: 48px;
   }
 
   .textarea-field {
@@ -1308,10 +1352,10 @@
   }
 
   .radio-circle {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    border: 2px solid rgba(36, 28, 32, 0.2);
+    border: 2px solid #7d6f76;
     background: #fff;
     cursor: pointer;
     display: flex;
@@ -1323,8 +1367,48 @@
   }
 
   .radio-circle.active {
-    background: var(--sage);
-    border-color: var(--sage);
+    background: #2f7a55;
+    border-color: #2f7a55;
+    box-shadow: 0 0 0 3px rgba(47, 122, 85, 0.22);
+  }
+
+  .radio-circle:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: 2px;
+  }
+
+  .option-edit-row.is-correct .input-field {
+    border-color: #2f7a55;
+    background: #f1f8f4;
+  }
+
+  .correct-badge {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #2f7a55;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .remove-opt-btn {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+
+  .remove-opt-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
   }
 
   .btn-text-link {
@@ -1344,11 +1428,18 @@
   }
 
   .modal-footer {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
+    flex-shrink: 0;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
     gap: 10px;
-    margin-top: 8px;
+    padding: 12px 20px max(14px, env(safe-area-inset-bottom, 0px));
+    background: #fff;
+    border-top: 1px solid var(--hair);
+  }
+
+  .modal-footer .btn {
+    min-height: 48px;
+    justify-content: center;
   }
 
   .loading-state {
@@ -1380,15 +1471,31 @@
       border-top: 1px solid var(--hair);
     }
 
-    .modal-content,
-    .modal-content.glass-card {
-      padding: 20px;
+    .modal-body {
+      padding: 16px;
+    }
+
+    .modal-header {
+      padding-left: 16px;
+    }
+
+    .option-edit-row {
+      flex-wrap: wrap;
+    }
+
+    .option-edit-row .input-field {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .points-group {
+      max-width: none;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .manage-container *,
-    .modal-content * {
+    .drawer * {
       transition: none !important;
     }
   }

@@ -130,9 +130,11 @@
     position: fixed;
     inset: 0;
     z-index: 1000;
-    display: grid;
-    place-items: center;
-    padding: 16px;
+    display: flex;
+    justify-content: center;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px));
     background: rgba(36, 28, 32, 0.65);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -158,6 +160,7 @@
 
   .modal-card {
     position: relative;
+    margin: auto;
     width: 100%;
     max-width: 420px;
     padding: 32px 28px;

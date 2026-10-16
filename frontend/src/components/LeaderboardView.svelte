@@ -35,7 +35,7 @@
 
 <div class="leaderboard-container">
   <!-- Header -->
-  <div class="header-box">
+  <div class="header-box sticky-head">
     <div class="header-top">
       <h1 class="page-title font-serif">Classifica Live</h1>
       <div class="live-pill">

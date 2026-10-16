@@ -56,7 +56,7 @@ router.get("/events/:event_id", requireAccount, async (c) => {
   if (!event) throw new ApiError(404, "Evento non trovato.");
 
   const participants = await db.query(
-    "SELECT id, first_name, last_name, role, total_points FROM users WHERE event_id = $1 ORDER BY total_points DESC",
+    "SELECT id, first_name, last_name, role, total_points FROM users WHERE event_id = $1 AND role = 'guest' ORDER BY total_points DESC, first_name ASC",
     [eventId],
   );
 

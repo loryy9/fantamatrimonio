@@ -657,9 +657,7 @@
     position: sticky;
     top: calc(var(--site-header-height, 72px) + var(--safe-top, 0px));
     z-index: 35;
-    background: rgba(250, 248, 246, 0.94);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: var(--bg-primary);
     padding: 12px 0 14px;
     margin: 0 0 16px;
     border-bottom: 1px solid rgba(36, 28, 32, 0.07);
@@ -682,8 +680,7 @@
   }
 
   .tab-btn {
-    flex: 1;
-    min-width: 140px;
+    flex: 1 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -852,6 +849,7 @@
   .points-field {
     width: 72px;
     padding: 6px 8px;
+    font-size: 1rem;
     border-radius: 9999px;
     border: 1px solid rgba(36, 28, 32, 0.12);
     background: #fff;
@@ -943,7 +941,7 @@
     border: none;
     background: transparent;
     padding: 6px 4px;
-    font-size: 0.93rem;
+    font-size: 1rem;
     box-shadow: none;
   }
 

@@ -53,7 +53,7 @@
 </script>
 
 <div class="hunt-container">
-  <div class="header-box">
+  <div class="header-box sticky-head">
     <h1 class="page-title font-serif">Caccia al Tesoro</h1>
     <p class="page-desc">
       Trova i soggetti, scatta le foto richieste e conquista punti per scalare la classifica!

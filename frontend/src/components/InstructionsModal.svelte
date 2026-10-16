@@ -11,7 +11,8 @@
   // Check on mount or when user changes if this user has already seen the instructions
   $effect(() => {
     const userId = appState.user?.id;
-    if (userId) {
+    // Gli sposi vedono solo la guida di creazione, non le regole del gioco
+    if (userId && !appState.isCouple) {
       const storageKey = `fm_instructions_seen_${userId}`;
       const hasSeen = localStorage.getItem(storageKey);
       if (!hasSeen) {

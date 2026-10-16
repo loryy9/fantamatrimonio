@@ -118,7 +118,7 @@
   .bar {
     position: relative;
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
     max-width: 1100px;
@@ -152,9 +152,8 @@
 
   .navbar-title {
     min-width: 0;
-    max-width: 44vw;
     color: #fff;
-    font-size: 1.4rem;
+    font-size: clamp(1.05rem, 5vw, 1.4rem);
     font-weight: 600;
     font-style: italic;
     text-align: center;
@@ -169,6 +168,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-shrink: 0;
   }
 
   .chip {
@@ -181,8 +181,10 @@
     color: var(--wine-deep);
     background: linear-gradient(145deg, #fbefcf, #e3c07e);
     box-shadow: 0 6px 14px -4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    min-height: 40px;
     font-size: 0.82rem;
     font-weight: 800;
+    white-space: nowrap;
     cursor: pointer;
     transition: transform 0.15s ease, box-shadow 0.2s ease;
   }
@@ -202,8 +204,8 @@
   .icon-btn {
     display: grid;
     place-items: center;
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     border: none;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 50%;
@@ -243,6 +245,9 @@
     }
     .chip:not(.static) {
       padding: 10px;
+      min-width: 40px;
+      min-height: 40px;
+      justify-content: center;
     }
   }
 

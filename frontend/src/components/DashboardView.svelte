@@ -77,7 +77,7 @@
             Codice: <strong>{eventDetail.event.invite_code}</strong>
           </span>
           <span class="detail-role" class:couple={eventDetail.is_couple}>
-            {eventDetail.is_couple ? '👑 Sposi' : '🎉 Ospite'}
+            {#if eventDetail.is_couple}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M3 18h18"/><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z"/></svg> Sposi{:else}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg> Ospite{/if}
           </span>
         </div>
       </div>
@@ -173,7 +173,7 @@
             <span class="p-avatar" style="--hue: {(i * 47) % 360}">{formatName(p.first_name)[0]}</span>
             <div class="p-info">
               <span class="p-name">{formatName(p.first_name)} {formatName(p.last_name)}</span>
-              <span class="p-role">{p.role === 'couple' ? '👑 Sposi' : 'Ospite'}</span>
+              <span class="p-role">{#if p.role === 'couple'}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M3 18h18"/><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z"/></svg> Sposi{:else}Ospite{/if}</span>
             </div>
             <span class="p-points">{p.total_points} pt</span>
           </div>
@@ -226,7 +226,7 @@
             <div class="event-card-header">
               <span class="event-names font-serif">{ev.event.spouse1_name} &amp; {ev.event.spouse2_name}</span>
               <span class="event-role" class:couple={ev.role === 'couple'}>
-                {ev.role === 'couple' ? '👑' : '🎉'}
+                {#if ev.role === 'couple'}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M3 18h18"/><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z"/></svg>{:else}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>{/if}
               </span>
             </div>
             <div class="event-card-stats">

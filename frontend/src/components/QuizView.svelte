@@ -115,7 +115,8 @@
 </script>
 
 <div class="games-container">
-  <!-- Sub-navigation Pill -->
+  <!-- Intestazione fissa: selettore + titolo -->
+  <div class="sticky-head games-head">
   <div class="sub-nav">
     <button
       class="sub-btn {appState.quizSubTab === 'quiz' ? 'active' : ''}"
@@ -133,14 +134,20 @@
     </button>
   </div>
 
+  <div class="header-box">
+    {#if appState.quizSubTab === 'quiz'}
+      <h1 class="page-title font-serif">Quiz sugli Sposi</h1>
+      <p class="page-desc">Rispondi alle domande e dimostra quanto conosci gli sposi!</p>
+    {:else}
+      <h1 class="page-title font-serif">Momenti Migliori</h1>
+      <p class="page-desc">Condividi pensieri, ricordi ed emozioni della festa! Puoi compilare e modificare le risposte fino alla fine dell'evento.</p>
+    {/if}
+  </div>
+  </div>
+
   {#if appState.quizSubTab === 'quiz'}
     <!-- QUIZ SECTION -->
     <div class="section-box">
-      <div class="header-box">
-        <h1 class="page-title font-serif">Quiz sugli Sposi</h1>
-        <p class="page-desc">Rispondi alle domande e dimostra quanto conosci gli sposi!</p>
-      </div>
-
       {#if appState.isCouple}
         <div class="couple-hint-banner glass-card">
           <span class="hint-text">
@@ -293,11 +300,6 @@
   {:else}
     <!-- MOMENTS & THOUGHTS SECTION (TEXT-ONLY) -->
     <div class="section-box">
-      <div class="header-box">
-        <h1 class="page-title font-serif">Momenti Migliori</h1>
-        <p class="page-desc">Condividi pensieri, ricordi ed emozioni della festa! Puoi compilare e modificare le risposte fino alla fine dell'evento.</p>
-      </div>
-
       {#if appState.isCouple}
         <div class="couple-hint-banner glass-card">
           <span class="hint-text">
@@ -862,7 +864,7 @@
     border-radius: 20px;
     color: var(--text-main);
     font-family: var(--font-sans);
-    font-size: 0.94rem;
+    font-size: 1rem;
     line-height: 1.5;
     resize: vertical;
     min-height: 96px;
@@ -910,6 +912,7 @@
   }
 
   .moment-action-btn {
+    min-height: 44px;
     padding: 10px 20px;
     font-size: 0.86rem;
     font-weight: 700;

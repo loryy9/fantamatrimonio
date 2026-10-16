@@ -666,11 +666,11 @@
                       <!-- Tipo Account -->
                       <td>
                         {#if u.weddings_as_couple > 0 && u.weddings_as_guest > 0}
-                          <span class="user-type-tag tag-purple">👑 Sposo &amp; 🎉 Ospite</span>
+                          <span class="user-type-tag tag-purple"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M3 18h18"/><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z"/></svg> Sposo &amp; <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg> Ospite</span>
                         {:else if u.weddings_as_couple > 0}
-                          <span class="user-type-tag tag-gold">👑 Sposo ({u.weddings_as_couple})</span>
+                          <span class="user-type-tag tag-gold"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M3 18h18"/><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z"/></svg> Sposo ({u.weddings_as_couple})</span>
                         {:else if u.weddings_as_guest > 0}
-                          <span class="user-type-tag tag-green">🎉 Ospite ({u.weddings_as_guest})</span>
+                          <span class="user-type-tag tag-green"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg> Ospite ({u.weddings_as_guest})</span>
                         {:else}
                           <span class="user-type-tag tag-gray">Registrato</span>
                         {/if}
@@ -682,7 +682,7 @@
                           <div class="user-events-list">
                             {#each u.events as ev}
                               <div class="user-event-pill" class:pill-couple={ev.role === 'couple'}>
-                                <span class="pill-icon">{ev.role === 'couple' ? '👑' : '🎉'}</span>
+                                <span class="pill-icon">{#if ev.role === 'couple'}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M3 18h18"/><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z"/></svg>{:else}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>{/if}</span>
                                 <span class="pill-text">{ev.spouse1_name} &amp; {ev.spouse2_name}</span>
                                 <code class="pill-code" title="Codice Invito">{ev.invite_code}</code>
                                 {#if ev.total_points > 0}

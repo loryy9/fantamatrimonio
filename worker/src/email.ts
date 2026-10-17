@@ -255,7 +255,7 @@ export async function processDueReminders(
 ): Promise<{ processed: number; sent: number; failed: number }> {
   const reminders = await db.query(
     `SELECT r.id, r.email, r.user_id, r.event_id,
-            u.first_name, u.last_name,
+            u.nickname,
             e.spouse1_name, e.spouse2_name, e.invite_code
      FROM registration_reminders r
      JOIN users u ON u.id = r.user_id
@@ -270,7 +270,7 @@ export async function processDueReminders(
   let failed = 0;
 
   for (const rem of reminders) {
-    const guestName = `${rem.first_name} ${rem.last_name}`.trim();
+    const guestName = rem.nickname || "Invitato";
     const spouse1: string = rem.spouse1_name;
     const spouse2: string = rem.spouse2_name || "";
     const code: string = rem.invite_code;

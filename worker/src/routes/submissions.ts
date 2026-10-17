@@ -103,7 +103,7 @@ router.post("/photo", requireUser, async (c) => {
     id: String(submission!.id),
     image_url: submission!.image_url,
     points_awarded: awardPoints ? photoChallenge.points : 0,
-    user: { first_name: user.first_name, last_name: user.last_name },
+    user: { first_name: user.nickname, last_name: "", nickname: user.nickname },
   });
 });
 
@@ -146,7 +146,7 @@ router.post("/photos", requireUser, async (c) => {
     points_per_photo: ptsPerPhoto,
     total_points_awarded: ptsPerPhoto * submissions.length,
     submissions: submissions.map((s) => ({ id: String(s.id), image_url: s.image_url, points_awarded: ptsPerPhoto })),
-    user: { first_name: user.first_name, last_name: user.last_name },
+    user: { first_name: user.nickname, last_name: "", nickname: user.nickname },
   });
 });
 
@@ -286,7 +286,7 @@ router.post("/quiz/:challenge_id", requireUser, async (c) => {
 /** Tutte le foto caricate nell'evento corrente con il nome dell'invitato. */
 router.get("/gallery", requireUser, async (c) => {
   const photos = await c.get("db").query(
-    `SELECT s.id, s.user_id, s.image_url, s.created_at, u.first_name, u.last_name,
+    `SELECT s.id, s.user_id, s.image_url, s.created_at, u.nickname,
             c.type AS challenge_type, c.title AS challenge_title
      FROM user_submissions s
      JOIN users u ON u.id = s.user_id
@@ -302,9 +302,10 @@ router.get("/gallery", requireUser, async (c) => {
       image_url: p.image_url,
       photo_url: p.image_url,
       created_at: iso(p.created_at),
-      first_name: p.first_name,
-      last_name: p.last_name,
-      author: `${capitalize(p.first_name)} ${capitalize(p.last_name)}`,
+      first_name: p.nickname,
+      last_name: "",
+      nickname: p.nickname,
+      author: capitalize(p.nickname),
       challenge_type: p.challenge_type,
       challenge_title: p.challenge_title,
     })),

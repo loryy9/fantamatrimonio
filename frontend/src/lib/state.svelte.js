@@ -23,15 +23,19 @@ class AppState {
   event = $state(null);
   account = $state(null); // account registrato (email + password)
   token = $state(localStorage.getItem('fm_auth_token') || null);
+  refreshToken = $state(localStorage.getItem('fm_refresh_token') || null);
   jwtToken = $state(localStorage.getItem('fm_jwt_token') || null);
   isLoadingAuth = $state(true);
   activeTab = $state(readAuthView());
   quizSubTab = $state('quiz'); // 'quiz' | 'vote'
   showInstructionsModal = $state(false);
   showUpgradeModal = $state(false); // modal per registrazione account
+  showAccountPromptBanner = $state(false); // banner "Non vuoi perderti le cose di questo matrimonio?"
+  accountPromptSource = $state(null); // 'photos' | 'quiz'
   showClaimModal = $state(false); // modal per completamento account da link email
   pendingClaimToken = $state(null);
   claimData = $state(null);
+  refreshTimer = null;
 
   challenges = $state([]);
   mySubmissions = $state([]);
@@ -124,17 +128,60 @@ class AppState {
       return;
     }
 
+    const nick = u.nickname || u.first_name || '';
     this.user = {
       ...u,
-      first_name: formatName(u.first_name),
-      last_name: formatName(u.last_name)
+      nickname: nick,
+      first_name: formatName(nick),
+      last_name: formatName(u.last_name || '')
     };
   }
 
-  _saveTokens(sessionToken, jwt, account) {
+  _scheduleAutoRefresh(expiresInSeconds) {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    if (!expiresInSeconds || expiresInSeconds <= 0) return;
+    // Rinfresca prima della scadenza (all'80% del TTL, min 10s)
+    const delayMs = Math.max(10000, expiresInSeconds * 0.8 * 1000);
+    this.refreshTimer = setTimeout(() => {
+      this.refreshSessionToken();
+    }, delayMs);
+  }
+
+  async refreshSessionToken() {
+    if (!this.refreshToken) return;
+    try {
+      const res = await api.refreshToken(this.refreshToken);
+      if (res?.token) {
+        this._saveTokens(res.token, res.jwt, null, res.refresh_token, res.expires_in);
+      }
+    } catch (err) {
+      console.warn('Auto refresh session failed:', err);
+    }
+  }
+
+  triggerAccountPrompt(source = 'activity') {
+    if (this.hasAccount || this.isCouple) return;
+    if (sessionStorage.getItem('fm_dismissed_account_prompt') === 'true') return;
+    this.accountPromptSource = source;
+    this.showAccountPromptBanner = true;
+  }
+
+  dismissAccountPrompt() {
+    this.showAccountPromptBanner = false;
+    sessionStorage.setItem('fm_dismissed_account_prompt', 'true');
+  }
+
+  _saveTokens(sessionToken, jwt, account, refreshToken = null, expiresIn = null) {
     if (sessionToken) {
       this.token = sessionToken;
       localStorage.setItem('fm_auth_token', sessionToken);
+    }
+    if (refreshToken) {
+      this.refreshToken = refreshToken;
+      localStorage.setItem('fm_refresh_token', refreshToken);
     }
     if (jwt) {
       this.jwtToken = jwt;
@@ -142,6 +189,9 @@ class AppState {
     }
     if (account) {
       this.account = account;
+    }
+    if (expiresIn) {
+      this._scheduleAutoRefresh(expiresIn);
     }
   }
 
@@ -172,6 +222,10 @@ class AppState {
           const res = await api.getMe();
           if (res.account) {
             this.account = res.account;
+          }
+          if (res.refresh_token) {
+            this.refreshToken = res.refresh_token;
+            localStorage.setItem('fm_refresh_token', res.refresh_token);
           }
 
           if (this.jwtToken && !this.token) {
@@ -356,7 +410,7 @@ class AppState {
   async login(payload, argFirst, argLast, argSecret, argCouple = false, argEmail = null) {
     try {
       const res = await api.login(payload, argFirst, argLast, argSecret, argCouple, argEmail);
-      this._saveTokens(res.token, res.jwt, res.account);
+      this._saveTokens(res.token, res.jwt, res.account, res.refresh_token, res.expires_in);
       this.setUser(res.user);
       const code = typeof payload === 'object' && payload !== null ? (payload.inviteCode || payload.invite_code) : payload;
       this.event = {
@@ -389,8 +443,15 @@ class AppState {
       this.startPolling();
       return { success: true };
     } catch (err) {
-      this.showToast(err.message || 'Errore durante l\'accesso', 'error');
-      return { success: false, error: err.message };
+      if (err.code !== 'NICKNAME_EXISTS') {
+        this.showToast(err.message || 'Errore durante l\'accesso', 'error');
+      }
+      return {
+        success: false,
+        error: err.message,
+        code: err.code || null,
+        detail: err.detail || null
+      };
     }
   }
 
@@ -539,11 +600,12 @@ class AppState {
     }
   }
 
-  async upgradeAccount(email, password, displayName = null, verificationCode = null) {
+  async upgradeAccount(email, password, firstName = null, lastName = null, displayName = null, verificationCode = null) {
     try {
-      const res = await api.upgradeAccount(email, password, displayName, verificationCode);
+      const res = await api.upgradeAccount(email, password, firstName, lastName, displayName, verificationCode);
       this._saveTokens(null, res.jwt, res.account);
       this.showUpgradeModal = false;
+      this.showAccountPromptBanner = false;
       this.showToast('Account registrato! Ora puoi accedere con email e password.', 'success');
       this.openDashboard();
       return { success: true };
@@ -568,8 +630,13 @@ class AppState {
 
   logout() {
     this.token = null;
+    this.refreshToken = null;
     this.jwtToken = null;
     this.account = null;
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
     this.setUser(null);
     this.event = null;
     this.challenges = [];
@@ -577,7 +644,9 @@ class AppState {
     this.leaderboard = [];
     this.galleryPhotos = [];
     this.dashboardEvents = [];
+    this.showAccountPromptBanner = false;
     localStorage.removeItem('fm_auth_token');
+    localStorage.removeItem('fm_refresh_token');
     localStorage.removeItem('fm_jwt_token');
     this.stopPolling();
     this.activeTab = 'entry';

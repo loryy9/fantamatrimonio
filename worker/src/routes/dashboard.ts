@@ -16,8 +16,8 @@ const router = new Hono<AppEnv>();
 /** Tutti gli eventi a cui l'account ha partecipato (come ospite o sposo). */
 router.get("/events", requireAccount, async (c) => {
   const events = await c.get("db").query(
-    `SELECT e.*, u.role, u.total_points, u.first_name AS user_first_name,
-            u.last_name AS user_last_name, u.id AS user_id,
+    `SELECT e.*, u.role, u.total_points, u.nickname AS user_nickname,
+            u.id AS user_id,
             (SELECT COUNT(*) FROM users u2 WHERE u2.event_id = e.id AND u2.role = 'guest') AS guests_count,
             (SELECT COUNT(*) FROM user_submissions s
              JOIN challenges c ON c.id = s.challenge_id
@@ -34,7 +34,7 @@ router.get("/events", requireAccount, async (c) => {
       role: ev.role,
       total_points: ev.total_points,
       user_id: String(ev.user_id),
-      user_name: `${ev.user_first_name} ${ev.user_last_name}`,
+      user_name: ev.user_nickname,
       guests_count: ev.guests_count,
       photos_count: ev.photos_count,
     })),
@@ -56,13 +56,13 @@ router.get("/events/:event_id", requireAccount, async (c) => {
   if (!event) throw new ApiError(404, "Evento non trovato.");
 
   const participants = await db.query(
-    "SELECT id, first_name, last_name, role, total_points FROM users WHERE event_id = $1 AND role = 'guest' ORDER BY total_points DESC, first_name ASC",
+    "SELECT id, nickname, role, total_points FROM users WHERE event_id = $1 AND role = 'guest' ORDER BY total_points DESC, nickname ASC",
     [eventId],
   );
 
   const photos = await db.query(
     `SELECT s.id, s.image_url, s.created_at, s.answer_text AS caption,
-            u.first_name, u.last_name, c.title AS challenge_title
+            u.nickname, c.title AS challenge_title
      FROM user_submissions s
      JOIN users u ON u.id = s.user_id
      JOIN challenges c ON c.id = s.challenge_id
@@ -88,7 +88,7 @@ router.get("/events/:event_id", requireAccount, async (c) => {
       image_url: p.image_url,
       caption: p.caption ?? null,
       created_at: p.created_at ? iso(p.created_at) : null,
-      author: `${p.first_name} ${p.last_name}`,
+      author: p.nickname,
       challenge_title: p.challenge_title ?? null,
     })),
     stats: {
@@ -118,7 +118,7 @@ router.get("/events/:event_id/submissions", requireAccount, async (c) => {
     userInEvent.role === "couple"
       ? await db.query(
           `SELECT s.id, s.user_id, s.challenge_id, s.image_url, s.answer_text, s.created_at,
-                  u.first_name, u.last_name,
+                  u.nickname,
                   c.title AS challenge_title, c.type AS challenge_type, c.correct_answer
            FROM user_submissions s
            JOIN users u ON u.id = s.user_id
@@ -129,7 +129,7 @@ router.get("/events/:event_id/submissions", requireAccount, async (c) => {
         )
       : await db.query(
           `SELECT s.id, s.user_id, s.challenge_id, s.image_url, s.answer_text, s.created_at,
-                  u.first_name, u.last_name,
+                  u.nickname,
                   c.title AS challenge_title, c.type AS challenge_type,
                   CASE WHEN s.user_id = $1 THEN c.correct_answer ELSE NULL END AS correct_answer
            FROM user_submissions s
@@ -149,7 +149,7 @@ router.get("/events/:event_id/submissions", requireAccount, async (c) => {
       image_url: s.image_url ?? null,
       answer_text: s.answer_text ?? null,
       created_at: s.created_at ? iso(s.created_at) : null,
-      author: `${s.first_name} ${s.last_name}`,
+      author: s.nickname,
       challenge_title: s.challenge_title ?? null,
       challenge_type: s.challenge_type ?? null,
       correct_answer: s.correct_answer ?? null,

@@ -8,6 +8,10 @@ export interface Config {
   mediaBaseUrl: string;
   jwtSecret: string;
   jwtExpireHours: number;
+  /** TTL dell'access token di sessione in minuti (default 120 = 2 ore). */
+  accessTokenTtlMinutes: number;
+  /** TTL del refresh token in giorni (default 90). */
+  refreshTokenTtlDays: number;
   /** 0 = i reminder partono subito (utile nei test). */
   registrationReminderDays: number;
   frontendUrl: string;
@@ -38,6 +42,8 @@ export function getConfig(env: Env): Config {
     mediaBaseUrl: clean(env.MEDIA_BASE_URL).replace(/\/+$/, ""),
     jwtSecret: env.JWT_SECRET ?? "",
     jwtExpireHours: num(env.JWT_EXPIRE_HOURS, 720),
+    accessTokenTtlMinutes: num(env.ACCESS_TOKEN_TTL_MINUTES, 120),
+    refreshTokenTtlDays: num(env.REFRESH_TOKEN_TTL_DAYS, 90),
     registrationReminderDays: num(env.REGISTRATION_REMINDER_DAYS, 7),
     frontendUrl: (env.FRONTEND_URL || "http://localhost:5173").replace(/\/+$/, ""),
     smtpHost: env.SMTP_HOST || (gmailAddress ? "smtp.gmail.com" : null),

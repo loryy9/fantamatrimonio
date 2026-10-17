@@ -14,18 +14,19 @@ const router = new Hono<AppEnv>();
 /** Classifica ordinata per punti decrescenti. Richiede autenticazione: mai dati tra eventi diversi. */
 router.get("/", requireUser, async (c) => {
   const users = await c.get("db").query(
-    `SELECT id, first_name, last_name, total_points FROM users
+    `SELECT id, nickname, total_points FROM users
      WHERE event_id = $1 AND role = 'guest'
-     ORDER BY total_points DESC, first_name ASC`,
+     ORDER BY total_points DESC, nickname ASC`,
     [c.get("user").event_id],
   );
   return c.json(
     users.map((u, idx) => ({
       rank: idx + 1,
       id: String(u.id),
-      first_name: capitalize(u.first_name),
-      last_name: capitalize(u.last_name),
-      name: `${capitalize(u.first_name)} ${capitalize(u.last_name)}`,
+      first_name: capitalize(u.nickname),
+      last_name: "",
+      nickname: capitalize(u.nickname),
+      name: capitalize(u.nickname),
       total_points: u.total_points,
     })),
   );
@@ -37,7 +38,7 @@ router.get("/:user_id", requireUser, async (c) => {
   const userId = c.req.param("user_id");
 
   const user = await db.queryOne(
-    "SELECT id, first_name, last_name, total_points FROM users WHERE id = $1 AND event_id = $2",
+    "SELECT id, nickname, total_points FROM users WHERE id = $1 AND event_id = $2",
     [userId, c.get("user").event_id],
   );
   if (!user) throw new ApiError(404, "Utente non trovato.");
@@ -54,14 +55,14 @@ router.get("/:user_id", requireUser, async (c) => {
   const pointsByType: Record<string, number> = {};
   for (const row of breakdown) pointsByType[row.type] = (pointsByType[row.type] ?? 0) + row.points;
 
-  const first = capitalize(user.first_name);
-  const last = capitalize(user.last_name);
+  const nick = capitalize(user.nickname);
   return c.json({
     id: String(user.id),
-    user: { id: String(user.id), first_name: first, last_name: last, total_points: user.total_points },
-    first_name: first,
-    last_name: last,
-    name: `${first} ${last}`,
+    user: { id: String(user.id), first_name: nick, last_name: "", nickname: nick, total_points: user.total_points },
+    first_name: nick,
+    last_name: "",
+    nickname: nick,
+    name: nick,
     total_points: user.total_points,
     points_by_type: pointsByType,
     submissions: breakdown.map((r) => ({

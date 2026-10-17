@@ -17,13 +17,13 @@ export function eventOut(event: Row): Row {
 export function userOut(user: Row): Row {
   const out: Row = {
     id: String(user.id),
-    first_name: user.first_name,
-    last_name: user.last_name,
+    first_name: user.nickname ?? user.first_name ?? "",
+    last_name: "",
+    nickname: user.nickname ?? user.first_name ?? "",
     total_points: user.total_points,
     role: user.role,
   };
   if (user.account_id) out.account_id = String(user.account_id);
-  if (user.email) out.email = user.email;
   return out;
 }
 
@@ -32,6 +32,8 @@ export function accountOut(account: Row): Row {
     id: String(account.id),
     email: account.email ?? null,
     display_name: account.display_name,
+    first_name: account.first_name ?? null,
+    last_name: account.last_name ?? null,
     is_verified: account.is_verified ?? false,
     registered_at: account.registered_at ? iso(account.registered_at) : null,
   };

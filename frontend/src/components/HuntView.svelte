@@ -43,7 +43,15 @@
         appState.refreshMySubmissions(),
         appState.refreshLeaderboard(),
         appState.refreshGallery()
-      ]).catch(e => console.warn('Background refresh hunt:', e));
+      ])
+        .then(() => {
+          const myGalleryCount = appState.galleryPhotos.filter(p => p.user_id && String(p.user_id) === String(appState.user?.id)).length;
+          const myHuntCount = appState.mySubmissions.filter(s => s.type === 'hunt' || s.challenge_type === 'hunt').length;
+          if (myGalleryCount + myHuntCount >= 2) {
+            appState.triggerAccountPrompt('photos');
+          }
+        })
+        .catch(e => console.warn('Background refresh hunt:', e));
     } catch (err) {
       appState.showToast(err.message || 'Errore durante l\'invio della missione', 'error');
       uploadingId = null;

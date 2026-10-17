@@ -4,10 +4,11 @@ import { compressImage } from './imageCompressor.js';
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export class ApiError extends Error {
-  constructor(message, status, detail) {
+  constructor(message, status, detail, code = null) {
     super(message);
     this.status = status;
     this.detail = detail;
+    this.code = code || (detail && typeof detail === 'object' ? detail.code : null);
   }
 }
 
@@ -36,14 +37,20 @@ async function request(endpoint, options = {}) {
 
   if (!response.ok) {
     let errorDetail = `Errore HTTP ${response.status}`;
+    let parsedDetail = null;
+    let errorCode = null;
     try {
       const rawText = await response.text();
       try {
         const errJson = JSON.parse(rawText);
-        if (Array.isArray(errJson.detail)) {
-          errorDetail = errJson.detail.map(d => d.msg || JSON.stringify(d)).join(', ');
-        } else if (typeof errJson.detail === 'object' && errJson.detail !== null) {
-          errorDetail = JSON.stringify(errJson.detail);
+        parsedDetail = errJson.detail;
+        if (typeof errJson.detail === 'object' && errJson.detail !== null) {
+          if (Array.isArray(errJson.detail)) {
+            errorDetail = errJson.detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+          } else {
+            errorCode = errJson.detail.code || null;
+            errorDetail = errJson.detail.message || JSON.stringify(errJson.detail);
+          }
         } else {
           errorDetail = errJson.detail || errJson.message || rawText;
         }
@@ -53,7 +60,32 @@ async function request(endpoint, options = {}) {
     } catch {
       // Se anche leggere il testo fallisce, mantieni errorDetail di default
     }
-    throw new ApiError(errorDetail, response.status, errorDetail);
+
+    // Refresh automatico in caso di 401 (token scaduto)
+    if (response.status === 401 && !endpoint.startsWith('/auth/refresh') && !endpoint.startsWith('/auth/login') && !options._isRetry) {
+      const refreshToken = localStorage.getItem('fm_refresh_token');
+      if (refreshToken) {
+        try {
+          const refreshRes = await api.refreshToken(refreshToken);
+          if (refreshRes?.token) {
+            localStorage.setItem('fm_auth_token', refreshRes.token);
+            if (refreshRes.refresh_token) {
+              localStorage.setItem('fm_refresh_token', refreshRes.refresh_token);
+            }
+            if (refreshRes.jwt) {
+              localStorage.setItem('fm_jwt_token', refreshRes.jwt);
+            }
+            return await request(endpoint, { ...options, _isRetry: true });
+          }
+        } catch (refreshErr) {
+          console.warn('Silent refresh failed:', refreshErr);
+          localStorage.removeItem('fm_auth_token');
+          localStorage.removeItem('fm_refresh_token');
+        }
+      }
+    }
+
+    throw new ApiError(errorDetail, response.status, parsedDetail, errorCode);
   }
 
   // If 204 No Content
@@ -65,35 +97,38 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
-  // ── Auth (login veloce) ───────────────────────────────────────────────────
+  // ── Auth (login veloce: nickname + pin) ───────────────────────────────────
   async login(payload, argFirst, argLast, argSecret, argCouple = false, argEmail = null) {
     let body;
     if (typeof payload === 'object' && payload !== null) {
       body = {
         invite_code: payload.inviteCode || payload.invite_code,
         nickname: payload.nickname,
-        email: payload.email,
-        verification_code: payload.verificationCode || payload.verification_code,
-        no_email: !!(payload.noEmail || payload.no_email),
-        secret_word: payload.secretWord || payload.secret_word,
-        first_name: payload.firstName || payload.first_name,
-        last_name: payload.lastName || payload.last_name,
+        pin: payload.pin,
+        secret_word: payload.secretWord || payload.secret_word || payload.pin,
         is_couple: !!(payload.isCouple || payload.is_couple)
       };
     } else {
       body = {
         invite_code: payload,
-        first_name: argFirst,
-        last_name: argLast,
+        nickname: argFirst,
+        pin: argSecret,
         secret_word: argSecret,
-        is_couple: !!argCouple,
-        email: argEmail || undefined
+        is_couple: !!argCouple
       };
     }
 
     return await request('/auth/login', {
       method: 'POST',
       body: JSON.stringify(body)
+    });
+  },
+
+  // ── Refresh token ────────────────────────────────────────────────────────
+  async refreshToken(refreshToken) {
+    return await request('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken })
     });
   },
 
@@ -138,12 +173,14 @@ export const api = {
   },
 
   // ── Auth (upgrade account) ────────────────────────────────────────────────
-  async upgradeAccount(email, password, displayName = null, verificationCode = null) {
+  async upgradeAccount(email, password, firstName = null, lastName = null, displayName = null, verificationCode = null) {
     return await request('/auth/upgrade', {
       method: 'POST',
       body: JSON.stringify({
         email,
         password,
+        first_name: firstName || undefined,
+        last_name: lastName || undefined,
         display_name: displayName || undefined,
         verification_code: verificationCode || undefined
       })

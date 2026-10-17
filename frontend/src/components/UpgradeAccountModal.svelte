@@ -3,6 +3,8 @@
   import EmailVerificationField from './EmailVerificationField.svelte';
 
   let email = $state('');
+  let firstName = $state('');
+  let lastName = $state('');
   let password = $state('');
   let confirmPassword = $state('');
   let verificationCode = $state('');
@@ -10,13 +12,11 @@
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
-  const displayName = $derived(
-    appState.user ? `${appState.user.first_name} ${appState.user.last_name}` : ''
-  );
-
   $effect(() => {
-    if (appState.user?.email && !email) {
-      email = appState.user.email;
+    if (appState.user) {
+      if (!firstName) firstName = appState.user.nickname || appState.user.first_name || '';
+      if (!lastName && appState.user.last_name) lastName = appState.user.last_name;
+      if (appState.user.email && !email) email = appState.user.email;
     }
   });
 
@@ -29,6 +29,14 @@
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       appState.showToast('Email e password sono obbligatori.', 'error');
+      return;
+    }
+    if (!firstName.trim()) {
+      appState.showToast('Inserisci il tuo nome.', 'error');
+      return;
+    }
+    if (!lastName.trim()) {
+      appState.showToast('Inserisci il tuo cognome.', 'error');
       return;
     }
     if (password.length < 6) {
@@ -46,7 +54,15 @@
 
     isSubmitting = true;
     try {
-      const res = await appState.upgradeAccount(email.trim(), password, displayName, verificationCode.trim());
+      const displayName = `${firstName.trim()} ${lastName.trim()}`.trim();
+      const res = await appState.upgradeAccount(
+        email.trim(),
+        password,
+        firstName.trim(),
+        lastName.trim(),
+        displayName,
+        verificationCode.trim()
+      );
       if (!res.success) {
         appState.showToast(res.error || 'Registrazione non riuscita.', 'error');
       }
@@ -94,13 +110,24 @@
         />
 
         {#if emailVerified}
+        <div class="name-row">
+          <div class="input-group">
+            <label for="upgradeFirstName" class="input-label">Nome *</label>
+            <input id="upgradeFirstName" type="text" class="input-field" placeholder="es. Mario" bind:value={firstName} required disabled={!emailVerified || isSubmitting} />
+          </div>
+          <div class="input-group">
+            <label for="upgradeLastName" class="input-label">Cognome *</label>
+            <input id="upgradeLastName" type="text" class="input-field" placeholder="es. Rossi" bind:value={lastName} required disabled={!emailVerified || isSubmitting} />
+          </div>
+        </div>
+
         <div class="input-group">
-          <label for="upgradePassword" class="input-label">Password</label>
+          <label for="upgradePassword" class="input-label">Password *</label>
           <input id="upgradePassword" type="password" class="input-field" placeholder="Almeno 6 caratteri" bind:value={password} autocomplete="new-password" minlength="6" required disabled={!emailVerified || isSubmitting} />
         </div>
 
         <div class="input-group" class:field-locked={!emailVerified}>
-          <label for="upgradeConfirm" class="input-label">Conferma password</label>
+          <label for="upgradeConfirm" class="input-label">Conferma password *</label>
           <input id="upgradeConfirm" type="password" class="input-field" placeholder="Ripeti la password" bind:value={confirmPassword} autocomplete="new-password" required disabled={!emailVerified || isSubmitting} />
         </div>
 
@@ -226,6 +253,12 @@
     gap: 10px;
     margin-top: 8px;
     text-align: left;
+  }
+
+  .name-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 
   .form-error {

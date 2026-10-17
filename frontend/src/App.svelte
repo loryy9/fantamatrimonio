@@ -5,6 +5,7 @@
   import InstructionsModal from './components/InstructionsModal.svelte';
   import UpgradeAccountModal from './components/UpgradeAccountModal.svelte';
   import ClaimAccountModal from './components/ClaimAccountModal.svelte';
+  import AccountPromptBanner from './components/AccountPromptBanner.svelte';
   import Navbar from './components/Navbar.svelte';
   import BottomNav from './components/BottomNav.svelte';
   import LandingView from './components/LandingView.svelte';
@@ -99,6 +100,7 @@
   <!-- NAVBAR FESTA BORDEAUX CON MONOGRAMMA SPOSI SOLO DENTRO AL GIOCO EFFETTIVO -->
   <div class="app-wrapper">
     <Navbar />
+    <AccountPromptBanner />
 
     <main class="main-content" bind:this={mainContentEl}>
       {#if appState.activeTab === 'home'}

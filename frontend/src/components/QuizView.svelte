@@ -46,6 +46,11 @@
         appState.refreshLeaderboard(),
         appState.refreshChallenges()
       ]);
+
+      const quizList = appState.challenges.filter(c => (c.challenge_type === 'quiz' || c.type === 'quiz') && c.active !== false);
+      if (quizList.length > 0 && quizList.every(c => !!appState.mySubmissionsByChallenge[c.id])) {
+        appState.triggerAccountPrompt('quiz');
+      }
     } catch (err) {
       appState.showToast(err.message || 'Errore durante la risposta al quiz', 'error');
     } finally {

@@ -75,7 +75,7 @@ function bearer(header: string | undefined): string {
 
 export const bearerToken = bearer;
 
-const USER_COLS = "u.id, u.event_id, u.role, u.first_name, u.last_name, u.total_points, u.account_id";
+const USER_COLS = "u.id, u.event_id, u.role, u.nickname, u.total_points, u.account_id";
 
 /**
  * Risolve l'utente corrente dalla richiesta.

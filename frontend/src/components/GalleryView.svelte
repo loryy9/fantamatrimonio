@@ -193,7 +193,14 @@
           Promise.all([
             appState.refreshUser(true),
             appState.refreshLeaderboard()
-          ]).catch(e => console.warn('Background sync:', e));
+          ])
+            .then(() => {
+              const myPhotos = appState.galleryPhotos.filter(p => isMyPhoto(p));
+              if (myPhotos.length >= 2) {
+                appState.triggerAccountPrompt('photos');
+              }
+            })
+            .catch(e => console.warn('Background sync:', e));
         })
         .catch((err) => {
           console.error('Batch upload fallito:', err);

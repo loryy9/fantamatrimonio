@@ -1,7 +1,7 @@
 -- ============================================================
 -- Fanta Matrimonio — Schema SQL Completo per Neon
 -- Da eseguire nell'SQL Editor di Neon
--- Include tutte le tabelle, estensioni, indici e trigger aggiornati (v1 -> v6).
+-- Include tutte le tabelle, estensioni, indici e trigger aggiornati (v1 -> v7).
 -- ============================================================
 
 -- 1. Abilita estensione UUID
@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     email           TEXT        UNIQUE,
     password_hash   TEXT,                    -- bcrypt hash (NULL se non ancora registrato)
     display_name    TEXT        NOT NULL,
+    first_name      TEXT,                    -- nome (salvato alla creazione account)
+    last_name       TEXT,                    -- cognome (salvato alla creazione account)
     is_verified     BOOLEAN     NOT NULL DEFAULT FALSE,
     registered_at   TIMESTAMPTZ,             -- NULL = account guest non ancora registrato
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -48,17 +50,14 @@ CREATE TABLE IF NOT EXISTS users (
     event_id     UUID        NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     account_id   UUID        REFERENCES accounts(id) ON DELETE SET NULL,
     role         TEXT        NOT NULL DEFAULT 'guest' CHECK (role IN ('guest', 'couple')),
-    first_name   TEXT        NOT NULL,
-    last_name    TEXT        NOT NULL,
-    secret_word  TEXT        NOT NULL,
-    email        TEXT,
+    nickname     TEXT        NOT NULL,        -- nome visibile nel gioco (univoco per evento)
+    pin          TEXT,                        -- PIN 4 cifre per gli invitati (NULL per gli sposi)
     total_points INTEGER     NOT NULL DEFAULT 0,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-    CONSTRAINT uq_user_identity_per_event UNIQUE (event_id, first_name, last_name, secret_word)
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_identity ON users (event_id, first_name, last_name, secret_word);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_nickname_per_event ON users (event_id, LOWER(nickname));
+CREATE INDEX IF NOT EXISTS idx_users_nickname ON users (event_id, LOWER(nickname));
 CREATE INDEX IF NOT EXISTS idx_users_account_id ON users (account_id);
 
 -- 6. Tabella: challenges (minigiochi per evento)
@@ -91,16 +90,19 @@ CREATE INDEX IF NOT EXISTS idx_submissions_user_id      ON user_submissions (use
 CREATE INDEX IF NOT EXISTS idx_submissions_challenge_id ON user_submissions (challenge_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_user_challenge ON user_submissions (user_id, challenge_id);
 
--- 8. Tabella: sessions (token di sessione guest e account)
+-- 8. Tabella: sessions (token di sessione con refresh token)
 CREATE TABLE IF NOT EXISTS sessions (
-    token      TEXT        PRIMARY KEY,
-    user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    account_id UUID        REFERENCES accounts(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days')
+    token              TEXT        PRIMARY KEY,
+    user_id            UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_id         UUID        REFERENCES accounts(id) ON DELETE CASCADE,
+    refresh_token      TEXT        UNIQUE,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at         TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '2 hours'),
+    refresh_expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days')
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_refresh_token ON sessions (refresh_token);
 
 -- 9. Tabella: registration_reminders (promemoria registrazione post-evento)
 CREATE TABLE IF NOT EXISTS registration_reminders (

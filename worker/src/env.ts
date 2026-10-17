@@ -13,6 +13,8 @@ export interface Env {
 
   JWT_SECRET?: string;
   JWT_EXPIRE_HOURS?: string;
+  ACCESS_TOKEN_TTL_MINUTES?: string;
+  REFRESH_TOKEN_TTL_DAYS?: string;
   REGISTRATION_REMINDER_DAYS?: string;
   FRONTEND_URL?: string;
 

@@ -113,12 +113,9 @@ router.post("/", async (c) => {
   // 2. Se non gia' loggato, email e password sono obbligatorie
   if (!accountId) {
     if (!coupleEmail || !couplePassword) {
-      // Fallback retrocompatibilita' (suite di test con couple_secret_word)
-      if (!body.couple_secret_word) {
-        throw new ApiError(422, "Email e password sono obbligatorie per creare l'account degli sposi.");
-      }
-    } else {
-      if (couplePassword.length < 6) throw new ApiError(422, "La password deve essere di almeno 6 caratteri.");
+      throw new ApiError(422, "Email e password sono obbligatorie per creare l'account degli sposi.");
+    }
+    if (couplePassword.length < 6) throw new ApiError(422, "La password deve essere di almeno 6 caratteri.");
 
       const existingAccount = await db.queryOne("SELECT * FROM accounts WHERE email = $1", [coupleEmail]);
       if (existingAccount) {
@@ -138,7 +135,7 @@ router.post("/", async (c) => {
             throw new ApiError(400, "Codice di verifica non valido o scaduto.");
           }
           isVerified = true;
-        } else if (!body.couple_secret_word) {
+        } else {
           throw new ApiError(400, "Il codice di verifica inviato via email è obbligatorio.");
         }
 
@@ -153,11 +150,8 @@ router.post("/", async (c) => {
         accountData = accountOut(account!);
       }
     }
-  }
 
-  const word = body.couple_secret_word ? normalize(body.couple_secret_word) : "sposi";
-
-  let created: { event: Row; user: Row; token: string } | null = null;
+  let created: { event: Row; user: Row; token: string; refreshToken: string } | null = null;
   for (let attempt = 0; attempt < 5 && !created; attempt++) {
     const code = generateInviteCode();
     try {
@@ -168,17 +162,18 @@ router.post("/", async (c) => {
           [body.spouse1_name.trim(), body.spouse2_name.trim(), body.enable_timer, body.start_time ?? null, body.end_time ?? null, code],
         ))!;
         const user = (await tx.execute(
-          `INSERT INTO users (event_id, role, first_name, last_name, secret_word, account_id, email)
-           VALUES ($1, 'couple', $2, $3, $4, $5, $6) RETURNING *`,
-          [event.id, first, last, word, accountId, coupleEmail],
+          `INSERT INTO users (event_id, role, nickname, pin, account_id)
+           VALUES ($1, 'couple', $2, NULL, $3) RETURNING *`,
+          [event.id, `${first} ${last}`.trim(), accountId],
         ))!;
         const token = crypto.randomUUID();
-        await tx.execute("INSERT INTO sessions (token, user_id, account_id) VALUES ($1, $2, $3)", [
-          token,
-          user.id,
-          accountId,
-        ]);
-        return { event, user, token };
+        const refreshToken = crypto.randomUUID();
+        await tx.execute(
+          `INSERT INTO sessions (token, user_id, account_id, refresh_token, expires_at, refresh_expires_at)
+           VALUES ($1, $2, $3, $4, NOW() + ($5 || ' minutes')::INTERVAL, NOW() + ($6 || ' days')::INTERVAL)`,
+          [token, user.id, accountId, refreshToken, String(cfg.accessTokenTtlMinutes), String(cfg.refreshTokenTtlDays)],
+        );
+        return { event, user, token, refreshToken };
       });
     } catch (e) {
       // Collisione sul codice invito univoco: riprova con un nuovo codice
@@ -191,6 +186,8 @@ router.post("/", async (c) => {
 
   const result: Row = {
     token: created.token,
+    refresh_token: created.refreshToken,
+    expires_in: cfg.accessTokenTtlMinutes * 60,
     invite_code: created.event.invite_code,
     user: userOut(created.user),
     event: eventOut(created.event),

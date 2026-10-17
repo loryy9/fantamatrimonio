@@ -1,6 +1,7 @@
 /**
  * Rotte di autenticazione.
- * POST /api/auth/login                 -> login leggero ospiti (email verificata o nickname + parola segreta)
+ * POST /api/auth/login                 -> login invitato (nickname + PIN 4 cifre)
+ * POST /api/auth/refresh               -> refresh del token di sessione
  * POST /api/auth/send-verification-code / verify-code -> OTP email
  * POST /api/auth/register              -> registrazione sicura (email + password)
  * POST /api/auth/login-secure          -> login email + password -> JWT
@@ -19,6 +20,7 @@ import { ApiError } from "../errors";
 import { accountOut, eventOut, userOut } from "../serializers";
 import { normalize, parseJson } from "../util";
 import { createAndSendCode, normalizeEmail, verifyCode } from "../verification";
+import type { Config } from "../config";
 
 const router = new Hono<AppEnv>();
 
@@ -26,14 +28,14 @@ const str = z.string().nullish();
 
 const LoginRequest = z.object({
   invite_code: z.string(),
-  nickname: str,
-  email: str,
-  verification_code: str,
-  no_email: z.boolean().default(false),
-  secret_word: str,
-  first_name: str,
-  last_name: str,
+  nickname: z.string(),
+  pin: z.string(),
   is_couple: z.boolean().default(false),
+  secret_word: str, // retrocompatibilità sposi
+});
+
+const RefreshRequest = z.object({
+  refresh_token: z.string(),
 });
 
 const SendVerificationCodeRequest = z.object({
@@ -46,6 +48,8 @@ const RegisterRequest = z.object({
   email: z.string(),
   password: z.string(),
   display_name: z.string(),
+  first_name: str,
+  last_name: str,
   verification_code: str,
 });
 const LoginSecureRequest = z.object({ email: z.string(), password: z.string() });
@@ -53,6 +57,8 @@ const UpgradeRequest = z.object({
   email: z.string(),
   password: z.string(),
   display_name: str,
+  first_name: str,
+  last_name: str,
   verification_code: str,
 });
 const ClaimInfoRequest = z.object({ claim_token: z.string() });
@@ -64,22 +70,35 @@ const CompleteClaimRequest = z.object({
   display_name: str,
 });
 
-/** Sessione attiva dell'utente (la piu' lunga) oppure una nuova valida 30 giorni. */
-async function getOrCreateSession(db: Db, userId: string): Promise<string> {
-  const sess = await db.queryOne(
-    "SELECT token FROM sessions WHERE user_id = $1 AND expires_at > NOW() ORDER BY expires_at DESC LIMIT 1",
-    [userId],
-  );
-  if (sess) return sess.token;
+/** Crea una nuova sessione con access_token e refresh_token. */
+async function createSession(db: Db, cfg: Config, userId: string, accountId?: string | null): Promise<{ token: string; refresh_token: string; expires_in: number }> {
   const token = crypto.randomUUID();
+  const refreshToken = crypto.randomUUID();
+  const ttlMinutes = cfg.accessTokenTtlMinutes;
+  const refreshDays = cfg.refreshTokenTtlDays;
+
   await db.execute(
-    "INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '30 days')",
-    [userId, token],
+    `INSERT INTO sessions (token, user_id, account_id, refresh_token, expires_at, refresh_expires_at)
+     VALUES ($1, $2, $3, $4, NOW() + ($5 || ' minutes')::INTERVAL, NOW() + ($6 || ' days')::INTERVAL)`,
+    [token, userId, accountId || null, refreshToken, String(ttlMinutes), String(refreshDays)],
   );
-  return token;
+
+  return { token, refresh_token: refreshToken, expires_in: ttlMinutes * 60 };
 }
 
-// ── LOGIN OSPITI ────────────────────────────────────────────────────────────
+/** Sessione attiva dell'utente (la piu' lunga) oppure una nuova. */
+async function getOrCreateSession(db: Db, cfg: Config, userId: string, accountId?: string | null): Promise<{ token: string; refresh_token: string; expires_in: number }> {
+  const sess = await db.queryOne(
+    "SELECT token, refresh_token FROM sessions WHERE user_id = $1 AND expires_at > NOW() ORDER BY expires_at DESC LIMIT 1",
+    [userId],
+  );
+  if (sess?.token && sess?.refresh_token) {
+    return { token: sess.token, refresh_token: sess.refresh_token, expires_in: cfg.accessTokenTtlMinutes * 60 };
+  }
+  return createSession(db, cfg, userId, accountId);
+}
+
+// ── LOGIN INVITATI (nickname + PIN 4 cifre) ─────────────────────────────────
 
 router.post("/login", async (c) => {
   const db = c.get("db");
@@ -98,12 +117,12 @@ router.post("/login", async (c) => {
   let isNew = false;
   let accountId: string | null = null;
 
-  // Un account gia' autenticato puo' partecipare senza OTP: bastano codice e nickname.
+  // Un account già autenticato può partecipare con JWT: nickname basta.
   const authorization = c.req.header("authorization");
-  if (!body.is_couple && !body.no_email && authorization?.startsWith("Bearer ")) {
-    const token = authorization.slice("Bearer ".length).trim();
-    if (isJwt(token)) {
-      const payload = await decodeJwt(cfg, token);
+  if (!body.is_couple && authorization?.startsWith("Bearer ")) {
+    const tokenStr = authorization.slice("Bearer ".length).trim();
+    if (isJwt(tokenStr)) {
+      const payload = await decodeJwt(cfg, tokenStr);
       if (payload?.type === "account") {
         const account = await db.queryOne("SELECT * FROM accounts WHERE id = $1", [String(payload.sub)]);
         if (account?.email) {
@@ -116,14 +135,22 @@ router.post("/login", async (c) => {
             [event.id, accountId],
           );
           if (!user) {
+            // Controlla se il nickname è già preso da un altro utente
+            const existingNick = await db.queryOne(
+              "SELECT id FROM users WHERE event_id = $1 AND LOWER(nickname) = $2 AND role = 'guest'",
+              [event.id, nick.toLowerCase()],
+            );
+            if (existingNick) {
+              throw new ApiError(409, `Il nickname "${nick}" è già in uso per questo matrimonio. Scegli un altro nome.`);
+            }
             isNew = true;
             user = await db.execute(
-              `INSERT INTO users (event_id, role, first_name, last_name, secret_word, account_id, email)
-               VALUES ($1, 'guest', $2, '', '', $3, $4) RETURNING *`,
-              [event.id, nick, accountId, account.email],
+              `INSERT INTO users (event_id, role, nickname, pin, account_id)
+               VALUES ($1, 'guest', $2, $3, $4) RETURNING *`,
+              [event.id, nick, body.pin || "0000", accountId],
             );
-          } else if (nick !== user.first_name) {
-            user = await db.execute("UPDATE users SET first_name = $1 WHERE id = $2 RETURNING *", [nick, user.id]);
+          } else if (nick !== user.nickname) {
+            user = await db.execute("UPDATE users SET nickname = $1 WHERE id = $2 RETURNING *", [nick, user.id]);
           }
         }
       }
@@ -133,111 +160,58 @@ router.post("/login", async (c) => {
   if (user) {
     // Accesso completato sopra per account autenticato.
   } else if (body.is_couple) {
-    // 1. Accesso sposi (parola segreta sposi)
-    const word = normalize(body.secret_word ?? "");
-    if (!coupleUser) throw new ApiError(404, "Nessun account sposi trovato per questo matrimonio.");
-    if (word !== normalize(coupleUser.secret_word)) {
-      throw new ApiError(
-        401,
-        "Parola segreta sposi non corretta. Inserisci la parola impostata durante la creazione del matrimonio.",
-      );
-    }
-    user = coupleUser;
-  } else if (body.no_email) {
-    // 2. Modalita' SENZA EMAIL (nickname + parola segreta personale)
-    const nick = (body.nickname || body.first_name || "").trim();
-    const word = normalize(body.secret_word ?? "");
-    if (!nick) throw new ApiError(422, "Inserisci un nickname (es. Zia Pina, Nonno Bruno).");
-    if (!word) throw new ApiError(422, "Inserisci una parola segreta personale per poter rientrare.");
-
-    user = await db.queryOne(
-      "SELECT * FROM users WHERE event_id = $1 AND LOWER(first_name) = $2 AND LOWER(secret_word) = $3 AND role = 'guest'",
-      [event.id, nick.toLowerCase(), word],
-    );
-    if (!user) {
-      isNew = true;
-      user = await db.execute(
-        `INSERT INTO users (event_id, role, first_name, last_name, secret_word, email)
-         VALUES ($1, 'guest', $2, '', $3, NULL) RETURNING *`,
-        [event.id, nick, word],
-      );
-    }
-  } else if (body.email) {
-    // 3. Modalita' CON EMAIL VERIFICATA
-    const email = normalizeEmail(body.email);
-    const codeInput = (body.verification_code ?? "").trim();
-    if (!codeInput || codeInput.length !== 6) {
-      throw new ApiError(422, "Inserisci il codice di verifica a 6 cifre inviato alla tua email.");
-    }
-    if (!(await verifyCode(db, email, codeInput, "join_guest", true))) {
-      throw new ApiError(400, "Codice di verifica email non valido o scaduto.");
-    }
-
-    user = await db.queryOne(
-      "SELECT * FROM users WHERE event_id = $1 AND LOWER(email) = $2 AND role = 'guest'",
-      [event.id, email],
-    );
-    const nick = (body.nickname || body.first_name || "").trim();
-
-    if (user) {
-      // Ospite gia' registrato alla festa: aggiorna il nickname se fornito
-      if (nick && nick !== user.first_name) {
-        user = await db.execute("UPDATE users SET first_name = $1 WHERE id = $2 RETURNING *", [nick, user.id]);
-      }
-    } else {
-      if (!nick) {
-        throw new ApiError(422, "Inserisci il tuo nickname per partecipare (es. Zia Pina, Fratello sposa).");
-      }
-      isNew = true;
-      user = await db.execute(
-        `INSERT INTO users (event_id, role, first_name, last_name, secret_word, email)
-         VALUES ($1, 'guest', $2, '', '', $3) RETURNING *`,
-        [event.id, nick, email],
-      );
-
-      // Programma il reminder per creare l'account dopo N giorni
-      const sendAfter = new Date(Date.now() + cfg.registrationReminderDays * 86_400_000);
-      await db.execute(
-        "INSERT INTO registration_reminders (user_id, event_id, email, send_after) VALUES ($1, $2, $3, $4)",
-        [user!.id, event.id, email, sendAfter],
-      );
-      if (cfg.registrationReminderDays <= 0) {
-        runInBackground(c, (bgDb, bgCfg) => processDueReminders(bgDb, bgCfg));
-      }
-    }
-  } else if (body.first_name && body.secret_word) {
-    // 4. Compatibilita' legacy (nome + cognome + parola segreta)
-    const first = normalize(body.first_name);
-    const last = normalize(body.last_name ?? "");
-    const word = normalize(body.secret_word);
-    user = await db.queryOne(
-      "SELECT * FROM users WHERE event_id = $1 AND LOWER(first_name) = $2 AND LOWER(last_name) = $3 AND LOWER(secret_word) = $4",
-      [event.id, first, last, word],
-    );
-    if (!user) {
-      isNew = true;
-      user = await db.execute(
-        `INSERT INTO users (event_id, role, first_name, last_name, secret_word, email)
-         VALUES ($1, 'guest', $2, $3, $4, NULL) RETURNING *`,
-        [event.id, body.first_name.trim(), last, word],
-      );
-    }
-  } else {
     throw new ApiError(
-      422,
-      "Inserisci la tua email verificata oppure seleziona l'opzione 'Non possiedo un indirizzo email'.",
+      401,
+      "Per accedere come sposi, effettua l'accesso con la tua email e password.",
     );
+  } else {
+    // Login invitato: nickname + PIN 4 cifre
+    const nick = (body.nickname || "").trim();
+    const pin = (body.pin || "").trim();
+    if (!nick) throw new ApiError(422, "Inserisci un nickname (es. Zia Pina, Nonno Bruno).");
+    if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+      throw new ApiError(422, "Inserisci un PIN di 4 cifre (es. il tuo anno di nascita).");
+    }
+
+    // Cerca un utente con questo nickname nello stesso evento
+    const existing = await db.queryOne(
+      "SELECT * FROM users WHERE event_id = $1 AND LOWER(nickname) = $2 AND role = 'guest'",
+      [event.id, nick.toLowerCase()],
+    );
+
+    if (existing) {
+      // Nickname esiste: controlla il PIN
+      if (existing.pin !== pin) {
+        throw new ApiError(409, {
+          code: "NICKNAME_EXISTS",
+          message: `Per questo matrimonio c'è già un "${nick}". Se sei tu che stai accedendo da un altro dispositivo, inserisci il tuo PIN corretto. Altrimenti, cambia nickname.`,
+          nickname: nick,
+        });
+      }
+      // PIN corretto: rientra con lo stesso utente
+      user = existing;
+    } else {
+      // Nuovo utente
+      isNew = true;
+      user = await db.execute(
+        `INSERT INTO users (event_id, role, nickname, pin)
+         VALUES ($1, 'guest', $2, $3) RETURNING *`,
+        [event.id, nick, pin],
+      );
+    }
   }
 
   const u = user!;
-  const token = crypto.randomUUID();
-  await db.execute("INSERT INTO sessions (token, user_id, account_id) VALUES ($1, $2, $3)", [
-    token,
-    u.id,
-    accountId || u.account_id || null,
-  ]);
+  const session = await createSession(db, cfg, u.id, accountId || u.account_id || null);
 
-  const result: Row = { token, is_new: isNew, user: userOut(u), event: eventOut(event) };
+  const result: Row = {
+    token: session.token,
+    refresh_token: session.refresh_token,
+    expires_in: session.expires_in,
+    is_new: isNew,
+    user: userOut(u),
+    event: eventOut(event),
+  };
 
   // Se l'utente ha un account collegato aggiungiamo anche il JWT
   if (u.account_id) {
@@ -245,6 +219,45 @@ router.post("/login", async (c) => {
     const account = await db.queryOne("SELECT * FROM accounts WHERE id = $1", [u.account_id]);
     if (account) result.account = accountOut(account);
   }
+  return c.json(result);
+});
+
+// ── REFRESH TOKEN ──────────────────────────────────────────────────────────
+
+router.post("/refresh", async (c) => {
+  const db = c.get("db");
+  const cfg = c.get("cfg");
+  const { data: body } = await parseJson(c, RefreshRequest);
+
+  const refreshToken = body.refresh_token.trim();
+  if (!refreshToken) throw new ApiError(422, "Refresh token mancante.");
+
+  // Trova la sessione con questo refresh token (non scaduto)
+  const sess = await db.queryOne(
+    `SELECT s.*, u.id AS uid, u.event_id, u.role, u.account_id
+     FROM sessions s JOIN users u ON u.id = s.user_id
+     WHERE s.refresh_token = $1 AND s.refresh_expires_at > NOW()`,
+    [refreshToken],
+  );
+  if (!sess) throw new ApiError(401, "Refresh token non valido o scaduto. Effettua nuovamente l'accesso.");
+
+  // Invalida la vecchia sessione
+  await db.execute("DELETE FROM sessions WHERE refresh_token = $1", [refreshToken]);
+
+  // Crea una nuova sessione
+  const newSession = await createSession(db, cfg, sess.uid, sess.account_id);
+
+  const result: Row = {
+    token: newSession.token,
+    refresh_token: newSession.refresh_token,
+    expires_in: newSession.expires_in,
+  };
+
+  // Se ha un account, rinnova anche il JWT
+  if (sess.account_id) {
+    result.jwt = await createJwt(cfg, String(sess.account_id));
+  }
+
   return c.json(result);
 });
 
@@ -259,25 +272,6 @@ router.post("/send-verification-code", async (c) => {
     const existing = await db.queryOne("SELECT id FROM accounts WHERE email = $1", [email]);
     if (existing && body.purpose === "register_account") {
       throw new ApiError(409, "Esiste già un account con questa email. Prova ad accedere.");
-    }
-  }
-  if (body.purpose === "join_guest") {
-    const existingAccount = await db.queryOne("SELECT id, password_hash FROM accounts WHERE email = $1", [email]);
-    if (existingAccount?.password_hash) {
-      throw new ApiError(409, "Questa email appartiene già a un account. Effettua il login con email e password.");
-    }
-
-    const existingGuest = await db.queryOne(
-      "SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1",
-      [email],
-    );
-    if (existingGuest && !body.confirm_existing) {
-      return c.json({
-        success: false,
-        requires_confirmation: true,
-        message:
-          "Questa email è già associata a un invitato. Sei sicuro di voler inviare un nuovo codice per partecipare a un altro matrimonio?",
-      });
     }
   }
   return c.json(await createAndSendCode(db, c.get("cfg"), email, body.purpose));
@@ -317,9 +311,9 @@ router.post("/register", async (c) => {
   }
 
   const account = await db.execute(
-    `INSERT INTO accounts (email, password_hash, display_name, is_verified, registered_at)
-     VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-    [email, await hashPassword(body.password), body.display_name.trim(), true],
+    `INSERT INTO accounts (email, password_hash, display_name, first_name, last_name, is_verified, registered_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING *`,
+    [email, await hashPassword(body.password), body.display_name.trim(), (body.first_name ?? "").trim() || null, (body.last_name ?? "").trim() || null, true],
   );
 
   return c.json({ jwt: await createJwt(cfg, String(account!.id)), account: accountOut(account!) });
@@ -328,6 +322,7 @@ router.post("/register", async (c) => {
 /** Login con email + password. Ritorna JWT + account + lista eventi. */
 router.post("/login-secure", async (c) => {
   const db = c.get("db");
+  const cfg = c.get("cfg");
   const { data: body } = await parseJson(c, LoginSecureRequest);
 
   const email = body.email.trim().toLowerCase();
@@ -347,7 +342,7 @@ router.post("/login-secure", async (c) => {
   );
 
   return c.json({
-    jwt: await createJwt(c.get("cfg"), String(account.id)),
+    jwt: await createJwt(cfg, String(account.id)),
     account: accountOut(account),
     events: events.map(eventOut),
   });
@@ -355,7 +350,8 @@ router.post("/login-secure", async (c) => {
 
 /**
  * Un utente con session token puo' "upgradare" creando un account permanente.
- * Collega il suo user (e tutti gli user con la stessa email) all'account.
+ * Collega il suo user (e tutti gli user con lo stesso account_id nullo) all'account.
+ * Richiede: email, password, nome, cognome, verifica email.
  */
 router.post("/upgrade", requireUser, async (c) => {
   const db = c.get("db");
@@ -385,16 +381,17 @@ router.post("/upgrade", requireUser, async (c) => {
     }
     if (isVerified) await db.execute("UPDATE accounts SET is_verified = TRUE WHERE id = $1", [account.id]);
   } else {
-    const display = body.display_name || `${current.first_name} ${current.last_name}`;
+    const display = body.display_name || current.nickname || "";
+    const firstName = (body.first_name ?? "").trim();
+    const lastName = (body.last_name ?? "").trim();
     account = await db.execute(
-      `INSERT INTO accounts (email, password_hash, display_name, is_verified, registered_at)
-       VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-      [email, await hashPassword(body.password), display.trim(), isVerified],
+      `INSERT INTO accounts (email, password_hash, display_name, first_name, last_name, is_verified, registered_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING *`,
+      [email, await hashPassword(body.password), display.trim(), firstName || null, lastName || null, isVerified],
     );
   }
 
   await db.execute("UPDATE users SET account_id = $1 WHERE id = $2 AND account_id IS NULL", [account!.id, current.id]);
-  await db.execute("UPDATE users SET account_id = $1 WHERE email = $2 AND account_id IS NULL", [account!.id, email]);
 
   return c.json({
     jwt: await createJwt(cfg, String(account!.id)),
@@ -432,7 +429,7 @@ router.post("/claim-info", async (c) => {
   if (user.account_id) account = await db.queryOne("SELECT * FROM accounts WHERE id = $1", [user.account_id]);
   else if (email) account = await db.queryOne("SELECT * FROM accounts WHERE email = $1", [email]);
 
-  const sessionToken = await getOrCreateSession(db, user.id);
+  const session = await getOrCreateSession(db, cfg, user.id);
 
   // Account gia' completamente registrato: JWT diretto
   if (account?.password_hash) {
@@ -443,22 +440,25 @@ router.post("/claim-info", async (c) => {
       account: accountOut(account),
       user: userOut(user),
       event: event ? eventOut(event) : null,
-      token: sessionToken,
+      token: session.token,
+      refresh_token: session.refresh_token,
+      expires_in: session.expires_in,
     });
   }
 
-  const first = user.first_name || "";
-  const last = user.last_name || "";
+  const nick = user.nickname || "";
   return c.json({
     valid: true,
     already_registered: false,
-    email: email || user.email || "",
-    first_name: first,
-    last_name: last,
-    display_name: `${first} ${last}`.trim(),
+    email: email || "",
+    first_name: nick,
+    last_name: "",
+    display_name: nick,
     event: event ? eventOut(event) : null,
     user: userOut(user),
-    token: sessionToken,
+    token: session.token,
+    refresh_token: session.refresh_token,
+    expires_in: session.expires_in,
   });
 });
 
@@ -486,41 +486,35 @@ router.post("/complete-claim", async (c) => {
   const user = await db.queryOne("SELECT * FROM users WHERE id = $1", [userId]);
   if (!user) throw new ApiError(404, "Profilo utente non trovato.");
 
-  if (!email && user.email) email = String(user.email).trim().toLowerCase();
   if (!email) throw new ApiError(422, "Email non associata a questo invito.");
 
-  const first = (body.first_name ?? "").trim() || user.first_name || "";
-  const last = (body.last_name ?? "").trim() || user.last_name || "";
-  if (!first || !last) {
-    throw new ApiError(422, "Nome e cognome sono obbligatori per completare la registrazione.");
+  const first = (body.first_name ?? "").trim() || user.nickname || "";
+  const last = (body.last_name ?? "").trim() || "";
+  if (!first) {
+    throw new ApiError(422, "Il nome è obbligatorio per completare la registrazione.");
   }
-  const display = (body.display_name ?? "").trim() || `${first} ${last}`.trim();
-
-  await db.execute("UPDATE users SET first_name = $1, last_name = $2 WHERE id = $3", [first, last, user.id]);
-  user.first_name = first;
-  user.last_name = last;
+  const display = (body.display_name ?? "").trim() || first;
 
   const passwordHash = await hashPassword(body.password);
   const existing = await db.queryOne("SELECT * FROM accounts WHERE email = $1", [email]);
   let account: Row | null;
   if (existing) {
     account = await db.queryOne(
-      `UPDATE accounts SET password_hash = $1, display_name = $2, is_verified = TRUE WHERE id = $3 RETURNING *`,
-      [passwordHash, display, existing.id],
+      `UPDATE accounts SET password_hash = $1, display_name = $2, first_name = $3, last_name = $4, is_verified = TRUE WHERE id = $5 RETURNING *`,
+      [passwordHash, display, first, last || null, existing.id],
     );
   } else {
     account = await db.execute(
-      `INSERT INTO accounts (email, password_hash, display_name, is_verified, registered_at)
-       VALUES ($1, $2, $3, TRUE, NOW()) RETURNING *`,
-      [email, passwordHash, display],
+      `INSERT INTO accounts (email, password_hash, display_name, first_name, last_name, is_verified, registered_at)
+       VALUES ($1, $2, $3, $4, $5, TRUE, NOW()) RETURNING *`,
+      [email, passwordHash, display, first, last || null],
     );
   }
 
   await db.execute("UPDATE users SET account_id = $1 WHERE id = $2", [account!.id, user.id]);
-  await db.execute("UPDATE users SET account_id = $1 WHERE email = $2 AND account_id IS NULL", [account!.id, email]);
   await db.execute("UPDATE registration_reminders SET sent_at = NOW() WHERE email = $1", [email]);
 
-  const sessionToken = await getOrCreateSession(db, user.id);
+  const session = await getOrCreateSession(db, cfg, user.id, account!.id);
   const event = await db.queryOne("SELECT * FROM events WHERE id = $1", [eventId || user.event_id]);
 
   return c.json({
@@ -528,7 +522,9 @@ router.post("/complete-claim", async (c) => {
     account: accountOut(account!),
     user: userOut(user),
     event: event ? eventOut(event) : null,
-    token: sessionToken,
+    token: session.token,
+    refresh_token: session.refresh_token,
+    expires_in: session.expires_in,
   });
 });
 
@@ -556,9 +552,12 @@ router.get("/me", async (c) => {
 
     let event: Row | null = null;
     let sessionToken: string | null = null;
+    let refreshToken: string | null = null;
     if (user) {
       event = await db.queryOne("SELECT * FROM events WHERE id = $1", [user.event_id]);
-      sessionToken = await getOrCreateSession(db, user.id);
+      const sess = await getOrCreateSession(db, cfg, user.id, accountId);
+      sessionToken = sess.token;
+      refreshToken = sess.refresh_token;
     }
 
     return c.json({
@@ -566,6 +565,7 @@ router.get("/me", async (c) => {
       user: user ? userOut(user) : null,
       event: event ? eventOut(event) : null,
       token: sessionToken,
+      refresh_token: refreshToken,
     });
   }
 
@@ -580,10 +580,17 @@ router.get("/me", async (c) => {
   const event = await db.queryOne("SELECT * FROM events WHERE id = $1", [row.event_id]);
   const account = row.account_id ? await db.queryOne("SELECT * FROM accounts WHERE id = $1", [row.account_id]) : null;
 
+  // Cerca anche il refresh_token della sessione corrente
+  const sessionData = await db.queryOne(
+    "SELECT refresh_token FROM sessions WHERE token = $1",
+    [token],
+  );
+
   return c.json({
     user: userOut(row),
     event: event ? eventOut(event) : null,
     account: account ? accountOut(account) : null,
+    refresh_token: sessionData?.refresh_token || null,
   });
 });
 

@@ -139,15 +139,6 @@
     </button>
   </div>
 
-  <div class="page-header">
-    {#if appState.quizSubTab === 'quiz'}
-      <h1 class="page-title font-serif">Quiz sugli Sposi</h1>
-      <p class="page-desc">Rispondi alle domande e dimostra quanto conosci gli sposi!</p>
-    {:else}
-      <h1 class="page-title font-serif">Momenti Migliori</h1>
-      <p class="page-desc">Condividi pensieri, ricordi ed emozioni della festa! Puoi compilare e modificare le risposte fino alla fine dell'evento.</p>
-    {/if}
-  </div>
   </div>
 
   {#if appState.quizSubTab === 'quiz'}
@@ -201,53 +192,18 @@
             {@const correctAnswer = result?.correct_answer ?? submission?.correct_answer ?? quiz.correct_answer}
             {@const isCorrect = result?.is_correct ?? submission?.is_correct ?? quiz.is_correct ?? ((submission?.points_awarded ?? quiz.points_awarded ?? 0) > 0)}
             {@const options = quiz.config?.options || []}
-            {@const myOptionObj = options.find(o => o.id === myAnswer)}
 
             <div class="game-card glass-card {isDone ? 'quiz-done' : ''}">
-              <div class="card-top-row">
-                <span class="badge badge-gold">+{quiz.points} pt</span>
-                {#if isDone}
-                  <span class="badge {isCorrect ? 'badge-green' : 'badge-rose'}">
-                    {#if isCorrect}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      Risposta esatta (+{quiz.points} pt)
-                    {:else}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      Risposta errata (0 pt)
-                    {/if}
-                  </span>
-                {:else if eventTimer.status === 'ended'}
+              <span class="badge badge-gold quiz-points">+{quiz.points} PT</span>
+              {#if !isDone && eventTimer.status === 'ended'}
+                <div class="card-top-row">
                   <span class="badge badge-neutral">Tempo scaduto</span>
-                {/if}
-              </div>
+                </div>
+              {/if}
 
               <h3 class="quiz-question font-serif">{quiz.title}</h3>
               {#if quiz.description}
                 <p class="quiz-subtext">{quiz.description}</p>
-              {/if}
-
-              {#if isDone}
-                <div class="quiz-recap-box {isCorrect ? 'recap-correct' : 'recap-incorrect'}">
-                  <div class="recap-icon">
-                    {#if isCorrect}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    {:else}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    {/if}
-                  </div>
-                  <div class="recap-content">
-                    <div class="recap-title">
-                      La tua risposta: <strong>{myOptionObj?.text || myAnswer || 'N/D'}</strong>
-                    </div>
-                    <div class="recap-sub">
-                      {#if isCorrect}
-                        Risposta esatta! Punti assegnati: +{quiz.points} pt
-                      {:else}
-                        Risposta non corretta. Quella corretta era: <strong>{correctAnswer || 'N/D'}</strong>
-                      {/if}
-                    </div>
-                  </div>
-                </div>
               {/if}
 
               <!-- Options Grid -->
@@ -542,12 +498,14 @@
   }
 
   .game-card {
-    padding: 22px 20px;
+    position: relative;
+    padding: 18px 16px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
     background: #fff;
-    border-radius: 28px;
+    border-radius: 22px;
+    overflow: visible;
   }
 
   .card-top-row {
@@ -558,16 +516,26 @@
     flex-wrap: wrap;
   }
 
+  .quiz-points {
+    position: absolute;
+    top: -9px;
+    right: 16px;
+    z-index: 2;
+    transform: rotate(4deg);
+    background: #fff8e9;
+    box-shadow: 0 4px 10px -6px rgba(106, 32, 55, 0.45);
+  }
+
   .quiz-question {
     font-family: var(--font-display);
-    font-size: 1.5rem;
+    font-size: 1.35rem;
     font-weight: 600;
     color: var(--text-main);
     line-height: 1.2;
   }
 
   .quiz-subtext {
-    font-size: 0.88rem;
+    font-size: 0.84rem;
     color: #6b5f64;
     line-height: 1.5;
   }
@@ -575,18 +543,18 @@
   .options-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 7px;
     margin-top: 2px;
   }
 
   .option-btn {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
+    gap: 9px;
+    padding: 9px 11px;
     background: #fff;
     border: 1px solid rgba(36, 28, 32, 0.1);
-    border-radius: 18px;
+    border-radius: 14px;
     color: var(--text-main);
     font-family: var(--font-sans);
     cursor: pointer;
@@ -607,10 +575,10 @@
   }
 
   .opt-letter {
-    width: 30px;
-    min-width: 30px;
-    max-width: 30px;
-    height: 30px;
+    width: 27px;
+    min-width: 27px;
+    max-width: 27px;
+    height: 27px;
     border-radius: 50%;
     background: var(--wine-tint);
     color: var(--wine);
@@ -619,7 +587,7 @@
     justify-content: center;
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.9rem;
     flex-shrink: 0;
     overflow: hidden;
     line-height: 1;
@@ -627,7 +595,7 @@
   }
 
   .opt-text {
-    font-size: 0.92rem;
+    font-size: 0.88rem;
     font-weight: 500;
     flex: 1;
   }
@@ -749,72 +717,13 @@
     margin-top: 4px;
   }
 
-  /* Quiz recap box */
-  .quiz-recap-box {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 14px 16px;
-    border-radius: 20px;
-    margin: 2px 0 4px 0;
-  }
-
-  .quiz-recap-box.recap-correct {
-    background: rgba(127, 169, 148, 0.14);
-    border: 1px solid rgba(127, 169, 148, 0.4);
-    color: #2f5f4a;
-  }
-
-  .quiz-recap-box.recap-incorrect {
-    background: rgba(168, 74, 74, 0.08);
-    border: 1px solid rgba(168, 74, 74, 0.28);
-    color: #8a3a3f;
-  }
-
-  .recap-icon {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
-
-  .recap-correct .recap-icon {
-    background: #7fa994;
-    color: #fff;
-  }
-
-  .recap-incorrect .recap-icon {
-    background: #a84a4a;
-    color: #fff;
-  }
-
-  .recap-content {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    font-size: 0.9rem;
-  }
-
-  .recap-title {
-    font-weight: 600;
-  }
-
-  .recap-sub {
-    font-size: 0.83rem;
-    opacity: 0.9;
-  }
-
   .opt-status-tag {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 700;
-    padding: 3px 9px;
+    padding: 2px 7px;
     border-radius: 999px;
     margin-left: auto;
     white-space: nowrap;

@@ -1,5 +1,16 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
+
+  function formatPoints(pts) {
+    if (typeof pts === 'string') {
+      if (pts.toLowerCase().includes('punt') || pts.toLowerCase().includes('pt')) {
+        return pts.startsWith('+') ? pts : `+${pts}`;
+      }
+    }
+    const num = Number(pts);
+    const label = num === 1 ? 'punto' : 'punti';
+    return `+${pts} ${label}`;
+  }
 </script>
 
 <div class="toast-container">
@@ -17,7 +28,7 @@
       <div class="toast-content">
         <div class="toast-text">{toast.text}</div>
         {#if toast.points}
-          <div class="toast-points">+{toast.points} PT</div>
+          <div class="toast-points">{formatPoints(toast.points)}</div>
         {/if}
       </div>
       <button class="toast-close" onclick={() => appState.removeToast(toast.id)} aria-label="Chiudi">
@@ -96,8 +107,10 @@
     font-weight: 800;
     padding: 2px 8px;
     border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.22);
     color: #fff;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .toast-close {

@@ -35,7 +35,7 @@
 
       const pts = res.points_awarded || quizPoints;
       if (res.is_correct) {
-        appState.showToast(`Risposta corretta, hai guadagnato ${pts} punti!`, 'success', pts);
+        appState.showToast('Risposta corretta', 'success', pts);
       } else {
         appState.showToast('Risposta sbagliata', 'error');
       }
@@ -77,7 +77,7 @@
       const isFirstTime = res.status === 'created';
       if (isFirstTime) {
         const pts = res.points_awarded || votePoints;
-        appState.showToast(`Momento salvato! Hai guadagnato ${pts} punti!`, 'success', pts);
+        appState.showToast('Momento salvato!', 'success', pts);
       } else {
         appState.showToast('Momento aggiornato con successo!', 'success');
       }

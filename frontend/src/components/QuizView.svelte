@@ -309,8 +309,8 @@
             {@const hasUnsavedChanges = isAnswered && currentDraft.trim() !== savedAnswer.trim()}
 
             <div class="game-card glass-card {isAnswered ? 'moment-card-answered' : ''}">
+              <span class="badge badge-gold moment-points">+{vote.points} PT</span>
               <div class="card-top-row">
-                <span class="badge badge-gold">+{vote.points} pt</span>
                 {#if isAnswered}
                   <span class="badge badge-green">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -357,8 +357,6 @@
                             Salvato · modificabile fino a fine evento
                           </span>
                         {/if}
-                      {:else}
-                        <span class="moment-hint">Puoi modificare il testo anche in seguito</span>
                       {/if}
                     {/if}
                   </div>
@@ -499,6 +497,7 @@
 
   .game-card {
     position: relative;
+    position: relative;
     padding: 18px 16px;
     display: flex;
     flex-direction: column;
@@ -506,6 +505,16 @@
     background: #fff;
     border-radius: 22px;
     overflow: visible;
+  }
+
+  .moment-points {
+    position: absolute;
+    top: -9px;
+    right: 16px;
+    z-index: 2;
+    transform: rotate(4deg);
+    background: #fff8e9;
+    box-shadow: 0 4px 10px -6px rgba(106, 32, 55, 0.45);
   }
 
   .card-top-row {

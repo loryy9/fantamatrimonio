@@ -113,24 +113,17 @@
         {@const isDone = !!submission}
 
         <div class="hunt-card glass-card {isDone ? 'card-completed' : ''}">
-          <div class="hunt-card-header">
-            <div class="hunt-badge-wrap">
-              <span class="badge {isDone ? 'badge-green' : 'badge-gold'}">
-                {#if isDone}
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Completata
-                {:else}
-                  +{hunt.points} PT
-                {/if}
-              </span>
-            </div>
-            {#if isDone}
-              <span class="done-check">
+          {#if !isDone}
+            <span class="badge badge-gold hunt-points">+{hunt.points} PT</span>
+          {/if}
+          {#if isDone}
+            <div class="hunt-card-header">
+              <span class="done-check" aria-label="Missione completata">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="done-icon"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 Fatta!
               </span>
-            {/if}
-          </div>
+            </div>
+          {/if}
 
           <h3 class="hunt-title font-serif">{hunt.title}</h3>
           <p class="hunt-desc">{hunt.description}</p>
@@ -191,15 +184,17 @@
 
   .hunt-container { display: flex; flex-direction: column; gap: 18px; width: 100%; min-width: 0; box-sizing: border-box; }
   .hunt-list { display: flex; flex-direction: column; gap: 12px; width: 100%; min-width: 0; }
-  .hunt-card { position: relative; padding: 18px 16px; display: flex; flex-direction: column; gap: 10px; border-radius: 22px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 14px 28px -20px rgba(106,32,55,.3); overflow: hidden; width: 100%; min-width: 0; box-sizing: border-box; }
+  .hunt-card { position: relative; padding: 18px 16px; display: flex; flex-direction: column; gap: 10px; border-radius: 22px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 14px 28px -20px rgba(106,32,55,.3); overflow: visible; width: 100%; min-width: 0; box-sizing: border-box; }
   .hunt-card::before { content: ''; position: absolute; left: 0; top: 22px; bottom: 22px; width: 3px; border-radius: 0 3px 3px 0; background: var(--wine); }
   .card-completed { background: linear-gradient(160deg, rgba(127,169,148,.12) 0%, #fff 55%); border-color: rgba(127,169,148,.4); }
   .card-completed::before { background: #7fa994; }
-  .hunt-card-header { display: flex; justify-content: space-between; align-items: center; }
+  .hunt-card-header { display: flex; justify-content: flex-end; align-items: center; }
   .done-check { display: flex; align-items: center; gap: 5px; font-size: .8rem; font-weight: 700; color: #3f6d58; }
   .done-icon { color: #7fa994; }
   .hunt-title { font-size: 1.45rem; font-weight: 600; line-height: 1.15; color: var(--text-main); }
   .hunt-desc { font-size: .9rem; color: #6b5f64; line-height: 1.5; }
+  .action-row { display: flex; align-items: center; gap: 10px; margin-top: 3px; }
+  .hunt-points { position: absolute; top: -9px; right: 16px; z-index: 2; transform: rotate(4deg); background: #fff8e9; box-shadow: 0 4px 10px -6px rgba(106,32,55,.45); }
   .completed-box { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(127,169,148,.14); border: 1px solid rgba(127,169,148,.35); padding: 12px 14px; border-radius: 18px; margin-top: 4px; }
   .completed-info { display: flex; flex-direction: column; font-size: .82rem; color: var(--text-main); }
   .points-awarded { font-weight: 700; color: #7a5a1c; font-size: .85rem; }

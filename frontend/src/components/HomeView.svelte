@@ -106,12 +106,15 @@
 
   <section class="intro">
     <div class="intro-text">
-      <div class="couple font-serif"><span class="rule"></span>{coupleNames}</div>
+      <div class="couple font-serif">
+        <span class="rule"></span>
+        <span>{coupleNames}</span>
+        <button class="rules-link" onclick={() => appState.showInstructionsModal = true} title="Rivedi le regole e le istruzioni">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          Come si gioca
+        </button>
+      </div>
       <h1 class="title font-serif">Ciao, {formatName(appState.user?.first_name) || 'Invitato'}!</h1>
-      <button class="rules-link" onclick={() => appState.showInstructionsModal = true} title="Rivedi le regole e le istruzioni">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
-        Come si gioca
-      </button>
     </div>
 
     {#if beforeStart}
@@ -213,11 +216,18 @@
   .couple {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     color: var(--wine);
     font-style: italic;
     font-size: 1.2rem;
     font-weight: 500;
+  }
+
+  .couple > span:nth-child(2) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .couple .rule {
@@ -243,8 +253,9 @@
     min-height: 44px;
     display: inline-flex;
     align-items: center;
+    flex: 0 0 auto;
     gap: 6px;
-    margin-top: 14px;
+    margin: 0 0 0 auto;
     padding: 0;
     border: none;
     background: none;

@@ -249,7 +249,10 @@
   }
 </script>
 
-<div class="gallery-container">
+<div
+  class="gallery-container"
+  class:gallery-empty={appState.galleryPhotos.length === 0 && selectedPhotos.length === 0}
+>
   {#if eventTimer.status === 'before_start'}
     <LockedChallenges
       title="Galleria Foto Bloccata"
@@ -459,6 +462,7 @@
   .page-desc { font-size: 0.92rem; font-style: italic; color: #6b5f64; margin-top: 8px; line-height: 1.5; max-width: 560px; }
 
   .gallery-container { display: flex; flex-direction: column; gap: 20px; width: 100%; min-width: 0; box-sizing: border-box; }
+  .gallery-container.gallery-empty { min-height: 100%; }
   .upload-card { padding: 18px; border-radius: 26px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 18px 34px -24px rgba(106,32,55,.4); width: 100%; min-width: 0; box-sizing: border-box; }
   .gallery-fab { position: fixed; right: 20px; bottom: calc(88px + var(--safe-bottom)); z-index: 90; width: 58px; height: 58px; border: 2px solid rgba(255,255,255,.9); border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--grad-gold-rose); box-shadow: 0 12px 24px rgba(106,32,55,.28), 0 0 0 5px rgba(255,255,255,.72); cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
   .gallery-fab:active { transform: scale(.94); }
@@ -496,7 +500,7 @@
   .spinner-tiny { width: 12px; height: 12px; border: 2px solid rgba(140,47,75,.2); border-top-color: var(--wine); border-radius: 50%; animation: spin .8s linear infinite; }
   .feed-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .feed-title { font-family: var(--font-display); font-weight: 600; color: var(--text-main); }
-  .empty-state { text-align: center; padding: 44px 20px; border-radius: 26px; }
+  .gallery-empty .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 280px; padding: 28px 20px; border-radius: 26px; }
   .empty-icon { width: 68px; height: 68px; margin: 0 auto 12px; border-radius: 50%; background: var(--wine-tint); color: var(--wine); display: flex; align-items: center; justify-content: center; }
   .empty-title { font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; color: var(--text-main); }
   .empty-desc { font-size: .85rem; color: #6b5f64; margin-top: 4px; }

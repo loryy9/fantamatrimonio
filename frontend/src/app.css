@@ -162,6 +162,21 @@ body {
   padding: calc(var(--main-content-top-padding) + 8px) 4px 8px !important;
 }
 
+/* page-header + sticky-head: header con padding interno confortevole attaccato alla topbar */
+.main-content .page-header.sticky-head {
+  position: sticky;
+  top: calc(var(--main-content-top-padding) * -1 - 12px) !important;
+  margin-top: calc(var(--main-content-top-padding) * -1 - 12px) !important;
+  padding: 18px 4px 16px !important;
+  background: var(--bg-primary) !important;
+  z-index: 20 !important;
+}
+
+/* Spazio tra sticky header e il primo contenuto della pagina */
+.main-content .page-header.sticky-head + * {
+  margin-top: 20px;
+}
+
 .main-content .page-header.gallery-page-header {
   display: flex;
   align-items: center;
@@ -169,17 +184,10 @@ body {
   gap: 12px;
 }
 
+/* La sottolineatura non è più legata al div ma al testo */
 .main-content .page-header::after {
-  content: '' !important;
-  display: block !important;
-  position: absolute !important;
-  left: 4px !important;
-  bottom: 0 !important;
-  width: 44px !important;
-  height: 2px !important;
-  margin: 0 !important;
-  border-radius: 2px !important;
-  background: var(--wine) !important;
+  content: none !important;
+  display: none !important;
 }
 
 .main-content .page-header .page-title,
@@ -189,6 +197,18 @@ body {
   font-weight: 500 !important;
   line-height: 1.05 !important;
   letter-spacing: -0.01em !important;
+}
+
+/* Sottolineatura vincolata direttamente sotto al testo */
+.main-content .page-header .page-title::after,
+.main-content .page-header .feed-title::after {
+  content: '' !important;
+  display: block !important;
+  width: 44px !important;
+  height: 2px !important;
+  margin-top: 6px !important;
+  border-radius: 2px !important;
+  background: var(--wine) !important;
 }
 
 /* Component-level editorial rules must not create a second, differently spaced line. */

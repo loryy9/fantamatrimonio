@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import { appState } from '../lib/state.svelte.js';
   import { api } from '../lib/api.js';
+  import { copyToClipboard } from '../lib/clipboard.js';
   import { PRESET_QUIZZES, PRESET_HUNTS, PRESET_MOMENTS } from '../lib/challengePresets.js';
 
   let activeTab = $state('quiz'); // 'quiz' | 'hunt' | 'moments' | 'settings'
@@ -95,8 +96,49 @@
     }
   }
 
+  let tabsNavEl = $state(null);
+  let canScrollLeft = $state(false);
+  let canScrollRight = $state(false);
+
+  function checkTabsScroll() {
+    if (!tabsNavEl) return;
+    canScrollLeft = tabsNavEl.scrollLeft > 6;
+    canScrollRight = tabsNavEl.scrollLeft < (tabsNavEl.scrollWidth - tabsNavEl.clientWidth - 6);
+  }
+
+  function scrollTabsLeft() {
+    if (tabsNavEl) {
+      tabsNavEl.scrollBy({ left: -140, behavior: 'smooth' });
+    }
+  }
+
+  function scrollTabsRight() {
+    if (tabsNavEl) {
+      tabsNavEl.scrollBy({ left: 140, behavior: 'smooth' });
+    }
+  }
+
+  function handleTabClick(tab, event) {
+    activeTab = tab;
+    if (event?.currentTarget) {
+      event.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }
+
   onMount(() => {
     loadData();
+    setTimeout(checkTabsScroll, 200);
+    window.addEventListener('resize', checkTabsScroll);
+    return () => window.removeEventListener('resize', checkTabsScroll);
+  });
+
+  $effect(() => {
+    if (tabsNavEl) {
+      checkTabsScroll();
+      const ro = new ResizeObserver(() => checkTabsScroll());
+      ro.observe(tabsNavEl);
+      return () => ro.disconnect();
+    }
   });
 
   // Toggle attivo / disattivo
@@ -269,11 +311,11 @@
   }
 
   async function copy(kind, text) {
-    try {
-      await navigator.clipboard.writeText(text);
+    const ok = await copyToClipboard(text);
+    if (ok) {
       copied = kind;
       setTimeout(() => { if (copied === kind) copied = ''; }, 2000);
-    } catch {
+    } else {
       appState.showToast('Copia fallita, seleziona a mano.', 'error');
     }
   }
@@ -331,37 +373,73 @@
     </div>
   </header>
 
-  <!-- Sub Navigation Tabs -->
-  <nav class="sub-nav-tabs">
-    <button
-      class="nav-tab-btn {activeTab === 'quiz' ? 'active' : ''}"
-      onclick={() => activeTab = 'quiz'}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-      Quiz Sposi ({quizChallenges.length})
-    </button>
-    <button
-      class="nav-tab-btn {activeTab === 'hunt' ? 'active' : ''}"
-      onclick={() => activeTab = 'hunt'}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>
-      Caccia al Tesoro ({huntChallenges.length})
-    </button>
-    <button
-      class="nav-tab-btn {activeTab === 'moments' ? 'active' : ''}"
-      onclick={() => activeTab = 'moments'}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 2 4 4-10 10H8v-4L18 2z"/><path d="m15 5 3 3"/></svg>
-      Momenti Migliori ({momentChallenges.length})
-    </button>
-    <button
-      class="nav-tab-btn {activeTab === 'settings' ? 'active' : ''}"
-      onclick={() => activeTab = 'settings'}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Codice Invito &amp; Timer
-    </button>
-  </nav>
+  <!-- Sub Navigation Tabs with Scroll Affordance -->
+  <div class="tabs-scroll-container">
+    {#if canScrollLeft}
+      <button class="scroll-fade-edge left" onclick={scrollTabsLeft} aria-label="Scorri indietro">
+        <span class="scroll-arrow-chip">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </span>
+      </button>
+    {/if}
+
+    <nav class="sub-nav-tabs" bind:this={tabsNavEl} onscroll={checkTabsScroll}>
+      <button
+        class="nav-tab-btn {activeTab === 'quiz' ? 'active' : ''}"
+        onclick={(e) => handleTabClick('quiz', e)}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        <span>Quiz ({quizChallenges.length})</span>
+      </button>
+      <button
+        class="nav-tab-btn {activeTab === 'hunt' ? 'active' : ''}"
+        onclick={(e) => handleTabClick('hunt', e)}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>
+        <span>Caccia ({huntChallenges.length})</span>
+      </button>
+      <button
+        class="nav-tab-btn {activeTab === 'moments' ? 'active' : ''}"
+        onclick={(e) => handleTabClick('moments', e)}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 2 4 4-10 10H8v-4L18 2z"/><path d="m15 5 3 3"/></svg>
+        <span>Momenti ({momentChallenges.length})</span>
+      </button>
+      <button
+        class="nav-tab-btn {activeTab === 'settings' ? 'active' : ''}"
+        onclick={(e) => handleTabClick('settings', e)}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Invito &amp; Timer</span>
+      </button>
+    </nav>
+
+    {#if canScrollRight}
+      <button class="scroll-fade-edge right" onclick={scrollTabsRight} aria-label="Scorri per altre opzioni">
+        <span class="scroll-arrow-chip">
+          <span class="scroll-chip-text">Altro</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+      </button>
+    {/if}
+  </div>
+
+  <div class="tabs-swipe-indicator" aria-hidden="true">
+    <div class="swipe-dots">
+      <span class="swipe-dot" class:active={activeTab === 'quiz'}></span>
+      <span class="swipe-dot" class:active={activeTab === 'hunt'}></span>
+      <span class="swipe-dot" class:active={activeTab === 'moments'}></span>
+      <span class="swipe-dot" class:active={activeTab === 'settings'}></span>
+    </div>
+    {#if canScrollRight}
+      <span class="swipe-label">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="inline-arrow"><path d="m9 18 6-6-6-6"/></svg>
+        Scorri a destra per altre opzioni
+      </span>
+    {:else}
+      <span class="swipe-label all-seen">Tutte le sezioni visibili</span>
+    {/if}
+  </div>
 
   {#if isLoading}
     <div class="loading-state">
@@ -774,11 +852,14 @@
     --sage: #5f8f77;
     --sage-tint: rgba(127, 169, 148, 0.18);
     max-width: 1100px;
+    width: 100%;
+    min-width: 0;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 20px;
     padding-bottom: 90px;
+    box-sizing: border-box;
   }
 
   .manage-container button:focus-visible,
@@ -854,13 +935,20 @@
   /* Stats */
   .stats-hub {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  @media (min-width: 640px) {
+    .stats-hub {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
   }
 
   .stat-card {
-    padding: 14px 16px;
-    border-radius: 22px;
+    padding: 10px 12px;
+    border-radius: 18px;
     background: #fff;
     border: 1px solid var(--hair);
     box-shadow: var(--card-shadow);
@@ -872,35 +960,189 @@
 
   .stat-num {
     font-family: var(--font-display);
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 600;
     line-height: 1.1;
     color: var(--wine);
   }
 
   .stat-label {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     color: var(--ink-soft);
     font-weight: 500;
+    margin-top: 2px;
   }
 
-  /* Tab pill */
+  /* Tab pill wrapper with scroll affordance */
+  .tabs-scroll-container {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .scroll-fade-edge {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    z-index: 26;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    background: transparent;
+    padding: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .scroll-fade-edge.left {
+    left: 2px;
+    width: 44px;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.98) 60%, transparent);
+    border-radius: 999px 0 0 999px;
+    justify-content: flex-start;
+    padding-left: 4px;
+  }
+
+  .scroll-fade-edge.right {
+    right: 2px;
+    width: 76px;
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.98) 60%, transparent);
+    border-radius: 0 999px 999px 0;
+    justify-content: flex-end;
+    padding-right: 4px;
+  }
+
+  .scroll-arrow-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--wine);
+    box-shadow: 0 2px 10px rgba(106, 32, 55, 0.35);
+    color: #ffffff;
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1;
+    animation: bounce-subtle 1.8s infinite ease-in-out;
+  }
+
+  .scroll-fade-edge.left .scroll-arrow-chip {
+    padding: 0 6px;
+    min-height: 26px;
+    width: 26px;
+    background: #ffffff;
+    border: 1px solid rgba(140, 47, 75, 0.2);
+    color: var(--wine);
+    animation: none;
+  }
+
+  .scroll-chip-text {
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  @keyframes bounce-subtle {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(3px); }
+  }
+
+  .tabs-swipe-indicator {
+    display: none;
+  }
+
+  @media (max-width: 600px) {
+    .tabs-swipe-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 6px 0;
+      color: var(--ink-soft);
+      font-size: 0.74rem;
+      font-weight: 600;
+    }
+
+    .swipe-dots {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .swipe-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(36, 28, 32, 0.18);
+      transition: all 0.2s ease;
+    }
+
+    .swipe-dot.active {
+      width: 16px;
+      border-radius: 4px;
+      background: var(--wine);
+    }
+
+    .swipe-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--wine);
+      font-weight: 700;
+      font-size: 0.72rem;
+    }
+
+    .swipe-label.all-seen {
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    .inline-arrow {
+      animation: bounce-subtle 1.8s infinite ease-in-out;
+    }
+
+    .sub-nav-tabs {
+      padding-right: 54px !important;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(140, 47, 75, 0.25) transparent;
+    }
+
+    .sub-nav-tabs::-webkit-scrollbar {
+      height: 3px !important;
+      display: block !important;
+    }
+
+    .sub-nav-tabs::-webkit-scrollbar-thumb {
+      background: rgba(140, 47, 75, 0.22);
+      border-radius: 999px;
+    }
+  }
+
   .sub-nav-tabs {
     position: -webkit-sticky;
     position: sticky;
     top: 0;
     z-index: 25;
     display: flex;
-    gap: 6px;
-    padding: 5px;
-    background: rgba(255, 255, 255, 0.92);
+    gap: 5px;
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.94);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border: 1px solid var(--hair);
     border-radius: 999px;
     box-shadow: var(--card-shadow);
     overflow-x: auto;
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
   }
 
   .sub-nav-tabs::-webkit-scrollbar {
@@ -908,20 +1150,20 @@
   }
 
   .nav-tab-btn {
-    flex: 1 0 auto;
-    display: flex;
+    flex-shrink: 0;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 10px 16px;
-    min-height: 44px;
+    gap: 6px;
+    padding: 8px 14px;
+    min-height: 38px;
     border: none;
     border-radius: 999px;
     background: transparent;
     color: var(--ink-soft);
     font-family: var(--font-sans);
     font-weight: 600;
-    font-size: 0.88rem;
+    font-size: 0.8rem;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
     white-space: nowrap;
@@ -1143,17 +1385,18 @@
     gap: 12px;
   }
 
-  /* Impostazioni */
   .settings-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 20px;
+    min-width: 0;
+    width: 100%;
   }
 
   .settings-card,
   .settings-card.glass-card {
-    padding: 24px;
-    border-radius: 26px;
+    padding: 20px;
+    border-radius: 24px;
     background: #fff;
     border: 1px solid var(--hair);
     box-shadow: var(--card-shadow);
@@ -1162,51 +1405,66 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .settings-card-title {
     margin: 0;
     color: var(--ink);
     font-family: var(--font-display);
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     font-weight: 600;
   }
 
   /* Unico elemento solido: il codice invito */
   .invite-code-display {
-    padding: 18px 16px;
-    border-radius: 22px;
+    padding: 14px 10px;
+    border-radius: 20px;
     background: var(--wine);
     color: #fff;
     font-family: var(--font-display);
-    font-size: 2.4rem;
+    font-size: clamp(1.5rem, 6.5vw, 2.2rem);
     font-weight: 600;
     text-align: center;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.12em;
     user-select: all;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .invite-actions {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
-    justify-content: center;
+    width: 100%;
+  }
+
+  .invite-actions .btn-primary {
+    grid-column: span 2;
   }
 
   .link-preview {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--ink-soft);
-    padding: 8px 14px;
-    border-radius: 999px;
+    padding: 8px 12px;
+    border-radius: 12px;
     background: var(--wine-tint);
+    word-break: break-all;
     overflow-wrap: anywhere;
     text-align: center;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .input-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 12px;
+    min-width: 0;
   }
 
   .timer-section {
@@ -1221,8 +1479,29 @@
 
   .timer-inputs {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 10px;
+    min-width: 0;
+  }
+
+  .timer-inputs input[type="datetime-local"] {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    font-size: 0.9rem;
+    padding: 10px 12px;
+  }
+
+  @media (max-width: 640px) {
+    .settings-grid {
+      grid-template-columns: 1fr;
+    }
+    .input-row,
+    .timer-inputs {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
   }
 
   /* Drawer laterale (da destra) */

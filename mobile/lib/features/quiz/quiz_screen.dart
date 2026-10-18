@@ -26,7 +26,7 @@ class QuizScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const GameAppBar(),
+      appBar: const GameAppBar(pageTitle: 'Giochi'),
       body: Column(
         children: [
           Padding(
@@ -38,16 +38,23 @@ class QuizScreen extends ConsumerWidget {
           ),
           Expanded(
             child: tick.status == TimerStatus.beforeStart
-                ? _LockedState(startTime: tick.startTimeFormatted, isQuiz: subTab == 'quiz')
+                ? _LockedState(
+                    startTime: tick.startTimeFormatted,
+                    isQuiz: subTab == 'quiz',
+                  )
                 : subTab == 'quiz'
-                    ? _QuizList(
-                        challenges: challenges.where((c) => c.type == 'quiz').toList(),
-                        timerEnded: tick.status == TimerStatus.ended,
-                      )
-                    : _VoteList(
-                        challenges: challenges.where((c) => c.type == 'vote').toList(),
-                        timerEnded: tick.status == TimerStatus.ended,
-                      ),
+                ? _QuizList(
+                    challenges: challenges
+                        .where((c) => c.type == 'quiz')
+                        .toList(),
+                    timerEnded: tick.status == TimerStatus.ended,
+                  )
+                : _VoteList(
+                    challenges: challenges
+                        .where((c) => c.type == 'vote')
+                        .toList(),
+                    timerEnded: tick.status == TimerStatus.ended,
+                  ),
           ),
         ],
       ),
@@ -72,10 +79,20 @@ class _SubNav extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: _SubNavButton(label: 'Quiz Sposi', selected: value == 'quiz', onTap: () => onChanged('quiz'))),
           Expanded(
-              child: _SubNavButton(
-                  label: 'Momenti Migliori', selected: value == 'vote', onTap: () => onChanged('vote'))),
+            child: _SubNavButton(
+              label: 'Quiz Sposi',
+              selected: value == 'quiz',
+              onTap: () => onChanged('quiz'),
+            ),
+          ),
+          Expanded(
+            child: _SubNavButton(
+              label: 'Momenti Migliori',
+              selected: value == 'vote',
+              onTap: () => onChanged('vote'),
+            ),
+          ),
         ],
       ),
     );
@@ -87,7 +104,11 @@ class _SubNavButton extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _SubNavButton({required this.label, required this.selected, required this.onTap});
+  const _SubNavButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -97,9 +118,13 @@ class _SubNavButton extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.goldPrimary.withOpacity(0.16) : Colors.transparent,
+          color: selected
+              ? AppColors.goldPrimary.withOpacity(0.16)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: selected ? Border.all(color: AppColors.goldPrimary.withOpacity(0.4)) : null,
+          border: selected
+              ? Border.all(color: AppColors.goldPrimary.withOpacity(0.4))
+              : null,
         ),
         child: Text(
           label,
@@ -129,17 +154,25 @@ class _LockedState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(isQuiz ? Icons.emoji_objects_outlined : Icons.favorite_outline,
-                size: 44, color: AppColors.goldPrimary.withOpacity(0.5)),
+            Icon(
+              isQuiz ? Icons.emoji_objects_outlined : Icons.favorite_outline,
+              size: 44,
+              color: AppColors.goldPrimary.withOpacity(0.5),
+            ),
             const SizedBox(height: 14),
             Text(
-              isQuiz ? 'Quiz sugli Sposi Bloccato' : 'Momenti Migliori Bloccati',
+              isQuiz
+                  ? 'Quiz sugli Sposi Bloccato'
+                  : 'Momenti Migliori Bloccati',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 6),
-            Text('Sarà sbloccato alle $startTime',
-                textAlign: TextAlign.center, style: TextStyle(color: AppColors.inkMuted)),
+            Text(
+              'Sarà sbloccato alle $startTime',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.inkMuted),
+            ),
           ],
         ),
       ),
@@ -162,7 +195,10 @@ class _SectionHeader extends StatelessWidget {
         children: [
           Text(title, style: Theme.of(context).textTheme.headlineLarge),
           const SizedBox(height: 4),
-          Text(subtitle, style: TextStyle(color: AppColors.inkMuted, fontSize: 13)),
+          Text(
+            subtitle,
+            style: TextStyle(color: AppColors.inkMuted, fontSize: 13),
+          ),
         ],
       ),
     );
@@ -174,7 +210,11 @@ class _EmptyList extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _EmptyList({required this.icon, required this.title, required this.subtitle});
+  const _EmptyList({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +228,11 @@ class _EmptyList extends StatelessWidget {
             const SizedBox(height: 10),
             Text(title, style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 4),
-            Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: AppColors.inkMuted)),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.inkMuted),
+            ),
           ],
         ),
       ),
@@ -210,27 +254,43 @@ class _QuizListState extends ConsumerState<_QuizList> {
   final _answering = <int>{};
 
   Future<void> _answer(Challenge quiz, String optionId) async {
-    if (widget.timerEnded || quiz.completed || _localResults.containsKey(quiz.id) || _answering.contains(quiz.id)) {
+    if (widget.timerEnded ||
+        quiz.completed ||
+        _localResults.containsKey(quiz.id) ||
+        _answering.contains(quiz.id)) {
       return;
     }
 
     setState(() => _answering.add(quiz.id));
     final api = ref.read(apiClientProvider);
     try {
-      final res = await api.post('/submissions/quiz/${quiz.id}', body: {'answer': optionId}) as Map<String, dynamic>;
-      setState(() => _localResults[quiz.id] = {
-            'selected': optionId,
-            'is_correct': res['is_correct'],
-            'correct_answer': res['correct_answer'],
-          });
-      ref.read(toastProvider.notifier).show(
-            res['is_correct'] == true ? 'Risposta corretta, hai guadagnato ${res['points_awarded']} punti! 🎉' : 'Risposta sbagliata',
+      final res =
+          await api.post(
+                '/submissions/quiz/${quiz.id}',
+                body: {'answer': optionId},
+              )
+              as Map<String, dynamic>;
+      setState(
+        () => _localResults[quiz.id] = {
+          'selected': optionId,
+          'is_correct': res['is_correct'],
+          'correct_answer': res['correct_answer'],
+        },
+      );
+      ref
+          .read(toastProvider.notifier)
+          .show(
+            res['is_correct'] == true
+                ? 'Risposta corretta, hai guadagnato ${res['points_awarded']} punti! 🎉'
+                : 'Risposta sbagliata',
             type: res['is_correct'] == true ? 'success' : 'error',
             points: res['points_awarded'] as int?,
           );
       await ref.read(challengesProvider.notifier).refresh();
     } on ApiException catch (e) {
-      final message = e.status == 409 ? 'Hai già risposto a questa domanda.' : e.message;
+      final message = e.status == 409
+          ? 'Hai già risposto a questa domanda.'
+          : e.message;
       ref.read(toastProvider.notifier).show(message, type: 'error');
     } finally {
       if (mounted) setState(() => _answering.remove(quiz.id));
@@ -254,15 +314,18 @@ class _QuizListState extends ConsumerState<_QuizList> {
         if (i == 0) {
           return const _SectionHeader(
             title: 'Quiz sugli Sposi',
-            subtitle: 'Rispondi alle domande e dimostra quanto conosci gli sposi!',
+            subtitle:
+                'Rispondi alle domande e dimostra quanto conosci gli sposi!',
           );
         }
         final quiz = widget.challenges[i - 1];
         final localResult = _localResults[quiz.id];
         final isDone = quiz.completed || localResult != null;
-        final isCorrect = localResult?['is_correct'] as bool? ?? quiz.isCorrect ?? false;
+        final isCorrect =
+            localResult?['is_correct'] as bool? ?? quiz.isCorrect ?? false;
         final myAnswer = localResult?['selected'] as String? ?? quiz.myAnswer;
-        final correctAnswer = localResult?['correct_answer'] as String? ?? quiz.correctAnswer;
+        final correctAnswer =
+            localResult?['correct_answer'] as String? ?? quiz.correctAnswer;
 
         return _QuizCard(
           quiz: quiz,
@@ -309,58 +372,101 @@ class _QuizCard extends StatelessWidget {
         color: AppColors.paper,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppColors.goldPrimary.withOpacity(0.14)),
-        boxShadow: [BoxShadow(color: AppColors.goldDark.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, 6))],
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.goldDark.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              _chip('+${quiz.points} PT', AppColors.goldDark, AppColors.goldPrimary.withOpacity(0.12)),
+              _chip(
+                '+${quiz.points} PT',
+                AppColors.goldDark,
+                AppColors.goldPrimary.withOpacity(0.12),
+              ),
               const Spacer(),
               if (isDone)
                 _chip(
-                  isCorrect ? '✓ Esatta (+${quiz.points} PT)' : '✗ Errata (0 PT)',
+                  isCorrect
+                      ? '✓ Esatta (+${quiz.points} PT)'
+                      : '✗ Errata (0 PT)',
                   isCorrect ? _emerald : AppColors.rosePrimary,
-                  (isCorrect ? _emerald : AppColors.rosePrimary).withOpacity(0.12),
+                  (isCorrect ? _emerald : AppColors.rosePrimary).withOpacity(
+                    0.12,
+                  ),
                 )
               else if (timerEnded)
-                _chip('Tempo scaduto', AppColors.inkMuted, Colors.black.withOpacity(0.05)),
+                _chip(
+                  'Tempo scaduto',
+                  AppColors.inkMuted,
+                  Colors.black.withOpacity(0.05),
+                ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(quiz.title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 19)),
+          Text(
+            quiz.title,
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontSize: 19),
+          ),
           if (quiz.description.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(quiz.description, style: TextStyle(color: AppColors.inkMuted, fontSize: 13)),
+            Text(
+              quiz.description,
+              style: TextStyle(color: AppColors.inkMuted, fontSize: 13),
+            ),
           ],
           if (isDone) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: (isCorrect ? _emerald : AppColors.rosePrimary).withOpacity(0.1),
+                color: (isCorrect ? _emerald : AppColors.rosePrimary)
+                    .withOpacity(0.1),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: (isCorrect ? _emerald : AppColors.rosePrimary).withOpacity(0.3)),
+                border: Border.all(
+                  color: (isCorrect ? _emerald : AppColors.rosePrimary)
+                      .withOpacity(0.3),
+                ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                      color: isCorrect ? _emerald : AppColors.rosePrimary, size: 20),
+                  Icon(
+                    isCorrect
+                        ? Icons.check_circle_rounded
+                        : Icons.cancel_rounded,
+                    color: isCorrect ? _emerald : AppColors.rosePrimary,
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('La tua risposta: ${myAnswer ?? 'N/D'}',
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                        Text(
+                          'La tua risposta: ${myAnswer ?? 'N/D'}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                          ),
+                        ),
                         const SizedBox(height: 2),
                         Text(
                           isCorrect
                               ? 'Risposta esatta! Punti assegnati: +${quiz.points} PT'
                               : 'Risposta non corretta. Quella corretta era: ${correctAnswer ?? 'N/D'}',
-                          style: TextStyle(fontSize: 12.5, color: AppColors.inkMuted),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.inkMuted,
+                          ),
                         ),
                       ],
                     ),
@@ -397,7 +503,10 @@ class _QuizCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                   onTap: locked || answering ? null : () => onAnswer(opt.id),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: borderColor),
@@ -408,11 +517,29 @@ class _QuizCard extends StatelessWidget {
                           width: 26,
                           height: 26,
                           alignment: Alignment.center,
-                          decoration: BoxDecoration(color: Colors.black.withOpacity(0.05), shape: BoxShape.circle),
-                          child: Text(optLetter, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: AppColors.inkMuted)),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.05),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            optLetter,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                              color: AppColors.inkMuted,
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 12),
-                        Expanded(child: Text(opt.text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
+                        Expanded(
+                          child: Text(
+                            opt.text,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
                         if (isDone && isSelected && isCorrect)
                           _tag('La tua risposta ✓', _emerald)
                         else if (isDone && isSelected && !isCorrect)
@@ -432,16 +559,32 @@ class _QuizCard extends StatelessWidget {
   }
 
   Widget _chip(String text, Color fg, Color bg) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-        child: Text(text, style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 11.5)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 11.5),
+    ),
+  );
 
   Widget _tag(String text, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
-        child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 10.5)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.15),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: color,
+        fontWeight: FontWeight.w700,
+        fontSize: 10.5,
+      ),
+    ),
+  );
 }
 
 class _VoteList extends ConsumerStatefulWidget {
@@ -457,26 +600,36 @@ class _VoteListState extends ConsumerState<_VoteList> {
   final _controllers = <int, TextEditingController>{};
   final _saving = <int>{};
 
-  TextEditingController _ctrlFor(Challenge c) =>
-      _controllers.putIfAbsent(c.id, () => TextEditingController(text: c.myVote ?? ''));
+  TextEditingController _ctrlFor(Challenge c) => _controllers.putIfAbsent(
+    c.id,
+    () => TextEditingController(text: c.myVote ?? ''),
+  );
 
   Future<void> _save(Challenge c) async {
     final text = _ctrlFor(c).text.trim();
     if (text.isEmpty) {
-      ref.read(toastProvider.notifier).show('Scrivi il tuo momento prima di salvare!', type: 'error');
+      ref
+          .read(toastProvider.notifier)
+          .show('Scrivi il tuo momento prima di salvare!', type: 'error');
       return;
     }
     setState(() => _saving.add(c.id));
     try {
       final api = ref.read(apiClientProvider);
-      final res = await api.post('/submissions/vote/${c.id}', body: {
-        'option_id': text,
-        'text': text,
-      }) as Map<String, dynamic>;
+      final res =
+          await api.post(
+                '/submissions/vote/${c.id}',
+                body: {'option_id': text, 'text': text},
+              )
+              as Map<String, dynamic>;
 
       final isFirstTime = res['status'] == 'created';
-      ref.read(toastProvider.notifier).show(
-            isFirstTime ? 'Momento salvato! Hai guadagnato ${res['points_awarded']} punti! 🎉' : 'Momento aggiornato con successo!',
+      ref
+          .read(toastProvider.notifier)
+          .show(
+            isFirstTime
+                ? 'Momento salvato! Hai guadagnato ${res['points_awarded']} punti! 🎉'
+                : 'Momento aggiornato con successo!',
             type: 'success',
             points: isFirstTime ? res['points_awarded'] as int? : null,
           );
@@ -517,7 +670,13 @@ class _VoteListState extends ConsumerState<_VoteList> {
             color: AppColors.paper,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: AppColors.goldPrimary.withOpacity(0.14)),
-            boxShadow: [BoxShadow(color: AppColors.goldDark.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, 6))],
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.goldDark.withOpacity(0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,9 +684,22 @@ class _VoteListState extends ConsumerState<_VoteList> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(color: AppColors.goldPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                    child: Text('+${c.points} PT', style: TextStyle(color: AppColors.goldDark, fontWeight: FontWeight.w700, fontSize: 11.5)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.goldPrimary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '+${c.points} PT',
+                      style: TextStyle(
+                        color: AppColors.goldDark,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
+                      ),
+                    ),
                   ),
                   const Spacer(),
                   if (isAnswered)
@@ -535,10 +707,18 @@ class _VoteListState extends ConsumerState<_VoteList> {
                 ],
               ),
               const SizedBox(height: 10),
-              Text(c.title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 19)),
+              Text(
+                c.title,
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineMedium?.copyWith(fontSize: 19),
+              ),
               if (c.description.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                Text(c.description, style: TextStyle(color: AppColors.inkMuted, fontSize: 13)),
+                Text(
+                  c.description,
+                  style: TextStyle(color: AppColors.inkMuted, fontSize: 13),
+                ),
               ],
               const SizedBox(height: 12),
               TextField(
@@ -550,7 +730,10 @@ class _VoteListState extends ConsumerState<_VoteList> {
                   hintText: 'Scrivi qui la tua risposta...',
                   filled: true,
                   fillColor: AppColors.background,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
               if (!widget.timerEnded)
@@ -558,7 +741,9 @@ class _VoteListState extends ConsumerState<_VoteList> {
                   alignment: Alignment.centerRight,
                   child: ElevatedButton(
                     onPressed: _saving.contains(c.id) ? null : () => _save(c),
-                    child: Text(isAnswered ? 'Salva modifiche' : 'Invia risposta'),
+                    child: Text(
+                      isAnswered ? 'Salva modifiche' : 'Invia risposta',
+                    ),
                   ),
                 ),
             ],

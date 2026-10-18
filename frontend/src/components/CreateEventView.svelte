@@ -1,5 +1,6 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
+  import { copyToClipboard } from '../lib/clipboard.js';
   import OnboardingSetup from './OnboardingSetup.svelte';
   import EmailVerificationField from './EmailVerificationField.svelte';
 
@@ -105,11 +106,11 @@
   }
 
   async function copy(kind, text) {
-    try {
-      await navigator.clipboard.writeText(text);
+    const ok = await copyToClipboard(text);
+    if (ok) {
       copied = kind;
       setTimeout(() => { if (copied === kind) copied = ''; }, 2000);
-    } catch {
+    } else {
       appState.showToast('Copia non riuscita, seleziona il testo a mano.', 'error');
     }
   }
@@ -603,12 +604,41 @@
 
   .row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 14px;
+    min-width: 0;
+  }
+
+  .input-group {
+    min-width: 0;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .timer-row {
     margin-top: 16px;
+  }
+
+  .timer-row input[type="datetime-local"] {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    font-size: 0.92rem;
+    padding: 11px 12px;
+  }
+
+  @media (max-width: 640px) {
+    .row {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .timer-row {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
   }
 
   .switch-row {
@@ -1202,9 +1232,11 @@
   }
 
   @media (max-width: 520px) {
-    .row { grid-template-columns: 1fr; gap: 0; }
-    :global(.auth-card) { padding: 24px; }
+    .row { grid-template-columns: 1fr; gap: 14px; }
+    :global(.auth-card) { padding: 20px 16px; }
     .guide-modal-card { padding: 24px 18px 22px; border-radius: 20px; }
     .mini-nav-anchor { display: none; }
+    legend { font-size: 1.3rem; margin-bottom: 10px; }
+    .create-aside .page-title { font-size: 2.1rem; }
   }
 </style>

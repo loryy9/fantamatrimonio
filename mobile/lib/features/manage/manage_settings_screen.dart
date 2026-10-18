@@ -8,7 +8,8 @@ class ManageSettingsScreen extends ConsumerStatefulWidget {
   const ManageSettingsScreen({super.key});
 
   @override
-  ConsumerState<ManageSettingsScreen> createState() => _ManageSettingsScreenState();
+  ConsumerState<ManageSettingsScreen> createState() =>
+      _ManageSettingsScreenState();
 }
 
 class _ManageSettingsScreenState extends ConsumerState<ManageSettingsScreen> {
@@ -38,15 +39,19 @@ class _ManageSettingsScreenState extends ConsumerState<ManageSettingsScreen> {
 
   Future<void> _save() async {
     final body = <String, dynamic>{};
-    if (_dirty.contains('spouse1')) body['spouse1_name'] = _spouse1Ctrl.text.trim();
-    if (_dirty.contains('spouse2')) body['spouse2_name'] = _spouse2Ctrl.text.trim();
+    if (_dirty.contains('spouse1'))
+      body['spouse1_name'] = _spouse1Ctrl.text.trim();
+    if (_dirty.contains('spouse2'))
+      body['spouse2_name'] = _spouse2Ctrl.text.trim();
     if (body.isEmpty) return;
 
     final api = ref.read(apiClientProvider);
     try {
       await api.patch('/events/me', body: body);
       _dirty.clear();
-      ref.read(toastProvider.notifier).show('Impostazioni salvate.', type: 'success');
+      ref
+          .read(toastProvider.notifier)
+          .show('Impostazioni salvate.', type: 'success');
     } catch (e) {
       ref.read(toastProvider.notifier).show(e.toString(), type: 'error');
     }
@@ -54,17 +59,21 @@ class _ManageSettingsScreenState extends ConsumerState<ManageSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
-      appBar: const GameAppBar(),
+      appBar: const GameAppBar(pageTitle: 'Impostazioni evento'),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Codice invito'),
-            Text(_inviteCode ?? '', style: Theme.of(context).textTheme.headlineMedium),
+            Text(
+              _inviteCode ?? '',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
             const SizedBox(height: 16),
             TextField(
               key: const Key('spouse1_settings_field'),

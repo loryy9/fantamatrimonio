@@ -9,13 +9,25 @@ class ManageHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const GameAppBar(),
+      appBar: const GameAppBar(pageTitle: 'Gestione partita'),
       body: ListView(
         children: [
-          ListTile(title: const Text('Impostazioni evento'), onTap: () => context.go(RoutePaths.manageSettings)),
-          ListTile(title: const Text('Quiz sugli sposi'), onTap: () => context.go(RoutePaths.manageQuiz)),
-          ListTile(title: const Text('Caccia al tesoro'), onTap: () => context.go(RoutePaths.manageHunt)),
-          ListTile(title: const Text('Momenti migliori'), onTap: () => context.go(RoutePaths.manageVote)),
+          ListTile(
+            title: const Text('Impostazioni evento'),
+            onTap: () => context.go(RoutePaths.manageSettings),
+          ),
+          ListTile(
+            title: const Text('Quiz sugli sposi'),
+            onTap: () => context.go(RoutePaths.manageQuiz),
+          ),
+          ListTile(
+            title: const Text('Caccia al tesoro'),
+            onTap: () => context.go(RoutePaths.manageHunt),
+          ),
+          ListTile(
+            title: const Text('Momenti migliori'),
+            onTap: () => context.go(RoutePaths.manageVote),
+          ),
         ],
       ),
     );

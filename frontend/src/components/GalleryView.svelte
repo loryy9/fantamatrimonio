@@ -250,35 +250,15 @@
 </script>
 
 <div class="gallery-container">
-  <!-- Section Title -->
-  <div class="header-box sticky-head">
-    <h1 class="page-title font-serif">Galleria Condivisa</h1>
-    <p class="page-desc">
-      {#if eventTimer.status === 'ended'}
-        I giochi sono conclusi, ma puoi continuare a caricare, visualizzare e gestire le foto della festa!
-      {:else}
-        Condividi i tuoi momenti con tutti gli invitati e guadagna 10 punti per ogni foto!
-      {/if}
-    </p>
-  </div>
-
   {#if eventTimer.status === 'before_start'}
     <LockedChallenges
       title="Galleria Foto Bloccata"
       subtitle="La galleria fotografica e la condivisione degli scatti saranno aperte all'inizio dei giochi."
     />
   {:else}
+    {#if selectedPhotos.length > 0}
     <!-- Upload Card -->
     <div class="upload-card">
-    {#if selectedPhotos.length === 0}
-      <div class="upload-placeholder" onclick={() => fileInput?.click()}>
-        <div class="upload-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/><path d="M12 10v6"/><path d="M9 13h6"/></svg>
-        </div>
-        <div class="upload-cta">Scatta o Scegli le Foto</div>
-        <div class="upload-subtext">Seleziona anche più foto insieme • fino a 10 foto</div>
-      </div>
-    {:else}
       {#if selectedPhotos.length === 1}
         <div class="preview-area">
           <img src={selectedPhotos[0].previewUrl} alt="Anteprima" class="preview-image" />
@@ -356,6 +336,20 @@
           {/if}
         </button>
       </div>
+    </div>
+    {:else}
+      <button
+        class="gallery-fab"
+        type="button"
+        onclick={() => fileInput?.click()}
+        aria-label="Scatta o carica una foto"
+        title="Scatta o carica una foto"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+          <circle cx="12" cy="13" r="3"/>
+        </svg>
+      </button>
     {/if}
 
     <input
@@ -366,10 +360,9 @@
       bind:this={fileInput}
       onchange={handleFileSelect}
     />
-  </div>
 
   <!-- Feed Title -->
-  <div class="feed-header">
+  <div class="page-header gallery-page-header sticky-head">
     <h2 class="feed-title font-serif">Gli Scatti della Festa</h2>
     <span class="badge badge-rose">{appState.galleryPhotos.length} foto</span>
   </div>
@@ -461,12 +454,16 @@
 
 <style>
   .header-box { padding: 0 4px; }
-  .header-box::after { content: ''; display: block; width: 44px; height: 2px; border-radius: 2px; background: var(--wine); margin-top: 14px; }
+  .header-box::after { content: none; display: none; }
   .page-title { font-family: var(--font-display); font-size: clamp(2rem, 6vw, 2.8rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; color: var(--text-main); }
   .page-desc { font-size: 0.92rem; font-style: italic; color: #6b5f64; margin-top: 8px; line-height: 1.5; max-width: 560px; }
 
-  .gallery-container { display: flex; flex-direction: column; gap: 24px; }
-  .upload-card { padding: 18px; border-radius: 26px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 18px 34px -24px rgba(106,32,55,.4); }
+  .gallery-container { display: flex; flex-direction: column; gap: 20px; width: 100%; min-width: 0; box-sizing: border-box; }
+  .upload-card { padding: 18px; border-radius: 26px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 18px 34px -24px rgba(106,32,55,.4); width: 100%; min-width: 0; box-sizing: border-box; }
+  .gallery-fab { position: fixed; right: 20px; bottom: calc(88px + var(--safe-bottom)); z-index: 90; width: 58px; height: 58px; border: 2px solid rgba(255,255,255,.9); border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--grad-gold-rose); box-shadow: 0 12px 24px rgba(106,32,55,.28), 0 0 0 5px rgba(255,255,255,.72); cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
+  .gallery-fab:active { transform: scale(.94); }
+  .gallery-fab:focus-visible { outline: 3px solid var(--gold-dark); outline-offset: 3px; }
+  @media (min-width: 900px) { .gallery-fab { right: max(24px, calc((100vw - 480px) / 2 + 20px)); bottom: calc(96px + var(--safe-bottom)); } }
   .upload-placeholder { border: 1.5px dashed rgba(140,47,75,.3); border-radius: 20px; padding: 34px 16px; text-align: center; cursor: pointer; background: var(--wine-tint); transition: background .2s ease, border-color .2s ease; }
   .upload-placeholder:active { border-color: var(--wine); }
   @media (hover: hover) { .upload-placeholder:hover { border-color: var(--wine); background: #f1dae1; } }
@@ -497,16 +494,16 @@
   .optimization-pill { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 600; color: #3f6d58; background: rgba(127,169,148,.16); border: 1px solid rgba(127,169,148,.4); padding: 4px 12px; border-radius: 999px; align-self: flex-start; }
   .optimization-pill.preparing { color: var(--wine); background: var(--wine-tint); border-color: rgba(140,47,75,.2); }
   .spinner-tiny { width: 12px; height: 12px; border: 2px solid rgba(140,47,75,.2); border-top-color: var(--wine); border-radius: 50%; animation: spin .8s linear infinite; }
-  .feed-header { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px; }
-  .feed-title { font-size: 1.6rem; font-weight: 600; color: var(--text-main); }
+  .feed-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .feed-title { font-family: var(--font-display); font-weight: 600; color: var(--text-main); }
   .empty-state { text-align: center; padding: 44px 20px; border-radius: 26px; }
   .empty-icon { width: 68px; height: 68px; margin: 0 auto 12px; border-radius: 50%; background: var(--wine-tint); color: var(--wine); display: flex; align-items: center; justify-content: center; }
   .empty-title { font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; color: var(--text-main); }
   .empty-desc { font-size: .85rem; color: #6b5f64; margin-top: 4px; }
-  .photos-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  @media (min-width: 700px) { .photos-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
-  @media (min-width: 1000px) { .photos-grid { grid-template-columns: repeat(4, 1fr); } }
-  .photo-card { overflow: hidden; cursor: pointer; display: flex; flex-direction: column; border-radius: 24px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 18px 34px -26px rgba(106,32,55,.4); }
+  .photos-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; min-width: 0; box-sizing: border-box; }
+  @media (min-width: 700px) { .photos-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; } }
+  @media (min-width: 1000px) { .photos-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .photo-card { overflow: hidden; cursor: pointer; display: flex; flex-direction: column; border-radius: 20px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 14px 28px -20px rgba(106,32,55,.3); min-width: 0; box-sizing: border-box; }
   .photo-img-wrapper { position: relative; width: 100%; aspect-ratio: 1/1; background: var(--bg-surface-elevated); overflow: hidden; }
   .grid-img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s ease; }
   @media (hover: hover) { .photo-card:hover .grid-img { transform: scale(1.04); } }

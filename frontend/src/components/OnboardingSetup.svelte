@@ -42,6 +42,45 @@
   const selectedHuntCount = $derived(hunts.filter(h => h.selected).length);
   const selectedMomentsCount = $derived(moments.filter(m => m.selected).length);
 
+  let tabsNavEl = $state(null);
+  let canScrollLeft = $state(false);
+  let canScrollRight = $state(false);
+
+  function checkTabsScroll() {
+    if (!tabsNavEl) return;
+    canScrollLeft = tabsNavEl.scrollLeft > 6;
+    canScrollRight = tabsNavEl.scrollLeft < (tabsNavEl.scrollWidth - tabsNavEl.clientWidth - 6);
+  }
+
+  function scrollTabsLeft() {
+    if (tabsNavEl) {
+      tabsNavEl.scrollBy({ left: -140, behavior: 'smooth' });
+    }
+  }
+
+  function scrollTabsRight() {
+    if (tabsNavEl) {
+      tabsNavEl.scrollBy({ left: 140, behavior: 'smooth' });
+    }
+  }
+
+  function selectSection(sec, event) {
+    activeSection = sec;
+    if (event?.currentTarget) {
+      event.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+    setTimeout(checkTabsScroll, 200);
+  }
+
+  $effect(() => {
+    if (tabsNavEl) {
+      checkTabsScroll();
+      const ro = new ResizeObserver(() => checkTabsScroll());
+      ro.observe(tabsNavEl);
+      return () => ro.disconnect();
+    }
+  });
+
   // Aggiungi nuova domanda quiz
   function addCustomQuiz() {
     quizzes.push({
@@ -232,36 +271,71 @@
 
   <!-- Navigazione Sezioni Sticky sotto all'header -->
   <div class="sticky-tabs-container">
-    <div class="section-tabs">
-      <button
-        class="tab-btn {activeSection === 'quiz' ? 'active' : ''}"
-        onclick={() => activeSection = 'quiz'}
-      >
-        <span class="tab-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        </span>
-        <span class="tab-title">Quiz Sposi ({selectedQuizCount})</span>
-      </button>
+    <div class="tabs-scroll-container">
+      {#if canScrollLeft}
+        <button class="scroll-fade-edge left" onclick={scrollTabsLeft} aria-label="Scorri indietro">
+          <span class="scroll-arrow-chip">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </span>
+        </button>
+      {/if}
 
-      <button
-        class="tab-btn {activeSection === 'hunt' ? 'active' : ''}"
-        onclick={() => activeSection = 'hunt'}
-      >
-        <span class="tab-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        </span>
-        <span class="tab-title">Caccia al Tesoro ({selectedHuntCount})</span>
-      </button>
+      <div class="section-tabs" bind:this={tabsNavEl} onscroll={checkTabsScroll}>
+        <button
+          class="tab-btn {activeSection === 'quiz' ? 'active' : ''}"
+          onclick={(e) => selectSection('quiz', e)}
+        >
+          <span class="tab-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </span>
+          <span class="tab-title">Quiz Sposi ({selectedQuizCount})</span>
+        </button>
 
-      <button
-        class="tab-btn {activeSection === 'moments' ? 'active' : ''}"
-        onclick={() => activeSection = 'moments'}
-      >
-        <span class="tab-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <button
+          class="tab-btn {activeSection === 'hunt' ? 'active' : ''}"
+          onclick={(e) => selectSection('hunt', e)}
+        >
+          <span class="tab-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </span>
+          <span class="tab-title">Caccia al Tesoro ({selectedHuntCount})</span>
+        </button>
+
+        <button
+          class="tab-btn {activeSection === 'moments' ? 'active' : ''}"
+          onclick={(e) => selectSection('moments', e)}
+        >
+          <span class="tab-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </span>
+          <span class="tab-title">Momenti Migliori ({selectedMomentsCount})</span>
+        </button>
+      </div>
+
+      {#if canScrollRight}
+        <button class="scroll-fade-edge right" onclick={scrollTabsRight} aria-label="Scorri per altre opzioni">
+          <span class="scroll-arrow-chip">
+            <span class="scroll-chip-text">Altro</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </span>
+        </button>
+      {/if}
+    </div>
+
+    <div class="tabs-swipe-indicator" aria-hidden="true">
+      <div class="swipe-dots">
+        <span class="swipe-dot" class:active={activeSection === 'quiz'}></span>
+        <span class="swipe-dot" class:active={activeSection === 'hunt'}></span>
+        <span class="swipe-dot" class:active={activeSection === 'moments'}></span>
+      </div>
+      {#if canScrollRight}
+        <span class="swipe-label">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="inline-arrow"><path d="m9 18 6-6-6-6"/></svg>
+          Scorri a destra per altre opzioni
         </span>
-        <span class="tab-title">Momenti Migliori ({selectedMomentsCount})</span>
-      </button>
+      {:else}
+        <span class="swipe-label all-seen">Tutte le sezioni visibili</span>
+      {/if}
     </div>
   </div>
 
@@ -655,12 +729,93 @@
   .sticky-tabs-container {
     position: -webkit-sticky;
     position: sticky;
-    top: calc(var(--site-header-height, 72px) + var(--safe-top, 0px));
+    top: calc(var(--site-header-height, 46px) + var(--safe-top, 0px));
     z-index: 35;
     background: var(--bg-primary);
-    padding: 12px 0 14px;
+    padding: 8px 0 10px;
     margin: 0 0 16px;
     border-bottom: 1px solid rgba(36, 28, 32, 0.07);
+  }
+
+  .tabs-scroll-container {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .scroll-fade-edge {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    z-index: 26;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    background: transparent;
+    padding: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .scroll-fade-edge.left {
+    left: 2px;
+    width: 44px;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.98) 60%, transparent);
+    border-radius: 9999px 0 0 9999px;
+    justify-content: flex-start;
+    padding-left: 4px;
+  }
+
+  .scroll-fade-edge.right {
+    right: 2px;
+    width: 76px;
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.98) 60%, transparent);
+    border-radius: 0 9999px 9999px 0;
+    justify-content: flex-end;
+    padding-right: 4px;
+  }
+
+  .scroll-arrow-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 9999px;
+    background: var(--wine);
+    box-shadow: 0 2px 10px rgba(106, 32, 55, 0.35);
+    color: #ffffff;
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1;
+    animation: bounce-subtle 1.8s infinite ease-in-out;
+  }
+
+  .scroll-fade-edge.left .scroll-arrow-chip {
+    padding: 0 6px;
+    min-height: 26px;
+    width: 26px;
+    background: #ffffff;
+    border: 1px solid rgba(140, 47, 75, 0.2);
+    color: var(--wine);
+    animation: none;
+  }
+
+  .scroll-chip-text {
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  @keyframes bounce-subtle {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(3px); }
+  }
+
+  .tabs-swipe-indicator {
+    display: none;
   }
 
   .section-tabs {
@@ -673,10 +828,78 @@
     overflow-x: auto;
     scrollbar-width: none;
     box-shadow: 0 6px 18px rgba(140, 47, 75, 0.07);
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
   }
 
   .section-tabs::-webkit-scrollbar {
     display: none;
+  }
+
+  @media (max-width: 640px) {
+    .tabs-swipe-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 6px 0;
+      color: var(--ink-soft);
+      font-size: 0.74rem;
+      font-weight: 600;
+    }
+
+    .swipe-dots {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .swipe-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(36, 28, 32, 0.18);
+      transition: all 0.2s ease;
+    }
+
+    .swipe-dot.active {
+      width: 16px;
+      border-radius: 4px;
+      background: var(--wine);
+    }
+
+    .swipe-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--wine);
+      font-weight: 700;
+      font-size: 0.72rem;
+    }
+
+    .swipe-label.all-seen {
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    .inline-arrow {
+      animation: bounce-subtle 1.8s infinite ease-in-out;
+    }
+
+    .section-tabs {
+      padding-right: 54px !important;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(140, 47, 75, 0.25) transparent;
+    }
+
+    .section-tabs::-webkit-scrollbar {
+      height: 3px !important;
+      display: block !important;
+    }
+
+    .section-tabs::-webkit-scrollbar-thumb {
+      background: rgba(140, 47, 75, 0.22);
+      border-radius: 9999px;
+    }
   }
 
   .tab-btn {

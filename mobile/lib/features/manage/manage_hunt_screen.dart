@@ -7,15 +7,27 @@ import '../shell/toast_controller.dart';
 class ManageHuntScreen extends ConsumerWidget {
   const ManageHuntScreen({super.key});
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, int id) async {
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    int id,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminare questa missione?'),
-        content: const Text('Gli invitati perderanno i punti eventualmente guadagnati.'),
+        content: const Text(
+          'Gli invitati perderanno i punti eventualmente guadagnati.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annulla')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Elimina')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Elimina'),
+          ),
         ],
       ),
     );
@@ -28,7 +40,14 @@ class ManageHuntScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _openEditor(BuildContext context, WidgetRef ref, {int? id, String? title, String? description, int? points}) async {
+  Future<void> _openEditor(
+    BuildContext context,
+    WidgetRef ref, {
+    int? id,
+    String? title,
+    String? description,
+    int? points,
+  }) async {
     final titleCtrl = TextEditingController(text: title);
     final descCtrl = TextEditingController(text: description);
     final pointsCtrl = TextEditingController(text: points?.toString() ?? '10');
@@ -37,14 +56,34 @@ class ManageHuntScreen extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 20, right: 20, top: 20),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Missione')),
-            TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Descrizione (opzionale)')),
-            TextField(controller: pointsCtrl, decoration: const InputDecoration(labelText: 'Punti'), keyboardType: TextInputType.number),
-            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salva')),
+            TextField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(labelText: 'Missione'),
+            ),
+            TextField(
+              controller: descCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Descrizione (opzionale)',
+              ),
+            ),
+            TextField(
+              controller: pointsCtrl,
+              decoration: const InputDecoration(labelText: 'Punti'),
+              keyboardType: TextInputType.number,
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Salva'),
+            ),
           ],
         ),
       ),
@@ -72,7 +111,7 @@ class ManageHuntScreen extends ConsumerWidget {
     final challengesAsync = ref.watch(manageChallengesProvider('hunt'));
 
     return Scaffold(
-      appBar: const GameAppBar(),
+      appBar: const GameAppBar(pageTitle: 'Gestisci caccia'),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openEditor(context, ref),
         child: const Icon(Icons.add),
@@ -90,11 +129,20 @@ class ManageHuntScreen extends ConsumerWidget {
                 children: [
                   Switch(
                     value: c.active,
-                    onChanged: (v) => ref.read(manageChallengesProvider('hunt').notifier).toggleActive(c.id, v),
+                    onChanged: (v) => ref
+                        .read(manageChallengesProvider('hunt').notifier)
+                        .toggleActive(c.id, v),
                   ),
                   IconButton(
                     icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => _openEditor(context, ref, id: c.id, title: c.title, description: c.description, points: c.points),
+                    onPressed: () => _openEditor(
+                      context,
+                      ref,
+                      id: c.id,
+                      title: c.title,
+                      description: c.description,
+                      points: c.points,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline),

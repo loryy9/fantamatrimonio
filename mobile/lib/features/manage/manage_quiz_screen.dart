@@ -11,17 +11,29 @@ const _emerald = Color(0xFF3A7D5E);
 class ManageQuizScreen extends ConsumerWidget {
   const ManageQuizScreen({super.key});
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, int id) async {
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    int id,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.paper,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Eliminare questa domanda?'),
-        content: const Text('Gli invitati perderanno i punti eventualmente guadagnati.'),
+        content: const Text(
+          'Gli invitati perderanno i punti eventualmente guadagnati.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annulla')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Elimina')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Elimina'),
+          ),
         ],
       ),
     );
@@ -34,17 +46,28 @@ class ManageQuizScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _openEditor(BuildContext context, WidgetRef ref, {Challenge? existing}) async {
+  Future<void> _openEditor(
+    BuildContext context,
+    WidgetRef ref, {
+    Challenge? existing,
+  }) async {
     final titleCtrl = TextEditingController(text: existing?.title);
     final descCtrl = TextEditingController(text: existing?.description);
-    final pointsCtrl = TextEditingController(text: existing?.points.toString() ?? '30');
+    final pointsCtrl = TextEditingController(
+      text: existing?.points.toString() ?? '30',
+    );
     final optionCtrls = (existing?.options.isNotEmpty ?? false)
-        ? existing!.options.map((o) => TextEditingController(text: o.text)).toList()
+        ? existing!.options
+              .map((o) => TextEditingController(text: o.text))
+              .toList()
         : [TextEditingController(), TextEditingController()];
     int? correctIndex = existing == null
         ? null
         : optionCtrls.indexWhere(
-            (c) => c.text.trim().toLowerCase() == (existing.correctAnswer ?? '').trim().toLowerCase());
+            (c) =>
+                c.text.trim().toLowerCase() ==
+                (existing.correctAnswer ?? '').trim().toLowerCase(),
+          );
     if (correctIndex == -1) correctIndex = null;
 
     final saved = await showModalBottomSheet<bool>(
@@ -53,7 +76,9 @@ class ManageQuizScreen extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Container(
             decoration: const BoxDecoration(
               color: AppColors.paper,
@@ -77,13 +102,23 @@ class ManageQuizScreen extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    existing == null ? 'Nuova domanda quiz' : 'Modifica domanda',
+                    existing == null
+                        ? 'Nuova domanda quiz'
+                        : 'Modifica domanda',
                     style: Theme.of(ctx).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 18),
-                  TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Domanda')),
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(labelText: 'Domanda'),
+                  ),
                   const SizedBox(height: 12),
-                  TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Descrizione (opzionale)')),
+                  TextField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Descrizione (opzionale)',
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: pointsCtrl,
@@ -91,7 +126,10 @@ class ManageQuizScreen extends ConsumerWidget {
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 20),
-                  Text('Opzioni di risposta', style: Theme.of(ctx).textTheme.labelSmall),
+                  Text(
+                    'Opzioni di risposta',
+                    style: Theme.of(ctx).textTheme.labelSmall,
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     'Tocca il cerchio per indicare qual è l\'opzione corretta.',
@@ -106,14 +144,21 @@ class ManageQuizScreen extends ConsumerWidget {
                         duration: const Duration(milliseconds: 150),
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
-                          color: isCorrect ? _emerald.withOpacity(0.1) : Colors.transparent,
+                          color: isCorrect
+                              ? _emerald.withOpacity(0.1)
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: isCorrect ? _emerald.withOpacity(0.5) : Colors.transparent),
+                          border: Border.all(
+                            color: isCorrect
+                                ? _emerald.withOpacity(0.5)
+                                : Colors.transparent,
+                          ),
                         ),
                         child: Row(
                           children: [
                             GestureDetector(
-                              onTap: () => setSheetState(() => correctIndex = i),
+                              onTap: () =>
+                                  setSheetState(() => correctIndex = i),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 150),
                                 width: 26,
@@ -121,11 +166,22 @@ class ManageQuizScreen extends ConsumerWidget {
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: isCorrect ? _emerald : Colors.transparent,
-                                  border: Border.all(color: isCorrect ? _emerald : AppColors.inkMuted.withOpacity(0.4), width: 2),
+                                  color: isCorrect
+                                      ? _emerald
+                                      : Colors.transparent,
+                                  border: Border.all(
+                                    color: isCorrect
+                                        ? _emerald
+                                        : AppColors.inkMuted.withOpacity(0.4),
+                                    width: 2,
+                                  ),
                                 ),
                                 child: isCorrect
-                                    ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                                    ? const Icon(
+                                        Icons.check_rounded,
+                                        size: 16,
+                                        color: Colors.white,
+                                      )
                                     : null,
                               ),
                             ),
@@ -133,16 +189,31 @@ class ManageQuizScreen extends ConsumerWidget {
                             Expanded(
                               child: TextField(
                                 controller: optionCtrls[i],
-                                decoration: InputDecoration(labelText: 'Opzione ${i + 1}'),
+                                decoration: InputDecoration(
+                                  labelText: 'Opzione ${i + 1}',
+                                ),
                               ),
                             ),
                             if (isCorrect)
                               Padding(
                                 padding: const EdgeInsets.only(left: 6),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(color: _emerald.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
-                                  child: Text('Corretta', style: TextStyle(color: _emerald, fontWeight: FontWeight.w700, fontSize: 10.5)),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _emerald.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    'Corretta',
+                                    style: TextStyle(
+                                      color: _emerald,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 10.5,
+                                    ),
+                                  ),
                                 ),
                               ),
                             IconButton(
@@ -151,13 +222,14 @@ class ManageQuizScreen extends ConsumerWidget {
                               onPressed: optionCtrls.length <= 2
                                   ? null
                                   : () => setSheetState(() {
-                                        optionCtrls.removeAt(i);
-                                        if (correctIndex == i) {
-                                          correctIndex = null;
-                                        } else if (correctIndex != null && correctIndex! > i) {
-                                          correctIndex = correctIndex! - 1;
-                                        }
-                                      }),
+                                      optionCtrls.removeAt(i);
+                                      if (correctIndex == i) {
+                                        correctIndex = null;
+                                      } else if (correctIndex != null &&
+                                          correctIndex! > i) {
+                                        correctIndex = correctIndex! - 1;
+                                      }
+                                    }),
                             ),
                           ],
                         ),
@@ -165,27 +237,50 @@ class ManageQuizScreen extends ConsumerWidget {
                     );
                   }),
                   TextButton.icon(
-                    onPressed: () => setSheetState(() => optionCtrls.add(TextEditingController())),
+                    onPressed: () => setSheetState(
+                      () => optionCtrls.add(TextEditingController()),
+                    ),
                     icon: const Icon(Icons.add_rounded, size: 18),
                     label: const Text('Aggiungi opzione'),
-                    style: TextButton.styleFrom(foregroundColor: AppColors.goldDark),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.goldDark,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        final options = optionCtrls.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
+                        final options = optionCtrls
+                            .map((c) => c.text.trim())
+                            .where((s) => s.isNotEmpty)
+                            .toList();
                         if (titleCtrl.text.trim().isEmpty) {
-                          ref.read(toastProvider.notifier).show('Scrivi il testo della domanda.', type: 'error');
+                          ref
+                              .read(toastProvider.notifier)
+                              .show(
+                                'Scrivi il testo della domanda.',
+                                type: 'error',
+                              );
                           return;
                         }
                         if (options.length < 2) {
-                          ref.read(toastProvider.notifier).show('Inserisci almeno due opzioni.', type: 'error');
+                          ref
+                              .read(toastProvider.notifier)
+                              .show(
+                                'Inserisci almeno due opzioni.',
+                                type: 'error',
+                              );
                           return;
                         }
-                        if (correctIndex == null || correctIndex! >= optionCtrls.length) {
-                          ref.read(toastProvider.notifier).show('Seleziona quale opzione è quella corretta.', type: 'error');
+                        if (correctIndex == null ||
+                            correctIndex! >= optionCtrls.length) {
+                          ref
+                              .read(toastProvider.notifier)
+                              .show(
+                                'Seleziona quale opzione è quella corretta.',
+                                type: 'error',
+                              );
                           return;
                         }
                         Navigator.pop(ctx, true);
@@ -202,8 +297,12 @@ class ManageQuizScreen extends ConsumerWidget {
     );
 
     if (saved != true) return;
-    final voteOptions = optionCtrls.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
-    final correctAnswer = correctIndex != null && correctIndex! < optionCtrls.length
+    final voteOptions = optionCtrls
+        .map((c) => c.text.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final correctAnswer =
+        correctIndex != null && correctIndex! < optionCtrls.length
         ? optionCtrls[correctIndex!].text.trim()
         : null;
     final notifier = ref.read(manageChallengesProvider('quiz').notifier);
@@ -232,7 +331,7 @@ class ManageQuizScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const GameAppBar(),
+      appBar: const GameAppBar(pageTitle: 'Gestisci quiz'),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.goldPrimary,
         foregroundColor: Colors.white,
@@ -250,7 +349,9 @@ class ManageQuizScreen extends ConsumerWidget {
                   return _QuizManageCard(
                     challenge: c,
                     onTap: () => _openEditor(context, ref, existing: c),
-                    onToggle: (v) => ref.read(manageChallengesProvider('quiz').notifier).toggleActive(c.id, v),
+                    onToggle: (v) => ref
+                        .read(manageChallengesProvider('quiz').notifier)
+                        .toggleActive(c.id, v),
                     onEdit: () => _openEditor(context, ref, existing: c),
                     onDelete: () => _confirmDelete(context, ref, c.id),
                   );
@@ -292,7 +393,9 @@ class _QuizManageCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.goldPrimary.withOpacity(0.14)),
+              border: Border.all(
+                color: AppColors.goldPrimary.withOpacity(0.14),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,26 +403,48 @@ class _QuizManageCard extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.goldPrimary.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Text('+${challenge.points} PT',
-                          style: TextStyle(color: AppColors.goldDark, fontWeight: FontWeight.w700, fontSize: 12)),
+                      child: Text(
+                        '+${challenge.points} PT',
+                        style: TextStyle(
+                          color: AppColors.goldDark,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                     const Spacer(),
-                    Switch(value: challenge.active, onChanged: onToggle, activeColor: AppColors.goldPrimary),
+                    Switch(
+                      value: challenge.active,
+                      onChanged: onToggle,
+                      activeColor: AppColors.goldPrimary,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(challenge.title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 19)),
+                Text(
+                  challenge.title,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.headlineMedium?.copyWith(fontSize: 19),
+                ),
                 if (challenge.options.isEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       'Nessuna opzione di risposta — gli invitati non potranno rispondere.',
-                      style: TextStyle(color: AppColors.rosePrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: AppColors.rosePrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   )
                 else
@@ -329,7 +454,10 @@ class _QuizManageCard extends StatelessWidget {
                       challenge.correctAnswer != null
                           ? '${challenge.options.length} opzioni · risposta: ${challenge.correctAnswer}'
                           : '${challenge.options.length} opzioni',
-                      style: TextStyle(color: AppColors.inkMuted, fontSize: 12.5),
+                      style: TextStyle(
+                        color: AppColors.inkMuted,
+                        fontSize: 12.5,
+                      ),
                     ),
                   ),
                 const SizedBox(height: 10),
@@ -368,9 +496,16 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.emoji_objects_outlined, size: 44, color: AppColors.goldPrimary.withOpacity(0.5)),
+            Icon(
+              Icons.emoji_objects_outlined,
+              size: 44,
+              color: AppColors.goldPrimary.withOpacity(0.5),
+            ),
             const SizedBox(height: 12),
-            Text('Nessuna domanda ancora', style: Theme.of(context).textTheme.headlineMedium),
+            Text(
+              'Nessuna domanda ancora',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
             const SizedBox(height: 6),
             Text(
               'Tocca + per creare la prima domanda del quiz.',

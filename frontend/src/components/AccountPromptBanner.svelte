@@ -15,35 +15,43 @@
   <aside class="account-prompt-banner" aria-label="Suggerimento creazione account">
     <div class="banner-sparkle-bg" aria-hidden="true"></div>
 
-    <button class="banner-close" onclick={handleDismiss} title="Chiudi avviso" aria-label="Chiudi">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <button
+      class="banner-close"
+      onclick={handleDismiss}
+      title="Chiudi avviso"
+      aria-label="Chiudi avviso"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
       </svg>
     </button>
 
     <div class="banner-body">
       <div class="banner-icon-wrap" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
           <path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>
         </svg>
       </div>
 
       <div class="banner-text">
+        <div class="banner-eyebrow">
+          <span class="banner-badge">Ricordi della festa</span>
+        </div>
         <h3 class="banner-title font-serif">Non vuoi perderti le cose di questo matrimonio?</h3>
         <p class="banner-subtitle">
           Crea il tuo account per salvare foto, classifica e ritrovare i ricordi di questa festa da qualsiasi dispositivo!
         </p>
 
         <div class="banner-actions">
-          <button type="button" class="btn btn-primary btn-sm banner-cta" onclick={handleCreate}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <button type="button" class="btn btn-primary banner-cta" onclick={handleCreate}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>
             </svg>
             <span>Crea account</span>
           </button>
 
-          <button type="button" class="btn btn-ghost btn-sm banner-later" onclick={handleDismiss}>
+          <button type="button" class="btn btn-secondary banner-later" onclick={handleDismiss}>
             Magari dopo
           </button>
         </div>
@@ -51,7 +59,7 @@
         <div class="navbar-pointer">
           <span class="pointer-arrow" aria-hidden="true">↗</span>
           <span class="pointer-text">
-            oppure premi il pulsante <strong>Crea account</strong> in alto a destra quando vuoi!
+            Puoi registrarti in ogni momento premendo l'icona account in alto a destra nella barra.
           </span>
         </div>
       </div>
@@ -63,9 +71,11 @@
   .account-prompt-banner {
     position: relative;
     overflow: hidden;
-    margin: 12px 14px 18px;
+    width: calc(100% - 24px);
+    max-width: 520px;
+    margin: 10px auto 14px;
     padding: 16px 18px 14px;
-    border-radius: 20px;
+    border-radius: var(--radius-lg, 20px);
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(253, 247, 248, 0.96) 100%);
     border: 1.5px solid rgba(201, 169, 110, 0.45);
     box-shadow:
@@ -73,6 +83,7 @@
       0 4px 12px rgba(201, 169, 110, 0.15);
     animation: bannerSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 20;
+    flex-shrink: 0;
   }
 
   .banner-sparkle-bg {
@@ -86,26 +97,39 @@
     pointer-events: none;
   }
 
+  /* Accessible touch target: at least 44x44px hit area */
   .banner-close {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: none;
-    background: rgba(0, 0, 0, 0.04);
+    background: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease;
     z-index: 2;
   }
 
   .banner-close:hover {
-    background: rgba(0, 0, 0, 0.08);
-    color: var(--text-main);
+    background: rgba(140, 47, 75, 0.08);
+    color: var(--wine);
+  }
+
+  .banner-close:active {
+    transform: scale(0.92);
+  }
+
+  .banner-close:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: 2px;
   }
 
   .banner-body {
@@ -131,19 +155,36 @@
   .banner-text {
     flex: 1;
     min-width: 0;
+    padding-right: 28px;
+  }
+
+  .banner-eyebrow {
+    margin-bottom: 4px;
+  }
+
+  .banner-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gold-dark);
+    background: rgba(201, 169, 110, 0.14);
+    padding: 2px 8px;
+    border-radius: 999px;
   }
 
   .banner-title {
-    font-size: 1.12rem;
+    font-size: 1.1rem;
     font-weight: 700;
-    color: var(--wine-dark, #4a1226);
-    margin: 0 0 4px;
+    color: var(--wine-deep);
+    margin: 2px 0 6px;
     line-height: 1.25;
   }
 
   .banner-subtitle {
-    font-size: 0.86rem;
-    color: #63575c;
+    font-size: 0.88rem;
+    color: var(--text-muted);
     margin: 0 0 12px;
     line-height: 1.45;
   }
@@ -152,40 +193,43 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
   }
 
   .banner-cta {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    font-weight: 700;
-    border-radius: var(--radius-full);
+    min-height: 42px;
+    padding: 9px 18px;
+    font-size: 0.88rem;
     box-shadow: 0 4px 12px rgba(106, 32, 55, 0.25);
   }
 
   .banner-later {
-    font-size: 0.82rem;
+    min-height: 42px;
+    padding: 9px 16px;
+    font-size: 0.85rem;
     color: var(--text-muted);
-    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.08);
   }
 
   .banner-later:hover {
     color: var(--text-main);
+    background: rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 0, 0, 0.14);
   }
 
   .navbar-pointer {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     margin-top: 10px;
-    padding: 5px 10px;
-    border-radius: 8px;
+    padding: 6px 12px;
+    border-radius: 10px;
     background: rgba(201, 169, 110, 0.12);
-    border: 1px dashed rgba(201, 169, 110, 0.4);
-    font-size: 0.78rem;
-    color: #5c4308;
+    border: 1px dashed rgba(201, 169, 110, 0.45);
+    font-size: 0.8rem;
+    color: var(--gold-dark);
+    line-height: 1.35;
   }
 
   .pointer-arrow {
@@ -196,14 +240,10 @@
     animation: floatArrow 1.5s infinite ease-in-out;
   }
 
-  .pointer-text strong {
-    color: var(--wine);
-  }
-
   @keyframes bannerSlideIn {
     from {
       opacity: 0;
-      transform: translateY(-10px);
+      transform: translateY(-8px);
     }
     to {
       opacity: 1;
@@ -213,25 +253,63 @@
 
   @keyframes pulseIcon {
     0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.06); }
+    50% { transform: scale(1.05); }
   }
 
   @keyframes floatArrow {
     0%, 100% { transform: translate(0, 0); }
-    50% { transform: translate(3px, -3px); }
+    50% { transform: translate(2px, -2px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .account-prompt-banner {
+      animation: none;
+    }
+    .banner-icon-wrap,
+    .pointer-arrow {
+      animation: none;
+    }
+  }
+
+  @media (min-width: 900px) {
+    .account-prompt-banner {
+      max-width: 1100px;
+      width: calc(100% - 80px);
+      margin: 16px auto 10px;
+      padding: 18px 24px;
+    }
+    .banner-title {
+      font-size: 1.25rem;
+    }
+    .banner-subtitle {
+      font-size: 0.94rem;
+    }
   }
 
   @media (max-width: 480px) {
     .account-prompt-banner {
-      margin: 8px 10px 14px;
-      padding: 14px;
+      width: calc(100% - 20px);
+      margin: 8px auto 12px;
+      padding: 12px 14px;
     }
     .banner-icon-wrap {
       width: 38px;
       height: 38px;
     }
     .banner-title {
-      font-size: 1.02rem;
+      font-size: 1rem;
+    }
+    .banner-text {
+      padding-right: 20px;
+    }
+    .banner-actions {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .banner-actions .btn {
+      width: 100%;
+      justify-content: center;
     }
   }
 </style>

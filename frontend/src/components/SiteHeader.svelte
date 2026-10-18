@@ -203,23 +203,24 @@
   .site-header-inner {
     max-width: 1100px;
     margin: 0 auto;
-    padding: 12px 20px;
+    padding: 5px 16px;
+    min-height: 46px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 12px;
   }
 
   /* ── Brand a sinistra ─────────────────────────────────────────────────── */
   .brand {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     background: none;
     border: none;
     cursor: pointer;
     text-align: left;
-    padding: 4px 0;
+    padding: 2px 0;
     text-decoration: none;
   }
 
@@ -227,8 +228,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 38px;
-    height: 38px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: rgba(201, 169, 110, 0.12);
     border: 1px solid rgba(201, 169, 110, 0.28);
@@ -243,7 +244,7 @@
   }
 
   .brand-name {
-    font-size: 1.35rem;
+    font-size: 1.18rem;
     font-weight: 700;
     letter-spacing: 0.01em;
     line-height: 1;
@@ -459,14 +460,22 @@
   .menu-toggle {
     display: none;
     flex-shrink: 0;
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
     margin-left: auto;
     border: 1px solid rgba(201, 169, 110, 0.35);
     border-radius: 12px;
     background: #fff;
     cursor: pointer;
     place-items: center;
+    transition: background 0.18s ease, border-color 0.18s ease;
+  }
+
+  .menu-toggle:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: 2px;
   }
 
   .bars {
@@ -495,8 +504,13 @@
 
   @media (max-width: 640px) {
     .site-header-inner {
-      padding: 10px 14px;
-      gap: 10px;
+      padding: 5px 12px;
+      min-height: 42px;
+      gap: 8px;
+    }
+
+    .brand-name {
+      font-size: 1.05rem;
     }
 
     .menu-toggle {

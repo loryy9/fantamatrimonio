@@ -50,22 +50,25 @@
     z-index: 100;
     display: flex;
     justify-content: center;
-    padding: 0 16px calc(12px + var(--safe-bottom));
+    padding: 0 12px calc(12px + var(--safe-bottom));
     pointer-events: none;
   }
 
   .nav-container {
     pointer-events: auto;
     width: 100%;
-    max-width: 508px;
+    max-width: 480px;
     display: flex;
     align-items: center;
     gap: 2px;
-    padding: 8px;
-    border-radius: 28px;
-    background: rgba(255, 255, 255, 0.72);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 12px 24px rgba(36, 28, 32, 0.16);
+    padding: 7px;
+    border-radius: 26px;
+    background: rgba(255, 253, 251, 0.98);
+    border: 1px solid rgba(106, 32, 55, 0.22);
+    box-shadow:
+      0 16px 32px rgba(36, 28, 32, 0.22),
+      0 3px 10px rgba(106, 32, 55, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
   }
@@ -76,15 +79,20 @@
     align-items: center;
     justify-content: center;
     flex: 1 1 0;
-    min-width: 0;
-    padding: 10px 6px;
+    min-height: 48px;
+    padding: 9px 4px;
     border: none;
-    border-radius: 20px;
+    border-radius: 18px;
     background: transparent;
-    color: var(--text-muted);
+    color: #594d53;
     cursor: pointer;
     overflow: hidden;
-    transition: flex-grow 0.32s cubic-bezier(0.16, 1, 0.3, 1), padding 0.32s cubic-bezier(0.16, 1, 0.3, 1), background 0.32s ease, color 0.32s ease, box-shadow 0.32s ease;
+    transition: flex-grow 0.3s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .nav-btn:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: -2px;
   }
 
   .nav-btn:active {
@@ -94,29 +102,30 @@
   .nav-icon {
     display: flex;
     flex-shrink: 0;
+    color: currentColor;
   }
 
   .nav-label {
     max-width: 0;
     opacity: 0;
     white-space: nowrap;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 700;
-    transition: max-width 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, margin 0.32s ease;
+    transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, margin 0.3s ease;
   }
 
   .nav-btn.active {
-    flex-grow: 2.6;
-    padding: 10px 14px;
+    flex-grow: 1.8;
+    padding: 9px 10px;
     color: #fff;
     background: var(--grad-gold-rose);
-    box-shadow: 0 8px 16px -4px rgba(140, 47, 75, 0.4);
+    box-shadow: 0 6px 14px -3px rgba(140, 47, 75, 0.4);
   }
 
   .nav-btn.active .nav-label {
-    max-width: 90px;
+    max-width: 68px;
     opacity: 1;
-    margin-left: 7px;
+    margin-left: 5px;
   }
 
   /* ── 900px: dock leggermente espansa ── */

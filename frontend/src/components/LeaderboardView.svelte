@@ -35,7 +35,7 @@
 
 <div class="leaderboard-container">
   <!-- Header -->
-  <div class="header-box sticky-head">
+  <div class="page-header sticky-head">
     <div class="header-top">
       <h1 class="page-title font-serif">Classifica Live</h1>
       <div class="live-pill">
@@ -262,16 +262,6 @@
     color: var(--text-main);
   }
 
-  .header-box::after {
-    content: '';
-    display: block;
-    width: 44px;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--wine);
-    margin-top: 12px;
-  }
-
   .page-desc {
     font-size: 0.95rem;
     font-style: italic;
@@ -300,10 +290,13 @@
   /* Podium */
   .podium-grid {
     display: grid;
-    grid-template-columns: 1fr 1.18fr 1fr;
-    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr) minmax(0, 1fr);
+    gap: 8px;
     align-items: flex-end;
     margin-top: 4px;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .podium-card {

@@ -139,7 +139,7 @@
     </button>
   </div>
 
-  <div class="header-box">
+  <div class="page-header">
     {#if appState.quizSubTab === 'quiz'}
       <h1 class="page-title font-serif">Quiz sugli Sposi</h1>
       <p class="page-desc">Rispondi alle domande e dimostra quanto conosci gli sposi!</p>
@@ -524,16 +524,6 @@
     line-height: 1.05;
     letter-spacing: -0.01em;
     color: var(--text-main);
-  }
-
-  .page-title::after {
-    content: '';
-    display: block;
-    width: 44px;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--wine);
-    margin-top: 12px;
   }
 
   .page-desc {

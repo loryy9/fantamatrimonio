@@ -84,18 +84,24 @@
 
 <div class="home-container">
   {#if appState.isCouple}
-    <div class="sposi-preview-banner">
+    <aside class="sposi-preview-banner" aria-label="Console di gestione sposi">
       <div class="sposi-preview-info">
-        <span class="sposi-crown"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M3 18h18"/><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z"/></svg></span>
-        <div>
-          <strong>Modalità Anteprima Sposi</strong>
-          <span class="sposi-preview-sub">Stai guardando la festa come la vedono gli invitati</span>
+        <span class="sposi-crown" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+        </span>
+        <div class="sposi-text-block">
+          <div class="sposi-preview-header">
+            <span class="sposi-badge">Area Sposi</span>
+            <strong class="sposi-title">Pannello di Controllo</strong>
+          </div>
+          <span class="sposi-preview-sub">Stai visualizzando l'anteprima invitati. Gestisci quiz, sfide e impostazioni dalla console.</span>
         </div>
       </div>
-      <button class="btn btn-secondary btn-sm sposi-return-btn" onclick={() => appState.setGameTab('manage')}>
-        Console Sposi →
+      <button class="btn btn-primary btn-sm sposi-return-btn" onclick={() => appState.setGameTab('manage')}>
+        <span>Console Sposi</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
       </button>
-    </div>
+    </aside>
   {/if}
 
   <section class="intro">
@@ -155,23 +161,6 @@
       </div>
     {/if}
   </section>
-
-  {#if appState.isCouple}
-    <div class="couple-admin-banner">
-      <div class="banner-left">
-        <span class="banner-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
-        </span>
-        <div>
-          <strong class="banner-title">Pannello di Controllo Sposi</strong>
-          <p class="banner-sub">Gestisci quiz, caccia fotografica, momenti e impostazioni.</p>
-        </div>
-      </div>
-      <button class="btn btn-primary btn-sm" onclick={() => appState.setGameTab('manage')}>
-        Console Sposi →
-      </button>
-    </div>
-  {/if}
 
   <section class="activities">
     <h2 class="section-title font-serif">Le tue attività</h2>
@@ -242,9 +231,9 @@
   .title {
     margin-top: 4px;
     color: var(--ink);
-    font-size: clamp(3rem, 15vw, 4rem);
+    font-size: clamp(1.9rem, 8vw, 3.2rem);
     font-weight: 600;
-    line-height: 0.96;
+    line-height: 1.05;
     letter-spacing: -0.02em;
     overflow-wrap: anywhere;
     text-wrap: balance;
@@ -347,7 +336,7 @@
 
   .score {
     color: var(--ink);
-    font-size: 2.8rem;
+    font-size: clamp(2.2rem, 8vw, 2.8rem);
     font-weight: 600;
     line-height: 1;
     font-variant-numeric: lining-nums tabular-nums;
@@ -418,7 +407,7 @@
 
   .cd-value {
     color: var(--wine);
-    font-size: clamp(2.8rem, 15vw, 3.6rem);
+    font-size: clamp(2rem, 9vw, 3.2rem);
     font-weight: 500;
     line-height: 1;
     font-variant-numeric: lining-nums tabular-nums;
@@ -448,63 +437,13 @@
     to { opacity: 1; transform: none; }
   }
 
-  /* ---------- Couple admin banner ---------- */
-  .couple-admin-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 14px 16px;
-    border-radius: 22px;
-    background: var(--wine-tint);
-    border: 1px solid rgba(140, 47, 75, 0.18);
-  }
 
-  .banner-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-  }
-
-  .banner-icon {
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    color: #fff;
-    background: var(--wine);
-  }
-
-  .banner-title {
-    display: block;
-    font-size: 0.98rem;
-    color: var(--wine-deep);
-  }
-
-  .banner-sub {
-    margin: 2px 0 0;
-    color: var(--ink-soft);
-    font-size: 0.82rem;
-  }
-
-  @media (max-width: 600px) {
-    .couple-admin-banner {
-      flex-direction: column;
-      align-items: stretch;
-    }
-    .couple-admin-banner :global(.btn) {
-      width: 100%;
-    }
-  }
 
   /* ---------- Activities (bento) ---------- */
   .section-title {
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     color: var(--ink);
-    font-size: 2rem;
+    font-size: clamp(1.4rem, 5vw, 2rem);
     font-weight: 600;
     line-height: 1.1;
   }
@@ -523,8 +462,8 @@
     flex-direction: column;
     justify-content: space-between;
     gap: 22px;
-    min-height: 188px;
-    padding: 16px;
+    min-height: 160px;
+    padding: 14px;
     overflow: hidden;
     text-align: left;
     cursor: pointer;
@@ -548,8 +487,8 @@
 
   /* the single bold element: the featured tile is solid wine */
   .tile-hunt {
-    min-height: 236px;
-    padding: 22px;
+    min-height: 200px;
+    padding: 18px;
     color: #fff;
     background:
       radial-gradient(90% 90% at 100% 0%, rgba(233, 201, 143, 0.28), transparent 62%),
@@ -830,43 +769,89 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 12px 18px;
-    margin-bottom: 24px;
-    background: linear-gradient(135deg, rgba(201, 169, 110, 0.16), rgba(140, 47, 75, 0.08));
-    border: 1px solid rgba(201, 169, 110, 0.4);
-    border-radius: var(--radius-md, 16px);
+    gap: 16px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, var(--paper, #fffdfb) 0%, var(--wine-tint, #f5e4e9) 100%);
+    border: 1px solid rgba(140, 47, 75, 0.22);
+    border-radius: var(--radius-lg, 20px);
+    box-shadow: 0 8px 24px -8px rgba(106, 32, 55, 0.15);
   }
 
   .sposi-preview-info {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
+    min-width: 0;
   }
 
   .sposi-crown {
-    font-size: 1.4rem;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--grad-gold-rose);
+    color: #fff;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(140, 47, 75, 0.3);
+  }
+
+  .sposi-text-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sposi-preview-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .sposi-title {
+    color: var(--wine-deep);
+    font-size: 1rem;
+  }
+
+  .sposi-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(140, 47, 75, 0.12);
+    color: var(--wine);
   }
 
   .sposi-preview-sub {
-    display: block;
-    font-size: 0.8rem;
+    font-size: 0.83rem;
     color: var(--text-muted);
+    line-height: 1.35;
   }
 
   .sposi-return-btn {
     white-space: nowrap;
     flex-shrink: 0;
+    min-height: 42px;
+    padding: 8px 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
 
-  @media (max-width: 520px) {
+  @media (max-width: 600px) {
     .sposi-preview-banner {
       flex-direction: column;
-      align-items: flex-start;
-      gap: 10px;
+      align-items: stretch;
+      gap: 12px;
+      padding: 14px;
     }
     .sposi-return-btn {
       width: 100%;
+      justify-content: center;
     }
   }
 </style>

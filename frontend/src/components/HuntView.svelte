@@ -61,7 +61,7 @@
 </script>
 
 <div class="hunt-container">
-  <div class="header-box sticky-head">
+  <div class="page-header sticky-head">
     <h1 class="page-title font-serif">Caccia al Tesoro</h1>
     <p class="page-desc">
       Trova i soggetti, scatta le foto richieste e conquista punti per scalare la classifica!
@@ -186,13 +186,12 @@
 
 <style>
   .header-box { padding: 0 4px; }
-  .header-box::after { content: ''; display: block; width: 44px; height: 2px; border-radius: 2px; background: var(--wine); margin-top: 14px; }
   .page-title { font-family: var(--font-display); font-size: clamp(2rem, 6vw, 2.8rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; color: var(--text-main); }
   .page-desc { font-size: 0.92rem; font-style: italic; color: #6b5f64; margin-top: 8px; line-height: 1.5; max-width: 560px; }
 
-  .hunt-container { display: flex; flex-direction: column; gap: 22px; }
-  .hunt-list { display: flex; flex-direction: column; gap: 14px; }
-  .hunt-card { position: relative; padding: 22px 20px; display: flex; flex-direction: column; gap: 10px; border-radius: 26px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 18px 34px -24px rgba(106,32,55,.4); overflow: hidden; }
+  .hunt-container { display: flex; flex-direction: column; gap: 18px; width: 100%; min-width: 0; box-sizing: border-box; }
+  .hunt-list { display: flex; flex-direction: column; gap: 12px; width: 100%; min-width: 0; }
+  .hunt-card { position: relative; padding: 18px 16px; display: flex; flex-direction: column; gap: 10px; border-radius: 22px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 14px 28px -20px rgba(106,32,55,.3); overflow: hidden; width: 100%; min-width: 0; box-sizing: border-box; }
   .hunt-card::before { content: ''; position: absolute; left: 0; top: 22px; bottom: 22px; width: 3px; border-radius: 0 3px 3px 0; background: var(--wine); }
   .card-completed { background: linear-gradient(160deg, rgba(127,169,148,.12) 0%, #fff 55%); border-color: rgba(127,169,148,.4); }
   .card-completed::before { background: #7fa994; }

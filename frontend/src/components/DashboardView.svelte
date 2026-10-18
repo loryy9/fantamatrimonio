@@ -3,12 +3,14 @@
   import { appState } from '../lib/state.svelte.js';
   import { api } from '../lib/api.js';
   import { formatName } from '../lib/formatters.js';
+  import { copyToClipboard } from '../lib/clipboard.js';
 
   let selectedEvent = $state(null);
   let eventDetail = $state(null);
   let eventSubmissions = $state(null);
   let detailLoading = $state(false);
   let activeSection = $state('photos'); // 'photos' | 'quiz' | 'participants'
+  let copied = $state(false);
 
   onMount(async () => {
     await appState.loadDashboardEvents();
@@ -43,12 +45,12 @@
     history.replaceState(null, '', '/dashboard_utente');
   }
 
-  function enterEvent(ev) {
-    // Entra nell'evento come giocatore attivo
-    appState.login(
-      ev.event.invite_code,
-      '', '', '', false
-    ).catch(() => {});
+  async function copyInviteCode(code) {
+    const ok = await copyToClipboard(code);
+    if (ok) {
+      copied = true;
+      setTimeout(() => { copied = false; }, 2200);
+    }
   }
 
   const photos = $derived(eventDetail?.photos || []);
@@ -58,197 +60,345 @@
   );
 </script>
 
-{#if selectedEvent && eventDetail}
+{#if detailLoading && !eventDetail}
+  <div class="dashboard-loading-view">
+    <div class="loading-spinner-wrap">
+      <div class="spinner"></div>
+      <p class="font-serif loading-title">Caricamento matrimonio in corso...</p>
+    </div>
+  </div>
+{:else if selectedEvent && eventDetail}
   <!-- Event Detail View -->
   <div class="dashboard-detail">
-    <button class="back-btn" onclick={goBack}>
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-      Torna alla dashboard
-    </button>
-
-    <div class="detail-header">
-      <div class="detail-header-main">
-        <div class="detail-names font-serif">
-          {eventDetail.event.spouse1_name} <span class="gold-gradient-text">&amp;</span> {eventDetail.event.spouse2_name}
-        </div>
-        <div class="detail-meta">
-          <span class="detail-code">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Codice: <strong>{eventDetail.event.invite_code}</strong>
-          </span>
-          <span class="detail-role" class:couple={eventDetail.is_couple}>
-            {#if eventDetail.is_couple}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M3 18h18"/><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z"/></svg> Sposi{:else}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg> Ospite{/if}
-          </span>
-        </div>
-      </div>
-      <button class="btn btn-primary enter-live-btn" onclick={() => appState.selectEvent(eventDetail.event)}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        <span>{eventDetail.is_couple ? 'Apri Console Sposi' : 'Entra nella festa live'}</span>
+    <!-- Navigazione superiore -->
+    <div class="detail-nav-bar">
+      <button class="back-pill-btn" onclick={goBack} aria-label="Torna a tutti i matrimoni">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        <span>Tutti i matrimoni</span>
       </button>
-    </div>
 
-    <div class="detail-stats">
-      <div class="stat-card">
-        <span class="stat-num">{eventDetail.stats.guests_count}</span>
-        <span class="stat-label">Ospiti</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-num">{eventDetail.stats.photos_count}</span>
-        <span class="stat-label">Foto</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-num">{eventDetail.stats.quiz_count}</span>
-        <span class="stat-label">Quiz</span>
-      </div>
-    </div>
-
-    <div class="detail-tabs">
-      <button class="tab-btn" class:active={activeSection === 'photos'} onclick={() => activeSection = 'photos'}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-        Galleria
-      </button>
-      <button class="tab-btn" class:active={activeSection === 'quiz'} onclick={() => activeSection = 'quiz'}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-        Quiz e Risposte
-      </button>
-      <button class="tab-btn" class:active={activeSection === 'participants'} onclick={() => activeSection = 'participants'}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Partecipanti
-      </button>
-    </div>
-
-    {#if activeSection === 'photos'}
-      <div class="photo-grid">
-        {#if photos.length === 0}
-          <p class="empty-msg">Nessuna foto in questo matrimonio.</p>
+      <span class="detail-role-badge" class:couple={eventDetail.is_couple}>
+        {#if eventDetail.is_couple}
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+          <span>Sposi</span>
         {:else}
-          {#each photos as photo (photo.id)}
-            <div class="photo-card">
-              <img src={photo.image_url} alt={photo.caption || 'Foto matrimonio'} loading="lazy" />
-              <div class="photo-overlay">
-                <span class="photo-author">{formatName(photo.author.split(' ')[0])} {formatName(photo.author.split(' ')[1] || '')}</span>
-                {#if photo.challenge_title}
-                  <span class="photo-challenge">{photo.challenge_title}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          <span>Ospite</span>
+        {/if}
+      </span>
+    </div>
+
+    <!-- Hero Card Matrimonio -->
+    <div class="event-hero-card">
+      <div class="hero-watermark" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg>
+      </div>
+
+      <div class="hero-content">
+        <div class="hero-eyebrow">
+          <span class="rule"></span>
+          <span>Matrimonio di</span>
+        </div>
+
+        <h1 class="hero-spouses font-serif">
+          {eventDetail.event.spouse1_name} <span class="amp">&amp;</span> {eventDetail.event.spouse2_name}
+        </h1>
+
+        <!-- Code & Quick actions -->
+        <div class="hero-meta-strip">
+          <button
+            class="code-chip"
+            onclick={() => copyInviteCode(eventDetail.event.invite_code)}
+            title="Tocca per copiare il codice invito"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Codice: <strong>{eventDetail.event.invite_code}</strong></span>
+            {#if copied}
+              <span class="copied-tooltip">Copiato!</span>
+            {:else}
+              <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            {/if}
+          </button>
+        </div>
+
+        <div class="hero-cta-wrap">
+          <button class="btn btn-primary hero-live-btn" onclick={() => appState.selectEvent(eventDetail.event)}>
+            {#if eventDetail.is_couple}
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+              <span>Apri Console Sposi</span>
+            {:else}
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Entra nella festa live</span>
+            {/if}
+            <svg class="cta-arrow" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistiche compatte a 3 colonne orizzontali -->
+    <div class="detail-stats-grid">
+      <div class="stat-pill-card">
+        <div class="stat-icon guests-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-num font-serif">{eventDetail.stats.guests_count}</span>
+          <span class="stat-label">Ospiti</span>
+        </div>
+      </div>
+
+      <div class="stat-pill-card">
+        <div class="stat-icon photos-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-num font-serif">{eventDetail.stats.photos_count}</span>
+          <span class="stat-label">Foto</span>
+        </div>
+      </div>
+
+      <div class="stat-pill-card">
+        <div class="stat-icon quiz-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-num font-serif">{eventDetail.stats.quiz_count}</span>
+          <span class="stat-label">Quiz</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Segmented Tab Bar a 3 colonne bilanciate -->
+    <div class="detail-tabs-segment" role="tablist" aria-label="Sezioni evento">
+      <button
+        class="segment-btn"
+        class:active={activeSection === 'photos'}
+        onclick={() => activeSection = 'photos'}
+        role="tab"
+        aria-selected={activeSection === 'photos'}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        <span>Galleria</span>
+      </button>
+
+      <button
+        class="segment-btn"
+        class:active={activeSection === 'quiz'}
+        onclick={() => activeSection = 'quiz'}
+        role="tab"
+        aria-selected={activeSection === 'quiz'}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        <span>Quiz</span>
+      </button>
+
+      <button
+        class="segment-btn"
+        class:active={activeSection === 'participants'}
+        onclick={() => activeSection = 'participants'}
+        role="tab"
+        aria-selected={activeSection === 'participants'}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Ospiti</span>
+      </button>
+    </div>
+
+    <!-- Contenuti delle schede -->
+    <div class="tab-panel">
+      {#if activeSection === 'photos'}
+        {#if photos.length === 0}
+          <div class="empty-state-card">
+            <div class="empty-state-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            </div>
+            <h3 class="font-serif empty-state-title">Nessuna foto ancora</h3>
+            <p class="empty-state-sub">Tutti gli scatti condivisi durante la festa appariranno in questo album.</p>
+          </div>
+        {:else}
+          <div class="photo-grid">
+            {#each photos as photo (photo.id)}
+              <div class="photo-card">
+                <img src={photo.image_url} alt={photo.caption || 'Foto matrimonio'} loading="lazy" />
+                <div class="photo-overlay">
+                  <span class="photo-author">{formatName(photo.author.split(' ')[0])} {formatName(photo.author.split(' ')[1] || '')}</span>
+                  {#if photo.challenge_title}
+                    <span class="photo-challenge">{photo.challenge_title}</span>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+      {:else if activeSection === 'quiz'}
+        {#if quizSubmissions.length === 0}
+          <div class="empty-state-card">
+            <div class="empty-state-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            </div>
+            <h3 class="font-serif empty-state-title">Nessuna risposta ai quiz</h3>
+            <p class="empty-state-sub">
+              {eventDetail.is_couple ? 'Le risposte inviate dagli ospiti appariranno qui.' : 'Le tue risposte alle sfide appariranno qui.'}
+            </p>
+          </div>
+        {:else}
+          <div class="submissions-list">
+            {#each quizSubmissions as sub (sub.id)}
+              <div class="submission-card">
+                <div class="sub-header">
+                  <div class="sub-author-wrap">
+                    <span class="sub-avatar">{formatName(sub.author.split(' ')[0])[0] || '?'}</span>
+                    <span class="sub-author">{formatName(sub.author.split(' ')[0])} {formatName(sub.author.split(' ')[1] || '')}</span>
+                  </div>
+                  <span class="sub-type" class:quiz={sub.challenge_type === 'quiz'} class:vote={sub.challenge_type === 'vote'}>
+                    {sub.challenge_type === 'quiz' ? 'Quiz' : 'Voto'}
+                  </span>
+                </div>
+                <div class="sub-challenge">{sub.challenge_title}</div>
+                <div class="sub-answer-box">
+                  <div class="sub-answer">
+                    <span class="ans-label">Risposta:</span>
+                    <strong class="ans-text">{sub.answer_text || '—'}</strong>
+                  </div>
+                  {#if sub.correct_answer}
+                    <span class="correct-badge" class:right={sub.answer_text?.toLowerCase() === sub.correct_answer?.toLowerCase()}>
+                      {sub.answer_text?.toLowerCase() === sub.correct_answer?.toLowerCase() ? '✓ Corretta' : `✗ Era: ${sub.correct_answer}`}
+                    </span>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+      {:else if activeSection === 'participants'}
+        <div class="participants-list">
+          {#each participants as p, i (p.id)}
+            <div class="participant-card" class:is-me={p.id === eventDetail.my_user_id} class:top-rank={i < 3}>
+              <div class="p-rank-col">
+                {#if i === 0}
+                  <span class="rank-medal gold" title="1° Posto">🥇</span>
+                {:else if i === 1}
+                  <span class="rank-medal silver" title="2° Posto">🥈</span>
+                {:else if i === 2}
+                  <span class="rank-medal bronze" title="3° Posto">🥉</span>
+                {:else}
+                  <span class="p-rank">{i + 1}</span>
                 {/if}
               </div>
-            </div>
-          {/each}
-        {/if}
-      </div>
 
-    {:else if activeSection === 'quiz'}
-      <div class="submissions-list">
-        {#if quizSubmissions.length === 0}
-          <p class="empty-msg">
-            {eventDetail.is_couple ? 'Nessuna risposta ai quiz ancora.' : 'Nessuna delle tue risposte ai quiz ancora.'}
-          </p>
-        {:else}
-          {#each quizSubmissions as sub (sub.id)}
-            <div class="submission-card">
-              <div class="sub-header">
-                <span class="sub-author">{formatName(sub.author.split(' ')[0])} {formatName(sub.author.split(' ')[1] || '')}</span>
-                <span class="sub-type" class:quiz={sub.challenge_type === 'quiz'} class:vote={sub.challenge_type === 'vote'}>
-                  {sub.challenge_type === 'quiz' ? 'Quiz' : 'Voto'}
+              <span class="p-avatar" style="--hue: {(i * 47) % 360}">{formatName(p.first_name)[0]}</span>
+              
+              <div class="p-info">
+                <div class="p-name-line">
+                  <span class="p-name">{formatName(p.first_name)} {formatName(p.last_name)}</span>
+                  {#if p.id === eventDetail.my_user_id}
+                    <span class="you-badge">Tu</span>
+                  {/if}
+                </div>
+                <span class="p-role">
+                  {#if p.role === 'couple'}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+                    Sposi
+                  {:else}
+                    Ospite
+                  {/if}
                 </span>
               </div>
-              <div class="sub-challenge">{sub.challenge_title}</div>
-              <div class="sub-answer">
-                Risposta: <strong>{sub.answer_text || '—'}</strong>
-                {#if sub.correct_answer}
-                  <span class="correct-badge" class:right={sub.answer_text?.toLowerCase() === sub.correct_answer?.toLowerCase()}>
-                    {sub.answer_text?.toLowerCase() === sub.correct_answer?.toLowerCase() ? '✓ Corretta' : `✗ Era: ${sub.correct_answer}`}
-                  </span>
-                {/if}
-              </div>
+              <span class="p-points font-serif">{p.total_points} <small>pt</small></span>
             </div>
           {/each}
-        {/if}
-      </div>
-
-    {:else if activeSection === 'participants'}
-      <div class="participants-list">
-        {#each participants as p, i (p.id)}
-          <div class="participant-card" class:is-me={p.id === eventDetail.my_user_id}>
-            <span class="p-rank">{i + 1}</span>
-            <span class="p-avatar" style="--hue: {(i * 47) % 360}">{formatName(p.first_name)[0]}</span>
-            <div class="p-info">
-              <span class="p-name">{formatName(p.first_name)} {formatName(p.last_name)}</span>
-              <span class="p-role">{#if p.role === 'couple'}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M3 18h18"/><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z"/></svg> Sposi{:else}Ospite{/if}</span>
-            </div>
-            <span class="p-points">{p.total_points} pt</span>
-          </div>
-        {/each}
-      </div>
-    {/if}
+        </div>
+      {/if}
+    </div>
   </div>
 
 {:else}
   <!-- Events List -->
   <div class="dashboard-container">
     <div class="dashboard-header">
-      <div>
-        <h1 class="page-title">La tua <span class="gold-gradient-text">Dashboard</span></h1>
-        <p class="page-lead">Tutti i matrimoni a cui hai partecipato o che hai creato.</p>
+      <div class="header-titles">
+        <div class="eyebrow-tag">
+          <span class="rule"></span>
+          <span>Area Personale</span>
+        </div>
+        <h1 class="page-title font-serif">I tuoi <span class="gold-gradient-text">Matrimoni</span></h1>
+        <p class="page-lead">Tutti i matrimoni a cui partecipi o che hai creato.</p>
       </div>
-    
     </div>
 
     {#if appState.dashboardLoading}
       <div class="loading-state">
         <div class="spinner"></div>
-        <p>Caricamento matrimoni...</p>
+        <p class="font-serif">Caricamento matrimoni in corso...</p>
       </div>
     {:else if appState.dashboardEvents.length === 0}
       <div class="empty-state">
         <div class="empty-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
         </div>
-        <h3>Nessun matrimonio ancora</h3>
-        <p>Crea un nuovo matrimonio o partecipa con un codice invito per iniziare a collezionare ricordi.</p>
+        <h3 class="font-serif">Nessun matrimonio ancora</h3>
+        <p>Crea un nuovo matrimonio o partecipa con un codice invito per iniziare subito a giocare e collezionare ricordi.</p>
         <div class="empty-actions">
-          <button class="btn btn-primary" onclick={() => appState.setAuthView('create')}>Crea un matrimonio</button>
+          <button class="btn btn-primary" onclick={() => appState.setAuthView('create')}>Crea matrimonio</button>
           <button class="btn btn-secondary" onclick={() => appState.setAuthView('join')}>Ho un codice invito</button>
         </div>
       </div>
     {:else}
       <div class="events-grid">
+        <!-- Card Azione: Crea o Aggiungi -->
         <div class="event-card event-actions-card">
-          <span class="event-actions-icon">＋</span>
-          <span class="event-names font-serif">Aggiungi un matrimonio</span>
-          <span class="event-actions-hint">Crea un nuovo evento oppure partecipa con un codice invito.</span>
+          <div class="actions-card-top">
+            <span class="event-actions-icon">+</span>
+            <span class="event-names font-serif">Altro Matrimonio</span>
+          </div>
+          <span class="event-actions-hint">Crea una nuova festa oppure partecipa inserendo un codice invito.</span>
           <div class="event-actions-buttons">
-            <button class="btn btn-primary btn-sm" onclick={() => appState.setAuthView('create')}>Crea matrimonio</button>
-            <button class="btn btn-secondary btn-sm" onclick={() => appState.setAuthView('join')}>Partecipa</button>
+            <button class="btn btn-primary btn-sm" onclick={() => appState.setAuthView('create')}>Crea nuovo</button>
+            <button class="btn btn-secondary btn-sm" onclick={() => appState.setAuthView('join')}>Unisciti</button>
           </div>
         </div>
+
         {#each appState.dashboardEvents as ev (ev.event.id)}
-          <button class="event-card" onclick={() => openEvent(ev)}>
+          <button class="event-card event-item-card" onclick={() => openEvent(ev)}>
             <div class="event-card-header">
               <span class="event-names font-serif">{ev.event.spouse1_name} &amp; {ev.event.spouse2_name}</span>
-              <span class="event-role" class:couple={ev.role === 'couple'}>
-                {#if ev.role === 'couple'}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M3 18h18"/><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z"/></svg>{:else}<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>{/if}
+              <span class="event-role-chip" class:couple={ev.role === 'couple'}>
+                {#if ev.role === 'couple'}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
+                  <span>Sposi</span>
+                {:else}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                  <span>Ospite</span>
+                {/if}
               </span>
             </div>
+
             <div class="event-card-stats">
               <span class="event-stat">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                {ev.guests_count}
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                {ev.guests_count} ospiti
               </span>
               <span class="event-stat">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-                {ev.photos_count}
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                {ev.photos_count} foto
               </span>
               <span class="event-stat points">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
                 {ev.total_points} pt
               </span>
             </div>
-            <div class="event-card-code">
-              Codice: <strong>{ev.event.invite_code}</strong>
+
+            <div class="event-card-footer">
+              <span class="event-card-code">
+                Codice: <strong>{ev.event.invite_code}</strong>
+              </span>
+              <span class="event-card-arrow">
+                <span>Dettagli</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+              </span>
             </div>
-            <span class="event-card-arrow">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            </span>
           </button>
         {/each}
       </div>
@@ -257,50 +407,56 @@
 {/if}
 
 <style>
-  /* ── Dashboard Container ──────────────────────────────────────────────── */
+  /* ==========================================================================
+     Dashboard Container
+     ========================================================================== */
   .dashboard-container {
-    max-width: 900px;
+    max-width: 960px;
     margin: 0 auto;
-    padding: 24px 16px 120px;
+    padding: 16px 16px 90px;
   }
 
   .dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 24px;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
   }
 
-  .account-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-  }
-
-  .account-badge {
+  .eyebrow-tag {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: var(--radius-full);
-    background: rgba(201, 169, 110, 0.12);
-    border: 1px solid rgba(201, 169, 110, 0.3);
-    color: var(--gold-dark);
-    font-weight: 700;
-    font-size: 0.88rem;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--wine, #8c2f4b);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
   }
 
-  .account-email {
-    font-size: 0.78rem;
-    color: var(--text-dim);
+  .eyebrow-tag .rule {
+    width: 20px;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.6;
   }
 
-  /* ── Events Grid ──────────────────────────────────────────────────────── */
+  .page-title {
+    font-size: clamp(2.2rem, 6vw, 3.2rem);
+    line-height: 1.05;
+    color: var(--text-main, #241c20);
+    margin-bottom: 6px;
+  }
+
+  .page-lead {
+    color: var(--text-muted, #6e6167);
+    font-size: 0.95rem;
+  }
+
+  /* ==========================================================================
+     Events Grid (Dashboard List)
+     ========================================================================== */
   .events-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
     gap: 16px;
   }
 
@@ -308,329 +464,542 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 22px;
-    border-radius: 22px;
-    background: var(--paper);
-    border: 1px solid rgba(201, 169, 110, 0.2);
-    box-shadow: 0 4px 16px rgba(138, 109, 59, 0.08);
-    cursor: pointer;
+    justify-content: space-between;
+    padding: 20px;
+    border-radius: 24px;
+    background: #ffffff;
+    border: 1px solid rgba(140, 47, 75, 0.1);
+    box-shadow: 0 10px 24px -14px rgba(106, 32, 55, 0.12);
     text-align: left;
-    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   }
 
-  .event-card:hover {
+  .event-item-card {
+    cursor: pointer;
+  }
+
+  .event-item-card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 12px 32px rgba(138, 109, 59, 0.16);
-    border-color: rgba(201, 169, 110, 0.4);
-  }
-
-  .event-actions-card {
-    align-items: flex-start;
-    justify-content: center;
-    min-height: 180px;
-    border-style: dashed;
-    background: rgba(201, 169, 110, 0.04);
-  }
-
-  .event-actions-card:hover {
-    transform: none;
-  }
-
-  .event-actions-icon {
-    color: var(--gold-dark);
-    font-size: 2rem;
-    line-height: 1;
-  }
-
-  .event-actions-hint {
-    color: var(--text-dim);
-    font-size: 0.84rem;
-    line-height: 1.4;
-  }
-
-  .event-actions-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 4px;
-  }
-
-  .event-card:active {
-    transform: scale(0.98);
+    box-shadow: 0 18px 36px -16px rgba(106, 32, 55, 0.2);
+    border-color: rgba(140, 47, 75, 0.25);
   }
 
   .event-card-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
   }
 
   .event-names {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: var(--text-main);
+    font-size: 1.35rem;
+    font-weight: 600;
+    line-height: 1.15;
+    color: var(--text-main, #241c20);
   }
 
-  .event-role {
-    font-size: 1.2rem;
+  .event-role-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: rgba(36, 28, 32, 0.05);
+    color: var(--text-muted, #6e6167);
+    flex-shrink: 0;
+  }
+
+  .event-role-chip.couple {
+    background: var(--wine-tint, #f5e4e9);
+    color: var(--wine, #8c2f4b);
+    border: 1px solid rgba(140, 47, 75, 0.2);
   }
 
   .event-card-stats {
     display: flex;
+    align-items: center;
     gap: 14px;
+    margin-bottom: 16px;
   }
 
   .event-stat {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 0.82rem;
-    color: var(--text-muted);
-    font-weight: 600;
+    gap: 5px;
+    font-size: 0.8rem;
+    color: var(--text-muted, #6e6167);
+    font-weight: 500;
   }
 
   .event-stat.points {
-    color: var(--gold-dark);
-    font-weight: 800;
+    margin-left: auto;
+    font-weight: 700;
+    color: var(--wine, #8c2f4b);
+    background: rgba(140, 47, 75, 0.06);
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+
+  .event-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid rgba(36, 28, 32, 0.06);
   }
 
   .event-card-code {
     font-size: 0.8rem;
-    color: var(--text-dim);
-    letter-spacing: 0.05em;
+    color: var(--text-muted, #6e6167);
   }
 
   .event-card-code strong {
-    color: var(--text-muted);
-    letter-spacing: 0.12em;
+    color: var(--text-main, #241c20);
+    letter-spacing: 0.08em;
   }
 
   .event-card-arrow {
-    position: absolute;
-    right: 18px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-dim);
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-
-  .event-card:hover .event-card-arrow {
-    opacity: 1;
-  }
-
-  /* ── Empty & Loading ──────────────────────────────────────────────────── */
-  .empty-state, .loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    padding: 56px 24px;
-    text-align: center;
-  }
-
-  .empty-icon {
-    color: var(--gold-primary);
-    opacity: 0.5;
-  }
-
-  .empty-state h3 {
-    font-size: 1.3rem;
-    color: var(--text-main);
-  }
-
-  .empty-state p {
-    max-width: 40ch;
-    color: var(--text-muted);
-  }
-
-  .empty-actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 12px;
-  }
-
-  .loading-state {
-    color: var(--text-muted);
-  }
-
-  /* ── Event Detail ─────────────────────────────────────────────────────── */
-  .dashboard-detail {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 24px 16px 120px;
-  }
-
-  .back-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--text-muted);
+    gap: 4px;
+    font-size: 0.8rem;
     font-weight: 600;
-    font-size: 0.9rem;
-    padding: 8px 0;
+    color: var(--wine, #8c2f4b);
+  }
+
+  .event-actions-card {
+    background: linear-gradient(135deg, rgba(201, 169, 110, 0.06) 0%, rgba(140, 47, 75, 0.04) 100%);
+    border: 1.5px dashed rgba(201, 169, 110, 0.4);
+  }
+
+  .actions-card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .event-actions-icon {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--gold-primary, #c9a96e);
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .event-actions-hint {
+    font-size: 0.82rem;
+    color: var(--text-muted, #6e6167);
+    line-height: 1.4;
     margin-bottom: 16px;
-    transition: color 0.15s;
   }
 
-  .back-btn:hover {
-    color: var(--gold-dark);
+  .event-actions-buttons {
+    display: flex;
+    gap: 8px;
   }
 
-  .detail-header {
+  /* ==========================================================================
+     Event Detail View (Selected Event)
+     ========================================================================== */
+  .dashboard-detail {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 12px 14px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .detail-nav-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 24px;
+    margin-bottom: 2px;
   }
 
-  .enter-live-btn {
+  .back-pill-btn {
     display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 1px solid rgba(36, 28, 32, 0.1);
+    color: var(--text-muted, #6e6167);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    transition: all 0.15s ease;
+  }
+
+  .back-pill-btn:hover {
+    color: var(--wine, #8c2f4b);
+    border-color: rgba(140, 47, 75, 0.3);
+    transform: translateX(-2px);
+  }
+
+  .detail-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    background: rgba(36, 28, 32, 0.06);
+    color: var(--text-muted, #6e6167);
+  }
+
+  .detail-role-badge.couple {
+    background: var(--grad-gold-rose);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(140, 47, 75, 0.25);
+  }
+
+  /* ==========================================================================
+     Hero Card (Romantic & Editorial)
+     ========================================================================== */
+  .event-hero-card {
+    position: relative;
+    overflow: hidden;
+    padding: 22px 20px;
+    border-radius: 28px;
+    background: linear-gradient(145deg, #ffffff 0%, #fffbf8 50%, #fdf5f7 100%);
+    border: 1px solid rgba(140, 47, 75, 0.14);
+    box-shadow: 0 16px 36px -18px rgba(106, 32, 55, 0.18);
+  }
+
+  .hero-watermark {
+    position: absolute;
+    right: -24px;
+    bottom: -32px;
+    color: var(--wine, #8c2f4b);
+    opacity: 0.05;
+    pointer-events: none;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .hero-eyebrow {
+    display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
-    font-size: 0.95rem;
-    font-weight: 700;
+    color: var(--wine, #8c2f4b);
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-style: italic;
+    letter-spacing: 0.04em;
   }
 
-  .detail-names {
-    font-size: clamp(1.8rem, 5vw, 2.6rem);
-    font-weight: 700;
-    color: var(--text-main);
-    line-height: 1.1;
+  .hero-eyebrow .rule {
+    width: 24px;
+    height: 1px;
+    background: var(--wine, #8c2f4b);
+    opacity: 0.5;
   }
 
-  .detail-meta {
+  .hero-spouses {
+    font-size: clamp(2rem, 7vw, 2.9rem);
+    font-weight: 600;
+    line-height: 1.05;
+    color: var(--text-main, #241c20);
+    letter-spacing: -0.01em;
+  }
+
+  .hero-spouses .amp {
+    font-style: italic;
+    color: var(--wine, #8c2f4b);
+    font-weight: 400;
+    margin: 0 3px;
+  }
+
+  .hero-meta-strip {
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin-top: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
-  .detail-code {
+  .code-chip {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-  }
-
-  .detail-code strong {
-    letter-spacing: 0.12em;
-    color: var(--gold-dark);
-  }
-
-  .detail-role {
-    font-size: 0.82rem;
-    font-weight: 700;
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
     background: rgba(201, 169, 110, 0.12);
-    color: var(--text-muted);
+    border: 1px solid rgba(201, 169, 110, 0.35);
+    color: var(--gold-dark, #8a6d3b);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
   }
 
-  .detail-role.couple {
-    background: rgba(184, 134, 11, 0.18);
-    color: var(--gold-dark);
+  .code-chip:hover {
+    background: rgba(201, 169, 110, 0.2);
   }
 
-  .detail-stats {
+  .code-chip strong {
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    color: var(--text-main, #241c20);
+  }
+
+  .copy-icon {
+    opacity: 0.6;
+    margin-left: 2px;
+  }
+
+  .copied-tooltip {
+    color: var(--wine, #8c2f4b);
+    font-weight: 700;
+    font-size: 0.75rem;
+  }
+
+  .hero-cta-wrap {
+    margin-top: 4px;
+  }
+
+  .hero-live-btn {
+    width: 100%;
     display: flex;
-    gap: 12px;
-    margin-bottom: 24px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 20px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    box-shadow: 0 10px 22px -8px rgba(140, 47, 75, 0.5);
   }
 
-  .stat-card {
-    flex: 1;
+  .hero-live-btn .cta-arrow {
+    transition: transform 0.2s ease;
+    margin-left: 4px;
+  }
+
+  .hero-live-btn:hover .cta-arrow {
+    transform: translateX(4px);
+  }
+
+  /* ==========================================================================
+     Statistiche orizzontali compatte (3 colonne bilanciate)
+     ========================================================================== */
+  .detail-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .stat-pill-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    padding: 14px 8px;
+    border-radius: 20px;
+    background: #ffffff;
+    border: 1px solid rgba(140, 47, 75, 0.1);
+    box-shadow: 0 8px 20px -12px rgba(106, 32, 55, 0.1);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .stat-pill-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -12px rgba(106, 32, 55, 0.18);
+  }
+
+  .stat-icon {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .guests-icon {
+    background: rgba(125, 168, 212, 0.14);
+    color: #4a7cb0;
+  }
+
+  .photos-icon {
+    background: rgba(201, 98, 127, 0.14);
+    color: #b94b68;
+  }
+
+  .quiz-icon {
+    background: rgba(201, 169, 110, 0.18);
+    color: #8a6d3b;
+  }
+
+  .stat-info {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    padding: 16px;
-    border-radius: 18px;
-    background: var(--paper);
-    border: 1px solid rgba(201, 169, 110, 0.18);
   }
 
   .stat-num {
-    font-size: 1.8rem;
-    font-weight: 800;
-    color: var(--gold-dark);
+    font-size: 1.65rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--text-main, #241c20);
     font-variant-numeric: tabular-nums;
   }
 
   .stat-label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--text-dim);
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted, #6e6167);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
   }
 
-  .detail-tabs {
-    display: flex;
+  /* ==========================================================================
+     Segmented Tabs Control (3 colonne fisse, NESSUN wrapping lumpy)
+     ========================================================================== */
+  .detail-tabs-segment {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
     padding: 4px;
-    border-radius: var(--radius-full);
-    background: rgba(0, 0, 0, 0.04);
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    margin-bottom: 24px;
+    border-radius: 999px;
+    background: rgba(36, 28, 32, 0.05);
+    border: 1px solid rgba(36, 28, 32, 0.06);
   }
 
-  .tab-btn {
-    flex: 1;
-    display: flex;
+  .segment-btn {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 10px 14px;
-    border-radius: var(--radius-full);
+    min-height: 40px;
+    padding: 6px 10px;
+    border-radius: 999px;
     border: none;
     background: transparent;
-    cursor: pointer;
-    font-size: 0.85rem;
+    color: var(--text-muted, #6e6167);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
     font-weight: 600;
-    color: var(--text-muted);
-    transition: all 0.2s;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .tab-btn:hover {
-    color: var(--text-main);
+  .segment-btn svg {
+    flex-shrink: 0;
   }
 
-  .tab-btn.active {
-    background: #fff;
-    color: var(--text-main);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  .segment-btn:hover {
+    color: var(--text-main, #241c20);
+  }
+
+  .segment-btn.active {
+    background: #ffffff;
+    color: var(--wine, #8c2f4b);
     font-weight: 700;
+    box-shadow: 0 4px 14px rgba(36, 28, 32, 0.08);
   }
 
-  /* ── Photo Grid ───────────────────────────────────────────────────────── */
+  @media (max-width: 440px) {
+    .segment-btn {
+      font-size: 0.74rem;
+      padding: 6px 4px;
+      gap: 4px;
+      min-height: 36px;
+    }
+  }
+
+  /* ==========================================================================
+     Tab Panels & Card Lists
+     ========================================================================== */
+  .tab-panel {
+    margin-top: 4px;
+  }
+
+  .empty-state-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    padding: 38px 20px;
+    border-radius: 24px;
+    background: #ffffff;
+    border: 1px dashed rgba(140, 47, 75, 0.2);
+  }
+
+  .empty-state-icon {
+    display: grid;
+    place-items: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--wine-tint, #f5e4e9);
+    color: var(--wine, #8c2f4b);
+    margin-bottom: 4px;
+  }
+
+  .empty-state-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-main, #241c20);
+  }
+
+  .empty-state-sub {
+    font-size: 0.86rem;
+    color: var(--text-muted, #6e6167);
+    max-width: 38ch;
+  }
+
+  /* ── Galleria Foto ──────────────────────────────────────────────────────── */
   .photo-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  @media (min-width: 600px) {
+    .photo-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
   }
 
   .photo-card {
     position: relative;
-    border-radius: 16px;
+    border-radius: 18px;
     overflow: hidden;
     aspect-ratio: 1;
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(36, 28, 32, 0.04);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
   }
 
   .photo-card img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.3s;
+    transition: transform 0.3s ease;
   }
 
   .photo-card:hover img {
@@ -643,24 +1012,27 @@
     left: 0;
     right: 0;
     padding: 24px 10px 8px;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+    background: linear-gradient(to top, rgba(18, 10, 14, 0.82) 0%, transparent 100%);
     display: flex;
     flex-direction: column;
     gap: 2px;
   }
 
   .photo-author {
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     font-weight: 700;
-    color: #fff;
+    color: #ffffff;
   }
 
   .photo-challenge {
-    font-size: 0.68rem;
-    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.66rem;
+    color: rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  /* ── Submissions List ─────────────────────────────────────────────────── */
+  /* ── Quiz Submissions ───────────────────────────────────────────────────── */
   .submissions-list {
     display: flex;
     flex-direction: column;
@@ -669,70 +1041,110 @@
 
   .submission-card {
     padding: 16px;
-    border-radius: 16px;
-    background: var(--paper);
-    border: 1px solid rgba(201, 169, 110, 0.15);
+    border-radius: 20px;
+    background: #ffffff;
+    border: 1px solid rgba(140, 47, 75, 0.1);
+    box-shadow: 0 6px 18px -10px rgba(106, 32, 55, 0.08);
   }
 
   .sub-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .sub-author-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sub-avatar {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--wine-tint, #f5e4e9);
+    color: var(--wine, #8c2f4b);
+    font-size: 0.75rem;
+    font-weight: 700;
   }
 
   .sub-author {
     font-weight: 700;
-    font-size: 0.9rem;
-    color: var(--text-main);
+    font-size: 0.86rem;
+    color: var(--text-main, #241c20);
   }
 
   .sub-type {
-    padding: 3px 10px;
-    border-radius: var(--radius-full);
-    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
   }
 
   .sub-type.quiz {
     background: rgba(123, 184, 158, 0.15);
-    color: #3f7a62;
+    color: #2e6650;
   }
 
   .sub-type.vote {
     background: rgba(212, 132, 154, 0.15);
-    color: #8a4d63;
+    color: #8c2f4b;
   }
 
   .sub-challenge {
-    font-size: 0.88rem;
-    color: var(--text-muted);
-    margin-bottom: 4px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--text-muted, #6e6167);
+    margin-bottom: 8px;
+  }
+
+  .sub-answer-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: rgba(36, 28, 32, 0.03);
   }
 
   .sub-answer {
-    font-size: 0.88rem;
-    color: var(--text-main);
+    font-size: 0.84rem;
+    color: var(--text-main, #241c20);
+  }
+
+  .ans-label {
+    color: var(--text-muted, #6e6167);
+    margin-right: 4px;
   }
 
   .correct-badge {
-    margin-left: 8px;
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(192, 57, 43, 0.1);
     color: #c0392b;
   }
 
   .correct-badge.right {
+    background: rgba(39, 174, 96, 0.12);
     color: #27ae60;
   }
 
-  /* ── Participants ──────────────────────────────────────────────────────── */
+  /* ── Partecipanti List ──────────────────────────────────────────────────── */
   .participants-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
 
   .participant-card {
@@ -740,23 +1152,34 @@
     align-items: center;
     gap: 12px;
     padding: 12px 16px;
-    border-radius: 16px;
-    background: var(--paper);
-    border: 1px solid rgba(201, 169, 110, 0.12);
-    transition: background 0.15s;
+    border-radius: 18px;
+    background: #ffffff;
+    border: 1px solid rgba(140, 47, 75, 0.08);
+    box-shadow: 0 4px 12px -8px rgba(106, 32, 55, 0.08);
   }
 
   .participant-card.is-me {
-    border-color: rgba(201, 169, 110, 0.4);
-    background: rgba(201, 169, 110, 0.06);
+    border-color: rgba(140, 47, 75, 0.35);
+    background: linear-gradient(135deg, #ffffff 0%, #fff7f9 100%);
+  }
+
+  .p-rank-col {
+    width: 28px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .rank-medal {
+    font-size: 1.15rem;
+    line-height: 1;
   }
 
   .p-rank {
-    width: 24px;
-    font-weight: 800;
-    font-size: 1rem;
-    color: var(--gold-dark);
-    text-align: center;
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--text-muted, #6e6167);
     font-variant-numeric: tabular-nums;
   }
 
@@ -766,10 +1189,10 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    font-size: 0.88rem;
+    font-size: 0.86rem;
     font-weight: 700;
-    color: #fff;
-    background: hsl(var(--hue) 45% 48%);
+    color: #ffffff;
+    background: hsl(var(--hue, 340) 45% 48%);
     flex-shrink: 0;
   }
 
@@ -780,50 +1203,102 @@
     min-width: 0;
   }
 
+  .p-name-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
   .p-name {
-    font-weight: 700;
-    font-size: 0.92rem;
-    color: var(--text-main);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-main, #241c20);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
+  .you-badge {
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: var(--wine, #8c2f4b);
+    color: #ffffff;
+  }
+
   .p-role {
-    font-size: 0.74rem;
-    color: var(--text-dim);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--text-muted, #6e6167);
   }
 
   .p-points {
-    font-weight: 800;
-    font-size: 0.92rem;
-    color: var(--gold-dark);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--wine, #8c2f4b);
     font-variant-numeric: tabular-nums;
   }
 
-  .empty-msg {
-    text-align: center;
-    color: var(--text-muted);
-    padding: 40px 16px;
-    font-size: 0.95rem;
+  .p-points small {
+    font-size: 0.75rem;
+    font-weight: 500;
+    opacity: 0.8;
   }
 
-  @media (max-width: 600px) {
-    .dashboard-header {
-      flex-direction: column;
-      gap: 12px;
-    }
-    .account-info {
-      align-items: flex-start;
-    }
-    .detail-stats {
-      flex-direction: column;
-    }
-    .photo-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .detail-tabs {
-      flex-wrap: wrap;
-    }
+  /* ── Loading & Empty states ─────────────────────────────────────────────── */
+  .dashboard-loading-view,
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 60px 16px;
+    text-align: center;
+  }
+
+  .loading-title {
+    font-size: 1.15rem;
+    color: var(--text-muted, #6e6167);
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 20px;
+    text-align: center;
+    border-radius: 28px;
+    background: #ffffff;
+    border: 1px dashed rgba(140, 47, 75, 0.2);
+  }
+
+  .empty-icon {
+    color: var(--wine, #8c2f4b);
+    opacity: 0.7;
+  }
+
+  .empty-state h3 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-main, #241c20);
+  }
+
+  .empty-state p {
+    max-width: 42ch;
+    color: var(--text-muted, #6e6167);
+    font-size: 0.88rem;
+  }
+
+  .empty-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 </style>

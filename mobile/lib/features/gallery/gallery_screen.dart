@@ -28,14 +28,17 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     final tick = ref.read(timerProvider);
     try {
       final bytesList = await Future.wait(picked.map((f) => f.readAsBytes()));
-      await ref.read(galleryProvider.notifier).uploadMany(
-            bytesList,
-            awardPoints: tick.status != TimerStatus.ended,
-          );
-      ref.read(toastProvider.notifier).show(
+      await ref
+          .read(galleryProvider.notifier)
+          .uploadMany(bytesList, awardPoints: tick.status != TimerStatus.ended);
+      ref
+          .read(toastProvider.notifier)
+          .show(
             'Foto caricate con successo!',
             type: 'success',
-            points: tick.status == TimerStatus.ended ? null : picked.length * 10,
+            points: tick.status == TimerStatus.ended
+                ? null
+                : picked.length * 10,
           );
     } catch (e) {
       ref.read(toastProvider.notifier).show(e.toString(), type: 'error');
@@ -51,24 +54,44 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     final session = ref.watch(authProvider).value;
 
     return Scaffold(
-      appBar: const GameAppBar(),
+      appBar: const GameAppBar(pageTitle: 'Galleria foto'),
       floatingActionButton: tick.status == TimerStatus.beforeStart
           ? null
           : FloatingActionButton.extended(
               onPressed: _isUploading ? null : _pickAndUpload,
-              icon: _isUploading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.add_a_photo),
-              label: Text(_isUploading ? 'Ottimizzazione e invio...' : 'Carica foto'),
+              icon: _isUploading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add_a_photo),
+              label: Text(
+                _isUploading ? 'Ottimizzazione e invio...' : 'Carica foto',
+              ),
             ),
       body: tick.status == TimerStatus.beforeStart
-          ? Center(child: Text('Galleria Bloccata\nApertura alle ${tick.startTimeFormatted}', textAlign: TextAlign.center))
+          ? Center(
+              child: Text(
+                'Galleria Bloccata\nApertura alle ${tick.startTimeFormatted}',
+                textAlign: TextAlign.center,
+              ),
+            )
           : photosAsync.when(
               data: (photos) => GridView.builder(
                 padding: const EdgeInsets.all(12),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 4, mainAxisSpacing: 4),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 4,
+                  mainAxisSpacing: 4,
+                ),
                 itemCount: photos.length,
                 itemBuilder: (context, index) {
                   final photo = photos[index];
-                  final displayName = session != null && photo.userId == session.user.id ? 'Tu' : photo.author;
+                  final displayName =
+                      session != null && photo.userId == session.user.id
+                      ? 'Tu'
+                      : photo.author;
                   return GestureDetector(
                     onTap: () => showDialog(
                       context: context,
@@ -85,7 +108,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        CachedNetworkImage(imageUrl: photo.imageUrl, fit: BoxFit.cover),
+                        CachedNetworkImage(
+                          imageUrl: photo.imageUrl,
+                          fit: BoxFit.cover,
+                        ),
                         Positioned(
                           left: 4,
                           right: 4,
@@ -97,7 +123,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 11,
-                              shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                              shadows: [
+                                Shadow(blurRadius: 4, color: Colors.black),
+                              ],
                             ),
                           ),
                         ),

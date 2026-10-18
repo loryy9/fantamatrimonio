@@ -3,6 +3,7 @@
   import { api } from '../lib/api.js';
   import { appState } from '../lib/state.svelte.js';
   import { formatName } from '../lib/formatters.js';
+  import { copyToClipboard } from '../lib/clipboard.js';
 
   let { onExit } = $props();
 
@@ -196,9 +197,9 @@
     }
   }
 
-  function copyCode(eventId, code) {
+  async function copyCode(eventId, code) {
     if (!code) return;
-    navigator.clipboard.writeText(code);
+    await copyToClipboard(code);
     copiedEventId = eventId;
     setTimeout(() => {
       if (copiedEventId === eventId) copiedEventId = null;

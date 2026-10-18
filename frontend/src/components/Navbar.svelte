@@ -9,10 +9,7 @@
     hasCouple ? [s1.trim()[0], s2.trim()[0]].map(c => c.toUpperCase()) : ['F', 'M']
   );
 
-  // Home already greets with the couple's names, so the bar carries the app name there.
-  const title = $derived(
-    appState.activeTab === 'home' || !hasCouple ? 'Fanta Matrimonio' : `${s1} & ${s2}`
-  );
+  const title = $derived(hasCouple ? `${s1} & ${s2}` : 'Fanta Matrimonio');
 
   function handleLogout() {
     if (confirm('Vuoi davvero uscire?')) {
@@ -78,12 +75,12 @@
     z-index: 100;
     color: #fff;
     /* the shadow lives here: clip-path on .band would cut a box-shadow */
-    filter: drop-shadow(0 10px 12px rgba(106, 32, 55, 0.4));
+    filter: drop-shadow(0 4px 8px rgba(106, 32, 55, 0.28));
   }
 
   /* straight edges, with the bottom cut on a diagonal */
   .band {
-    --cut: 16px;
+    --cut: 8px;
     position: relative;
     overflow: hidden;
     padding: var(--safe-top) 0 var(--cut);
@@ -127,11 +124,11 @@
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     max-width: 1100px;
-    height: 68px;
+    height: 72px;
     margin: 0 auto;
-    padding: 0 14px 0 14px;
+    padding: 0 14px;
   }
 
   .monogram {
@@ -145,14 +142,14 @@
     border-radius: 50%;
     color: var(--wine-deep);
     background: linear-gradient(145deg, #fbefcf, #d9b46f);
-    box-shadow: 0 0 0 3px rgba(240, 216, 168, 0.22), 0 6px 14px -4px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 2px rgba(240, 216, 168, 0.22), 0 3px 8px -2px rgba(0, 0, 0, 0.4);
     font-size: 0.95rem;
     font-weight: 700;
     line-height: 1;
   }
 
   .monogram i {
-    font-size: 0.66rem;
+    font-size: 0.76rem;
     font-weight: 500;
     opacity: 0.7;
   }
@@ -160,11 +157,11 @@
   .navbar-title {
     min-width: 0;
     color: #fff;
-    font-size: clamp(1.05rem, 5vw, 1.4rem);
+    font-size: clamp(1.08rem, 4.5vw, 1.38rem);
     font-weight: 600;
     font-style: italic;
-    text-align: center;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    text-align: left;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -174,22 +171,22 @@
     justify-self: end;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     flex-shrink: 0;
   }
 
   .chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 13px;
+    gap: 4px;
+    padding: 6px 10px;
     border-radius: 999px;
     border: none;
     color: var(--wine-deep);
     background: linear-gradient(145deg, #fbefcf, #e3c07e);
-    box-shadow: 0 6px 14px -4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-    min-height: 40px;
-    font-size: 0.82rem;
+    box-shadow: 0 3px 8px -2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    min-height: 36px;
+    font-size: 0.8rem;
     font-weight: 800;
     white-space: nowrap;
     cursor: pointer;
@@ -209,20 +206,29 @@
   }
 
   .icon-btn {
+    position: relative;
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
     border: none;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 50%;
     cursor: pointer;
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(255, 255, 255, 0.95);
     transition: background 0.2s, transform 0.2s;
   }
 
+  /* Accessible touch target expansion to 48x48px on mobile */
+  .icon-btn::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+  }
+
   .icon-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.22);
   }
 
   .icon-btn:active {
@@ -262,9 +268,9 @@
       display: none;
     }
     .chip:not(.static) {
-      padding: 10px;
-      min-width: 40px;
-      min-height: 40px;
+      padding: 8px;
+      min-width: 38px;
+      min-height: 38px;
       justify-content: center;
     }
   }

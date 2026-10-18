@@ -75,8 +75,9 @@
 </script>
 
 {#if appState.showUpgradeModal}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div class="modal-overlay" onclick={close} role="presentation">
-    <div class="modal-card" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Registra il tuo account">
+    <div class="modal-card" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Registra il tuo account" tabindex="-1">
       <button class="modal-close" onclick={close} aria-label="Chiudi">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
@@ -181,7 +182,7 @@
   }
 
   .verification-required-note span {
-    color: #6b5f64;
+    color: var(--text-muted);
     font-size: 0.9rem;
   }
 
@@ -216,6 +217,18 @@
     cursor: pointer;
     color: var(--text-muted);
     transition: background 0.15s;
+  }
+
+  .modal-close::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+  }
+
+  .modal-close:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: 2px;
   }
 
   .modal-close:hover {
@@ -267,18 +280,27 @@
 
   .skip-btn {
     margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     font-weight: 600;
-    color: var(--text-dim);
-    padding: 6px;
+    color: var(--text-muted);
+    padding: 8px 16px;
     transition: color 0.15s;
   }
 
   .skip-btn:hover {
-    color: var(--text-muted);
+    color: var(--wine);
+  }
+
+  .skip-btn:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: 2px;
   }
 
   .spinner-on-dark {

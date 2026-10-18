@@ -31,21 +31,29 @@
 </script>
 
 {#if appState.showInstructionsModal}
-  <div class="modal-backdrop" onclick={handleDismiss}>
-    <div class="modal-card" onclick={(e) => e.stopPropagation()}>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="modal-backdrop" onclick={handleDismiss} role="presentation">
+    <div
+      class="modal-card"
+      onclick={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="instructions-modal-title"
+      tabindex="-1"
+    >
       <!-- Header -->
       <div class="modal-header">
         <button class="close-x-btn" onclick={handleDismiss} title="Chiudi" aria-label="Chiudi istruzioni">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
 
-        <div class="modal-rings-icon">
+        <div class="modal-rings-icon" aria-hidden="true">
           <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="9" cy="12" r="5"></circle>
             <circle cx="15" cy="12" r="5"></circle>
           </svg>
         </div>
-        <h2 class="modal-title font-serif">Benvenuti al FantaMatrimonio!</h2>
+        <h2 id="instructions-modal-title" class="modal-title font-serif">Benvenuti al FantaMatrimonio!</h2>
         <div class="modal-subtitle">
           Festa di <strong class="gold-gradient-text">{spouse1} & {spouse2}</strong>
         </div>
@@ -191,6 +199,13 @@
     justify-content: center;
     transition: background 0.2s, color 0.2s, transform 0.15s;
     z-index: 2;
+  }
+
+  .close-x-btn::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
   }
 
   .close-x-btn:active {

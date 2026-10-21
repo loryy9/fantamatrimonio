@@ -135,6 +135,9 @@ class AppState {
       first_name: formatName(nick),
       last_name: formatName(u.last_name || '')
     };
+    try {
+      sessionStorage.removeItem('fm_dismissed_account_prompt');
+    } catch (_) {}
   }
 
   _scheduleAutoRefresh(expiresInSeconds) {
@@ -164,14 +167,16 @@ class AppState {
 
   triggerAccountPrompt(source = 'activity') {
     if (this.hasAccount || this.isCouple) return;
-    if (sessionStorage.getItem('fm_dismissed_account_prompt') === 'true') return;
+    const dismissedKey = this.user?.id ? `fm_dismissed_account_prompt_${this.user.id}` : 'fm_dismissed_account_prompt';
+    if (sessionStorage.getItem(dismissedKey) === 'true') return;
     this.accountPromptSource = source;
     this.showAccountPromptBanner = true;
   }
 
   dismissAccountPrompt() {
     this.showAccountPromptBanner = false;
-    sessionStorage.setItem('fm_dismissed_account_prompt', 'true');
+    const dismissedKey = this.user?.id ? `fm_dismissed_account_prompt_${this.user.id}` : 'fm_dismissed_account_prompt';
+    sessionStorage.setItem(dismissedKey, 'true');
   }
 
   _saveTokens(sessionToken, jwt, account, refreshToken = null, expiresIn = null) {
@@ -648,6 +653,12 @@ class AppState {
     localStorage.removeItem('fm_auth_token');
     localStorage.removeItem('fm_refresh_token');
     localStorage.removeItem('fm_jwt_token');
+    try {
+      sessionStorage.removeItem('fm_dismissed_account_prompt');
+      if (this.user?.id) {
+        sessionStorage.removeItem(`fm_dismissed_account_prompt_${this.user.id}`);
+      }
+    } catch (_) {}
     this.stopPolling();
     this.activeTab = 'entry';
     this.setAuthView('entry');

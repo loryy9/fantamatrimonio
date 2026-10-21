@@ -72,7 +72,7 @@
   .navbar {
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 250;
     color: #fff;
     /* the shadow lives here: clip-path on .band would cut a box-shadow */
     filter: drop-shadow(0 4px 8px rgba(106, 32, 55, 0.28));
@@ -242,14 +242,16 @@
   }
 
   .icon-btn-gold {
-    background: rgba(240, 216, 168, 0.2);
-    color: var(--gold-bright);
-    animation: pulse-glow 2s ease-in-out infinite;
+    background: linear-gradient(145deg, #fbefcf, #e3c07e);
+    color: var(--wine-deep);
+    border: 1.5px solid rgba(240, 216, 168, 0.75);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    animation: pulse-glow 2.5s ease-in-out infinite;
   }
 
   .pulse-attention {
     animation: attention-wave 1.4s infinite ease-in-out !important;
-    background: rgba(240, 216, 168, 0.45) !important;
+    background: linear-gradient(145deg, #fff2d6, #edd193) !important;
   }
 
   @keyframes attention-wave {

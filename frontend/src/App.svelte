@@ -79,6 +79,7 @@
 <Toast />
 {#if !isAdminRoute}
   <InstructionsModal />
+  <AccountPromptBanner />
   <UpgradeAccountModal />
   <ClaimAccountModal />
 {/if}
@@ -100,7 +101,6 @@
   <!-- NAVBAR FESTA BORDEAUX CON MONOGRAMMA SPOSI SOLO DENTRO AL GIOCO EFFETTIVO -->
   <div class="app-wrapper">
     <Navbar />
-    <AccountPromptBanner />
 
     <main class="main-content" bind:this={mainContentEl}>
       {#if appState.activeTab === 'home'}

@@ -16,8 +16,8 @@
   let activeAdminTab = $state('events');
 
   // Login Form
-  let username = $state('admin');
-  let password = $state('admin');
+  let username = $state('');
+  let password = $state('');
   let loginError = $state('');
   let isLoggingIn = $state(false);
 

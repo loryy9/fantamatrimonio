@@ -4,14 +4,14 @@ WORKDIR /app
 
 # 1. Installa dipendenze e compila il frontend Svelte
 COPY frontend/package*.json ./frontend/
-RUN cd frontend && npm ci
+RUN cd frontend && npm install
 
 COPY frontend/ ./frontend/
 RUN cd frontend && npm run build
 
 # 2. Installa dipendenze del backend (Worker Hono)
 COPY worker/package*.json ./worker/
-RUN cd worker && npm ci
+RUN cd worker && npm install
 
 COPY worker/ ./worker/
 

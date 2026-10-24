@@ -1,79 +1,150 @@
 <script>
+  import { tick } from 'svelte';
   import { appState } from '../lib/state.svelte.js';
   import { copyToClipboard } from '../lib/clipboard.js';
   import OnboardingSetup from './OnboardingSetup.svelte';
   import EmailVerificationField from './EmailVerificationField.svelte';
 
+  // Wizard state: 1 (Nomi & Cerimonia) -> 2 (Credenziali & Accesso) -> 'setup' (Modalità) -> 'share' (Codice pronto)
+  let wizardStep = $state(1);
+
+  // Step 1: Nomi & Cerimonia
   let spouse1 = $state('');
   let spouse2 = $state('');
+  let eventDate = $state(new Date().toISOString().split('T')[0]);
+  let eventLocation = $state('');
   let enableTimer = $state(false);
-  let startTime = $state('');
-  let endTime = $state('');
-  
-  // Se l'utente ha già un account attivo (es. ha fatto login prima di creare)
-  const isPreAuthenticated = $derived(appState.hasAccount && appState.account);
 
+  // Orari inizio e fine sfide: Giorno + Ora separati sia per inizio che per fine (nessun overflow su mobile!)
+  let startDate = $state(new Date().toISOString().split('T')[0]);
+  let startTime = $state('12:00');
+  let endDate = $state(new Date().toISOString().split('T')[0]);
+  let endTime = $state('23:30');
+
+  // Step 2: Credenziali
+  const isPreAuthenticated = $derived(appState.hasAccount && appState.account);
   let coupleFirst = $state(appState.account?.display_name?.split(' ')[0] || '');
   let coupleLast = $state(appState.account?.display_name?.split(' ').slice(1).join(' ') || '');
   let coupleEmail = $state(appState.account?.email || '');
   let couplePassword = $state('');
-  let coupleConfirmPassword = $state('');
+  let couplePhone = $state('');
   let coupleVerificationCode = $state('');
   let coupleEmailVerified = $state(false);
   let showPassword = $state(false);
   let isSubmitting = $state(false);
-  let errorMessage = $state('');
   let copied = $state('');
 
-  // Modal di orientamento / istruzioni dopo la creazione
-  let showSuccessModal = $state(false);
+  // Sottofase onboarding post-creazione
+  let currentStep = $state('form'); // 'form' | 'setup' | 'share'
 
-  // 'form' (creazione) | 'setup' (onboarding quiz/caccia/momenti) | 'share' (codice invito)
-  let currentStep = $state('form');
+  function scrollToTopInstant() {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      const appEl = document.getElementById('app');
+      if (appEl) appEl.scrollTop = 0;
+    }
+  }
+
+  // Sincronizza la data dell'evento con le date di inizio e fine
+  $effect(() => {
+    if (eventDate) {
+      if (!startDate || startDate === endDate) {
+        startDate = eventDate;
+        endDate = eventDate;
+      }
+    }
+  });
+
+  // Anteprima codice automatico
+  const generatedCodePreview = $derived.by(() => {
+    const s1 = spouse1.trim().replace(/[^a-zA-Z]/g, '').slice(0, 5).toUpperCase() || 'ELENA';
+    const s2 = spouse2.trim().replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'DAV';
+    const year = eventDate ? eventDate.split('-')[0].slice(-2) : '26';
+    return `${s1}-${s2}-${year}`;
+  });
+
+  // Data leggibile in italiano
+  const readableDate = $derived.by(() => {
+    if (!eventDate) return '';
+    try {
+      const d = new Date(eventDate);
+      return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    } catch {
+      return '';
+    }
+  });
 
   const inviteLink = $derived(
     appState.pendingInvite ? `${window.location.origin}/?code=${appState.pendingInvite}` : ''
   );
 
-  async function handleSubmit(e) {
+  async function goToStep2(e) {
     e.preventDefault();
-
     if (!spouse1.trim() || !spouse2.trim()) {
       appState.showToast('Inserisci il nome di entrambi gli sposi.', 'error');
       return;
     }
-    if (enableTimer) {
-      if (!startTime || !endTime) {
-        appState.showToast('Imposta sia l\'orario di inizio che quello di fine.', 'error');
-        return;
-      }
-      if (new Date(endTime) <= new Date(startTime)) {
-        appState.showToast('L\'orario di fine deve essere successivo a quello di inizio.', 'error');
-        return;
-      }
-    }
-    if (!coupleFirst.trim() || !coupleLast.trim()) {
-      appState.showToast('Inserisci il nome e cognome del referente per l\'account sposi.', 'error');
+    if (!coupleFirst.trim()) coupleFirst = spouse1.trim();
+    if (!coupleLast.trim()) coupleLast = spouse2.trim();
+
+    wizardStep = 2;
+    await tick();
+    scrollToTopInstant();
+  }
+
+  async function goToStep1() {
+    wizardStep = 1;
+    await tick();
+    scrollToTopInstant();
+  }
+
+  async function handleFinalSubmit(e) {
+    e.preventDefault();
+
+    if (!spouse1.trim() || !spouse2.trim()) {
+      wizardStep = 1;
+      await tick();
+      scrollToTopInstant();
+      appState.showToast('Inserisci il nome di entrambi gli sposi.', 'error');
       return;
     }
 
     if (!isPreAuthenticated) {
-      if (!coupleEmail.trim() || !couplePassword.trim()) {
-        appState.showToast('Email e password sono obbligatorie per creare l\'account con cui gestirete il matrimonio.', 'error');
+      if (!coupleEmail.trim()) {
+        appState.showToast('Inserisci l\'email degli sposi.', 'error');
         return;
       }
-      if (couplePassword.trim().length < 6) {
+      if (!coupleEmailVerified && (!coupleVerificationCode || coupleVerificationCode.trim().length !== 6)) {
+        appState.showToast('Verifica la tua email inserendo il codice a 6 cifre inviato.', 'error');
+        return;
+      }
+      if (!couplePassword.trim() || couplePassword.trim().length < 6) {
         appState.showToast('La password deve contenere almeno 6 caratteri.', 'error');
         return;
       }
-      if (couplePassword !== coupleConfirmPassword) {
-        appState.showToast('Le password non coincidono.', 'error');
+    }
+
+    let startIso = null;
+    let endIso = null;
+    if (enableTimer) {
+      if (!startDate || !startTime || !endDate || !endTime) {
+        appState.showToast('Imposta sia giorno che ora di inizio e di chiusura delle sfide.', 'error');
         return;
       }
-      if (!coupleVerificationCode.trim() || coupleVerificationCode.trim().length !== 6) {
-        appState.showToast('Inserisci il codice di verifica a 6 cifre inviato alla tua email.', 'error');
+      const dStart = new Date(`${startDate}T${startTime}`);
+      const dEnd = new Date(`${endDate}T${endTime}`);
+      if (isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) {
+        appState.showToast('Date e orari non validi.', 'error');
         return;
       }
+      if (dEnd <= dStart) {
+        appState.showToast('La chiusura delle sfide deve essere successiva all\'inizio.', 'error');
+        return;
+      }
+      startIso = dStart.toISOString();
+      endIso = dEnd.toISOString();
     }
 
     isSubmitting = true;
@@ -81,28 +152,23 @@
       spouse1_name: spouse1.trim(),
       spouse2_name: spouse2.trim(),
       enable_timer: enableTimer,
-      start_time: enableTimer ? new Date(startTime).toISOString() : null,
-      end_time: enableTimer ? new Date(endTime).toISOString() : null,
-      couple_first_name: coupleFirst.trim(),
-      couple_last_name: coupleLast.trim(),
+      start_time: startIso,
+      end_time: endIso,
+      couple_first_name: coupleFirst.trim() || spouse1.trim(),
+      couple_last_name: coupleLast.trim() || spouse2.trim(),
       couple_email: !isPreAuthenticated ? coupleEmail.trim().toLowerCase() : undefined,
       couple_password: !isPreAuthenticated ? couplePassword.trim() : undefined,
-      verification_code: !isPreAuthenticated ? coupleVerificationCode.trim() : undefined
+      verification_code: !isPreAuthenticated && coupleVerificationCode.trim() ? coupleVerificationCode.trim() : undefined
     });
     isSubmitting = false;
 
     if (!res.success) {
-      appState.showToast(res.error || 'Non è stato possibile creare il matrimonio.', 'error');
+      appState.showToast(res.error || 'Impossibile creare il matrimonio.', 'error');
     } else {
-      // Mostra popup con istruzioni chiare e mini-navbar con pulsante 'Accedi' evidenziato
-      showSuccessModal = true;
+      currentStep = 'setup';
+      await tick();
+      scrollToTopInstant();
     }
-  }
-
-  function proceedToSetup() {
-    showSuccessModal = false;
-    currentStep = 'setup';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function copy(kind, text) {
@@ -110,13 +176,12 @@
     if (ok) {
       copied = kind;
       setTimeout(() => { if (copied === kind) copied = ''; }, 2000);
-    } else {
-      appState.showToast('Copia non riuscita, seleziona il testo a mano.', 'error');
+      appState.showToast('Copiato negli appunti!', 'success');
     }
   }
 
   async function share() {
-    const text = `Unisciti al nostro matrimonio! Codice invito: ${appState.pendingInvite}`;
+    const text = `Partecipa al nostro Fanta Matrimonio! Codice invito: ${appState.pendingInvite}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: 'Fanta Matrimonio', text, url: inviteLink });
@@ -128,1115 +193,1242 @@
 </script>
 
 {#if currentStep === 'setup'}
-  <OnboardingSetup onComplete={() => { currentStep = 'share'; window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+  <OnboardingSetup onComplete={() => { currentStep = 'share'; scrollToTopInstant(); }} />
 {:else if currentStep === 'share' || appState.pendingInvite}
-  <div class="reveal auth-card">
-    <span class="reveal-icon">
-      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-    </span>
-    <span class="eyebrow">Il vostro matrimonio è pronto</span>
-    <h1 class="page-title">
-      {appState.event?.spouse1_name} <span class="gold-gradient-text">&amp;</span> {appState.event?.spouse2_name}
-    </h1>
-    <p class="page-lead">Condividi questo codice con gli invitati: lo useranno per entrare nell'evento.</p>
+  <!-- SCHERMATA CODICE PRONTO -->
+  <div class="wizard-screen">
+    <div class="wizard-container">
+      <div class="reveal-card">
+        <div class="reveal-badge">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+          </svg>
+        </div>
+        <span class="step-badge-text">EVENTO CREATO CON SUCCESSO</span>
+        <h1 class="wizard-title font-serif">
+          {appState.event?.spouse1_name || spouse1} &amp; {appState.event?.spouse2_name || spouse2}
+        </h1>
+        <p class="wizard-subtitle">
+          Condividete questo codice o il link con gli invitati per farli entrare al volo!
+        </p>
 
-    <div class="code-box" aria-label="Codice invito">{appState.pendingInvite}</div>
+        <div class="code-big-display">
+          {appState.pendingInvite || appState.event?.invite_code}
+        </div>
 
-    <div class="reveal-actions">
-      <button class="btn btn-secondary" onclick={() => copy('code', appState.pendingInvite)}>
-        {#if copied === 'code'}
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          Codice copiato
-        {:else}
-          Copia codice
-        {/if}
-      </button>
-      <button class="btn btn-secondary" onclick={() => copy('link', inviteLink)}>
-        {#if copied === 'link'}
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          Link copiato
-        {:else}
-          Copia link invito
-        {/if}
-      </button>
-      <button class="btn btn-secondary" onclick={share}>Condividi</button>
-    </div>
+        <div class="reveal-actions">
+          <button type="button" class="action-pill-btn" onclick={() => copy('code', appState.pendingInvite)}>
+            {#if copied === 'code'}✓ Codice copiato{:else}Copia codice{/if}
+          </button>
+          <button type="button" class="action-pill-btn" onclick={() => copy('link', inviteLink)}>
+            {#if copied === 'link'}✓ Link copiato{:else}Copia link WhatsApp{/if}
+          </button>
+          <button type="button" class="action-pill-btn primary-wine" onclick={share}>
+            Condividi
+          </button>
+        </div>
 
-    <div class="link-line">{inviteLink}</div>
+        <div class="reveal-footer">
+          <button type="button" class="submit-action-btn" onclick={() => appState.finishOnboarding('manage')}>
+            <span>Apri Console Sposi</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
 
-    <div class="reveal-footer-actions">
-      <button class="btn btn-primary btn-lg" onclick={() => appState.finishOnboarding('manage')}>
-        Apri Console Sposi (Gestione) →
-      </button>
-      <button class="btn btn-secondary" onclick={() => appState.finishOnboarding('home')}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg> Guarda come vedono la festa gli invitati
-      </button>
-      <button class="link-btn-subtle" onclick={() => currentStep = 'setup'}>
-        ← Modifica ancora le attività
-      </button>
-      <button
-        type="button"
-        class="link-btn-danger"
-        onclick={async () => {
-          if (confirm("Sei sicuro di voler annullare ed eliminare questo matrimonio dal database?")) {
-            await appState.cancelEventCreation();
-          }
-        }}
-      >
-        Annulla ed elimina questo matrimonio dal database
-      </button>
+          <button type="button" class="secondary-plain-btn" onclick={() => appState.finishOnboarding('home')}>
+            Vedi l'anteprima invitati
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 {:else}
-  <div class="create-layout">
-    <aside class="create-aside">
-      <span class="eyebrow">Per gli sposi</span>
-      <h1 class="page-title">Create il vostro <span class="gold-gradient-text">matrimonio</span></h1>
-      <p class="page-lead">
-        Tre passaggi e l'evento è online. Riceverete un codice invito da condividere con gli ospiti.
-      </p>
+  <!-- WIZARD STEP 1 & 2 -->
+  <div class="wizard-screen">
+    <!-- STICKY HEADER COMPATTA E SENZA SPAZIO MORTO -->
+    <div class="sticky-step-header">
+      <div class="sticky-inner">
+        <header class="wizard-topbar">
+          <button
+            type="button"
+            class="top-icon-btn"
+            onclick={() => {
+              if (wizardStep === 2) goToStep1();
+              else appState.setAuthView('entry');
+            }}
+            aria-label="Torna indietro"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+          </button>
 
-      <ol class="steps">
-        <li><span class="step-num">1</span><div><strong>I vostri nomi</strong><span>Compariranno nel gioco e nella classifica.</span></div></li>
-        <li><span class="step-num">2</span><div><strong>Le tempistiche</strong><span>Facoltative: limita i giochi a una finestra oraria.</span></div></li>
-        <li><span class="step-num">3</span><div><strong>Il vostro account Sposi</strong><span>Email e password per accedere e gestire il matrimonio.</span></div></li>
-      </ol>
+          <div class="top-nav-center">
+            <span class="sub-brand">FANTA MATRIMONIO</span>
+            <span class="step-pill-indicator">
+              Passo {wizardStep} di 3 • {wizardStep === 1 ? 'Gli Sposi' : 'Dettagli Evento'}
+            </span>
+          </div>
 
-      <p class="switch">
-        Sei un invitato?
-        <button type="button" class="link-btn" onclick={() => appState.setAuthView('join')}>Entra con un codice</button>
-      </p>
+          <div class="top-nav-right">
+            <span class="step-percent-tag">{wizardStep === 1 ? '33%' : '66%'}</span>
+            <button
+              type="button"
+              class="top-icon-btn user-avatar-pill"
+              onclick={() => appState.setAuthView('login-secure')}
+              aria-label="Accedi"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+              </svg>
+            </button>
+          </div>
+        </header>
 
-      <button type="button" class="link-btn-back" onclick={() => appState.setAuthView('entry')}>
-        ← Annulla e torna alla pagina iniziale
-      </button>
-    </aside>
-
-    <form class="auth-card create-form" onsubmit={handleSubmit}>
-      {#if errorMessage}
-        <div class="form-error" role="alert">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-          <span>{errorMessage}</span>
+        <!-- Barra di avanzamento continua -->
+        <div class="step-progress-wrapper">
+          <div class="step-progress-bar" style="width: {wizardStep === 1 ? '33%' : '66%'}"></div>
         </div>
-      {/if}
-
-      {#if !isPreAuthenticated}
-        <fieldset class="account-section email-first-step">
-          <legend><span class="step-num">1</span> Verifica prima la tua email</legend>
-          <p class="section-note">
-            Per continuare devi prima confermare il tuo indirizzo email. Inseriscilo e premi <strong>Invia codice</strong>: dopo averlo verificato potrai completare il matrimonio.
-          </p>
-          <EmailVerificationField
-            bind:email={coupleEmail}
-            bind:verificationCode={coupleVerificationCode}
-            bind:verified={coupleEmailVerified}
-            purpose="register_couple"
-            label="Email degli sposi"
-            placeholder="es. giulia.rossi@email.com"
-            disabled={isSubmitting}
-          />
-        </fieldset>
-      {/if}
-
-      {#if isPreAuthenticated || coupleEmailVerified}
-      <fieldset>
-        <legend><span class="step-num">{isPreAuthenticated ? '1' : '2'}</span> I vostri nomi</legend>
-        <div class="row">
-          <div class="input-group">
-            <label for="spouse1" class="input-label">Sposo/a 1</label>
-            <input id="spouse1" type="text" class="input-field" placeholder="Es. Giulia" bind:value={spouse1} autocomplete="off" required />
-          </div>
-          <div class="input-group">
-            <label for="spouse2" class="input-label">Sposo/a 2</label>
-            <input id="spouse2" type="text" class="input-field" placeholder="Es. Marco" bind:value={spouse2} autocomplete="off" required />
-          </div>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend><span class="step-num">{isPreAuthenticated ? '2' : '3'}</span> Le tempistiche</legend>
-        <label class="switch-row">
-          <input type="checkbox" bind:checked={enableTimer} />
-          <span class="switch-track"><span class="switch-thumb"></span></span>
-          <span class="switch-text">
-            <strong>Attiva orari di gioco</strong>
-            <span>Limita i giochi a una finestra oraria</span>
-          </span>
-        </label>
-
-        {#if enableTimer}
-          <div class="row timer-row">
-            <div class="input-group">
-              <label for="startTime" class="input-label">Inizio</label>
-              <input id="startTime" type="datetime-local" class="input-field" bind:value={startTime} />
-            </div>
-            <div class="input-group">
-              <label for="endTime" class="input-label">Fine</label>
-              <input id="endTime" type="datetime-local" class="input-field" bind:value={endTime} />
-            </div>
-          </div>
-        {/if}
-      </fieldset>
-
-      <fieldset class="account-section">
-        <legend><span class="step-num">{isPreAuthenticated ? '3' : '4'}</span> Il vostro account Sposi</legend>
-
-        {#if isPreAuthenticated}
-          <div class="preauth-box">
-            <div class="preauth-badge">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              <span>Account collegato</span>
-            </div>
-            <p class="preauth-text">
-              Stai creando il matrimonio con il tuo account <strong>{appState.account?.email}</strong>. Sarà immediatamente accessibile nella tua Dashboard Utente.
-            </p>
-          </div>
-        {/if}
-
-        <div class="row">
-          <div class="input-group">
-            <label for="coupleFirst" class="input-label">Nome referente</label>
-            <input id="coupleFirst" type="text" class="input-field" placeholder="Es. Giulia" bind:value={coupleFirst} autocomplete="given-name" required />
-          </div>
-          <div class="input-group">
-            <label for="coupleLast" class="input-label">Cognome referente</label>
-            <input id="coupleLast" type="text" class="input-field" placeholder="Es. Rossi" bind:value={coupleLast} autocomplete="family-name" required />
-          </div>
-        </div>
-
-        {#if !isPreAuthenticated}
-          <div class="input-group">
-            <label for="couplePassword" class="input-label">Password sposi</label>
-            <div class="pwd-input-wrap">
-              <input
-                id="couplePassword"
-                type={showPassword ? 'text' : 'password'}
-                class="input-field"
-                placeholder="Almeno 6 caratteri"
-                bind:value={couplePassword}
-                autocomplete="new-password"
-                minlength="6"
-                required
-                disabled={!coupleEmailVerified || isSubmitting}
-              />
-              <button
-                type="button"
-                class="btn-toggle-pwd"
-                onclick={() => showPassword = !showPassword}
-                aria-label={showPassword ? 'Nascondi password' : 'Mostra password'}
-                disabled={!coupleEmailVerified || isSubmitting}
-              >
-                {#if showPassword}
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                {:else}
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                {/if}
-              </button>
-            </div>
-            <span class="field-hint">Userete queste credenziali per accedere da qualsiasi dispositivo.</span>
-          </div>
-
-          <div class="input-group">
-            <label for="coupleConfirmPassword" class="input-label">Conferma password sposi</label>
-            <input
-              id="coupleConfirmPassword"
-              type={showPassword ? 'text' : 'password'}
-              class="input-field"
-              placeholder="Ripeti la password"
-              bind:value={coupleConfirmPassword}
-              autocomplete="new-password"
-              minlength="6"
-              required
-              disabled={!coupleEmailVerified || isSubmitting}
-            />
-          </div>
-        {/if}
-      </fieldset>
-
-      <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
-        {#if isSubmitting}
-          <div class="spinner spinner-on-dark"></div>
-          <span>Creazione in corso...</span>
-        {:else}
-          <span>Crea il matrimonio</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-        {/if}
-      </button>
-      {:else}
-        <div class="verification-required-note" role="status">
-          <strong>Un passaggio alla volta</strong>
-          <span>Verifica l’email qui sopra per sbloccare i dati del matrimonio.</span>
-        </div>
-      {/if}
-    </form>
-  </div>
-{/if}
-
-<!-- POPUP ISTRUZIONI DI SUCCESSO E ORIENTAMENTO SPOSI -->
-{#if showSuccessModal}
-  <div class="guide-modal-overlay">
-    <div class="guide-modal-card glass-card">
-      <div class="guide-sparkle-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg></div>
-      
-      <div class="guide-modal-header">
-        <span class="guide-eyebrow">Matrimonio &amp; Account Creati con Successo!</span>
-        <h2 class="guide-title font-serif">
-          Benvenuti, <span class="gold-gradient-text">{spouse1} &amp; {spouse2}</span>!
-        </h2>
-        <p class="guide-lead-text">
-          Nella prossima pagina potrete personalizzare le domande dei quiz, le sfide fotografiche e i momenti speciali della festa.
-        </p>
       </div>
+    </div>
 
-      <div class="guide-instruction-card">
-        <div class="guide-instruction-intro">
-          <div class="guide-info-badge">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          </div>
-          <div>
-            <h4 class="guide-info-title">Come riaccedere in qualsiasi momento al vostro matrimonio:</h4>
-            <p class="guide-info-sub">
-              Per rientrare e gestire il matrimonio quando volete, da qualsiasi dispositivo, vi basterà cliccare sul pulsante <strong>"Accedi"</strong> in alto nella barra di navigazione ed inserire la vostra email e password.
-            </p>
-          </div>
+    <!-- CONTENITORE FORM -->
+    <div class="wizard-container">
+      {#if wizardStep === 1}
+        <!-- ================= PASSO 1: NOMI E CERIMONIA ================= -->
+        <div class="wizard-header">
+          <h1 class="wizard-title font-serif">Chi sono i festeggiati?</h1>
+          <p class="wizard-subtitle">
+            Questi nomi compariranno nell'app degli invitati, nelle classifiche delle sfide e nelle foto condivise.
+          </p>
         </div>
 
-        <!-- NAVBAR DEL SITO RIMPICCIOLITA CON PULSANTE ACCEDI EVIDENZIATO -->
-        <div class="mini-navbar-wrapper">
-          <div class="mini-navbar-tag">Barra del sito:</div>
-          <div class="mini-navbar-bar">
-            <div class="mini-nav-brand">
-              <span class="mini-rings-svg">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg>
-              </span>
-              <span class="mini-brand-title">Fanta Matrimonio</span>
+        <form class="wizard-form" onsubmit={goToStep2}>
+          <!-- Card Nomi Sposi -->
+          <div class="clean-card">
+            <div class="card-section-header">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+              </svg>
+              <span>GLI SPOSI</span>
             </div>
 
-            <div class="mini-nav-links">
-              <span class="mini-nav-anchor">Come funziona</span>
-              <span class="mini-nav-anchor">I giochi</span>
-
-              <!-- SPOTLIGHT SUL PULSANTE ACCEDI -->
-              <div class="spotlight-accedi-wrap">
-                <div class="spotlight-balloon">
-                  <span class="balloon-arrow">↓</span>
-                  <span>Clicca qui per riaccedere!</span>
-                </div>
-                <div class="mini-accedi-pill">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  <span>Accedi</span>
+            <div class="spouses-inputs-row">
+              <div class="field-block flex-1">
+                <label for="spouse1" class="field-sublabel">NOME SPOSO/A 1</label>
+                <div class="input-with-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <input
+                    id="spouse1"
+                    type="text"
+                    class="clean-input"
+                    placeholder="Elena"
+                    bind:value={spouse1}
+                    required
+                  />
                 </div>
               </div>
 
-              <span class="mini-btn-code">Codice</span>
-              <span class="mini-btn-crea">Crea</span>
+              <div class="ampersand-divider">
+                <span>&amp;</span>
+              </div>
+
+              <div class="field-block flex-1">
+                <label for="spouse2" class="field-sublabel">NOME SPOSO/A 2</label>
+                <div class="input-with-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <input
+                    id="spouse2"
+                    type="text"
+                    class="clean-input"
+                    placeholder="Davide"
+                    bind:value={spouse2}
+                    required
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div class="guide-actions">
-        <button type="button" class="btn btn-primary btn-lg guide-btn-next" onclick={proceedToSetup}>
-          <span>Ho capito, personalizziamo il matrimonio!</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </button>
-      </div>
+          <!-- Card Dettagli Cerimonia -->
+          <div class="clean-card">
+            <div class="card-section-header">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
+              </svg>
+              <span>DETTAGLI CERIMONIA</span>
+            </div>
+
+            <div class="desktop-row-2col">
+              <div class="field-block flex-1">
+                <label for="eventDate" class="field-sublabel">DATA DELL'EVENTO</label>
+                <div class="input-with-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>
+                  </svg>
+                  <input
+                    id="eventDate"
+                    type="date"
+                    class="clean-input"
+                    bind:value={eventDate}
+                    required
+                  />
+                </div>
+                {#if readableDate}
+                  <p class="field-hint capital-first">{readableDate}</p>
+                {/if}
+              </div>
+
+              <div class="field-block flex-1">
+                <div class="label-row">
+                  <label for="eventLocation" class="field-sublabel">LUOGO / LOCATION</label>
+                  <span class="field-tag-muted">Facoltativo</span>
+                </div>
+                <div class="input-with-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  <input
+                    id="eventLocation"
+                    type="text"
+                    class="clean-input"
+                    placeholder="Villa dei Fiori, Roma"
+                    bind:value={eventLocation}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Orario di apertura giochi (con Giorno e Ora sia per inizio che per fine, senza overflow!) -->
+          <div class="clean-card timer-toggle-card">
+            <div class="timer-card-head">
+              <div class="clock-icon-bubble">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+              <div class="timer-head-copy">
+                <strong>Orario di apertura giochi</strong>
+                <p>Attiva le missioni e il quiz solo durante il ricevimento per evitare spoiler prima del brindisi.</p>
+              </div>
+              <label class="clean-switch">
+                <input type="checkbox" bind:checked={enableTimer} />
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            {#if enableTimer}
+              <div class="timer-full-fields">
+                <!-- Inizio Sfide -->
+                <div class="timer-range-card">
+                  <div class="timer-range-header">
+                    <span class="timer-dot start"></span>
+                    <span class="field-sublabel">INIZIO SFIDE</span>
+                  </div>
+                  <div class="timer-inputs-grid">
+                    <div class="field-block">
+                      <label for="startDateInput" class="mini-label">Giorno inizio</label>
+                      <input
+                        id="startDateInput"
+                        type="date"
+                        class="clean-input timer-cell-input"
+                        bind:value={startDate}
+                      />
+                    </div>
+                    <div class="field-block">
+                      <label for="startTimeInput" class="mini-label">Ora inizio</label>
+                      <input
+                        id="startTimeInput"
+                        type="time"
+                        class="clean-input timer-cell-input"
+                        bind:value={startTime}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Chiusura Sfide -->
+                <div class="timer-range-card">
+                  <div class="timer-range-header">
+                    <span class="timer-dot end"></span>
+                    <span class="field-sublabel">CHIUSURA SFIDE E VOTI</span>
+                  </div>
+                  <div class="timer-inputs-grid">
+                    <div class="field-block">
+                      <label for="endDateInput" class="mini-label">Giorno fine</label>
+                      <input
+                        id="endDateInput"
+                        type="date"
+                        class="clean-input timer-cell-input"
+                        bind:value={endDate}
+                      />
+                    </div>
+                    <div class="field-block">
+                      <label for="endTimeInput" class="mini-label">Ora fine</label>
+                      <input
+                        id="endTimeInput"
+                        type="time"
+                        class="clean-input timer-cell-input"
+                        bind:value={endTime}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {/if}
+          </div>
+
+          <!-- Card Anteprima Codice Invito -->
+          <div class="clean-card preview-code-card">
+            <div class="preview-code-left">
+              <div class="qr-icon-bubble">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect width="6" height="6" x="3" y="3" rx="1"/><rect width="6" height="6" x="15" y="3" rx="1"/><rect width="6" height="6" x="3" y="15" rx="1"/><path d="m15 15 3 3M15 21l6-6"/>
+                </svg>
+              </div>
+              <div>
+                <span class="field-sublabel">ANTEPRIMA CODICE INVITO</span>
+                <strong class="code-preview-text font-serif">{generatedCodePreview}</strong>
+              </div>
+            </div>
+            <span class="auto-tag">Automatico</span>
+          </div>
+
+          <!-- Bottone Continua -->
+          <button type="submit" class="submit-action-btn">
+            <span>Continua: Crea Account Sposi</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+
+          <p class="bottom-safe-note">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            Potrai modificare questi dettagli in qualsiasi momento dalle impostazioni.
+          </p>
+        </form>
+
+      {:else}
+        <!-- ================= PASSO 2: CREDENZIALI SPOSI ================= -->
+        <div class="wizard-header">
+          <div class="gold-pill-badge">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>AREA RISERVATA AGLI SPOSI</span>
+          </div>
+
+          <h1 class="wizard-title font-serif">Create il vostro accesso</h1>
+          <p class="wizard-subtitle">
+            Servirà a voi due per accedere alla Console di Regia, proiettare la classifica e scaricare tutte le foto ad alta risoluzione a fine serata.
+          </p>
+        </div>
+
+        <form class="wizard-form" onsubmit={handleFinalSubmit}>
+          <div class="clean-card">
+            {#if isPreAuthenticated}
+              <div class="preauth-notice">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <div>
+                  <strong>Account già collegato</strong>
+                  <span>State creando il matrimonio con <strong>{appState.account?.email}</strong></span>
+                </div>
+              </div>
+            {:else}
+              <!-- Verifica Email con codice OTP -->
+              <div class="email-verify-wrapper">
+                <EmailVerificationField
+                  bind:email={coupleEmail}
+                  bind:verificationCode={coupleVerificationCode}
+                  bind:verified={coupleEmailVerified}
+                  purpose="register_couple"
+                  label="Email degli sposi"
+                  placeholder="es. marco.elena@matrimonio.it"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <!-- Password di gestione -->
+              <div class="field-block">
+                <div class="label-row">
+                  <label for="couplePassword" class="field-sublabel">PASSWORD DI GESTIONE</label>
+                  <span class="field-tag-muted">Min. 8 caratteri</span>
+                </div>
+
+                <div class="input-with-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                  <input
+                    id="couplePassword"
+                    type={showPassword ? 'text' : 'password'}
+                    class="clean-input"
+                    placeholder="Scegliete una chiave d'accesso"
+                    bind:value={couplePassword}
+                    minlength="6"
+                    required
+                    disabled={isSubmitting}
+                  />
+                  <button
+                    type="button"
+                    class="eye-btn"
+                    onclick={() => showPassword = !showPassword}
+                    aria-label={showPassword ? 'Nascondi' : 'Mostra'}
+                  >
+                    {#if showPassword}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                      </svg>
+                    {:else}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    {/if}
+                  </button>
+                </div>
+              </div>
+
+              <!-- WhatsApp di riferimento -->
+              <div class="field-block">
+                <div class="label-row">
+                  <label for="couplePhone" class="field-sublabel">WHATSAPP DI RIFERIMENTO</label>
+                  <span class="field-tag-muted">FACOLTATIVO</span>
+                </div>
+
+                <div class="input-with-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  <input
+                    id="couplePhone"
+                    type="tel"
+                    class="clean-input"
+                    placeholder="+39 340 123 4567"
+                    bind:value={couplePhone}
+                  />
+                </div>
+                <p class="field-hint">Per ricevere il backup istantaneo del link della console e gli avvisi live durante i festeggiamenti.</p>
+              </div>
+            {/if}
+          </div>
+
+          <!-- Card Nessun costo nascosto -->
+          <div class="clean-card transparency-card">
+            <div class="sparkle-bubble">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
+              </svg>
+            </div>
+            <div>
+              <strong>Nessun costo nascosto</strong>
+              <p>I primi 20 invitati sono <strong>completamente gratuiti</strong> con tutte le funzionalità incluse: upload foto illimitato, quiz e tabellone proiettabile.</p>
+            </div>
+          </div>
+
+          <!-- Bottone finale -->
+          <button type="submit" class="submit-action-btn" disabled={isSubmitting}>
+            {#if isSubmitting}
+              <span class="spinner spinner-white"></span>
+              <span>Creazione evento in corso...</span>
+            {:else}
+              <span>Continua: Scegli le modalità</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            {/if}
+          </button>
+
+          <button type="button" class="back-link-btn" onclick={goToStep1}>
+            ‹ Indietro
+          </button>
+        </form>
+      {/if}
     </div>
   </div>
 {/if}
 
 <style>
-  .create-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 380px) 1fr;
-    gap: 56px;
-    align-items: start;
+  .wizard-screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: var(--bg-primary);
+    padding-bottom: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
   }
 
-  .verification-required-note {
+  /* STICKY STEP HEADER CON ZERO SPAZIO MORTO IN ALTO */
+  .sticky-step-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    width: 100%;
+    background: #faf7f2;
+    padding-top: 0;
+    border-bottom: 1px solid rgba(140, 47, 75, 0.08);
+    box-shadow: 0 1px 6px rgba(43, 31, 36, 0.03);
+  }
+
+  @media (display-mode: standalone) {
+    .sticky-step-header {
+      padding-top: max(4px, env(safe-area-inset-top, 0px));
+    }
+  }
+
+  .sticky-inner {
+    width: 100%;
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 0 14px;
+  }
+
+  /* Top Navigation Bar */
+  .wizard-topbar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0 2px;
+    min-height: 42px;
+  }
+
+  .top-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--wine);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .top-icon-btn:hover {
+    background: rgba(140, 47, 75, 0.08);
+  }
+
+  .user-avatar-pill {
+    background: var(--wine);
+    color: #ffffff;
+    width: 32px;
+    height: 32px;
+  }
+
+  .top-nav-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1px;
+  }
+
+  .sub-brand {
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: #9c8850;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .step-pill-indicator {
+    font-family: var(--font-display);
+    font-size: 0.92rem;
+    color: var(--wine);
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .top-nav-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .step-percent-tag {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--wine);
+    background: #faedf2;
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+
+  /* Progress Line */
+  .step-progress-wrapper {
+    width: 100%;
+    height: 2.5px;
+    background: rgba(200, 185, 175, 0.35);
+    margin: 2px 0 0;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .step-progress-bar {
+    height: 100%;
+    background: var(--wine);
+    transition: width 0.35s ease-out;
+  }
+
+  .gold-pill-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #faeed3;
+    color: #7a5814;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    align-self: flex-start;
+  }
+
+  /* Container */
+  .wizard-container {
+    width: 100%;
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 6px 16px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Header */
+  .wizard-header {
+    text-align: left;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    background: rgba(201, 169, 110, 0.1);
-    border: 1px solid rgba(201, 169, 110, 0.35);
-    color: var(--text-main);
+    margin-top: 4px;
+    margin-bottom: 2px;
   }
 
-  .verification-required-note span {
-    color: #6b5f64;
-    font-size: 0.9rem;
-  }
-
-  .create-aside {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-    position: sticky;
-    top: 96px;
-  }
-
-  .eyebrow {
-    font-size: 0.85rem;
-    font-weight: 600;
+  .wizard-title {
+    font-size: clamp(1.65rem, 4.5vw, 2.1rem);
     color: var(--wine);
-    padding: 6px 14px;
-    border-radius: var(--radius-full);
-    background: var(--wine-tint);
-    border: 1px solid rgba(140, 47, 75, 0.15);
-  }
-
-  .create-aside .page-title {
-    font-size: clamp(2.2rem, 4vw, 3.1rem);
-    line-height: 1.05;
-    color: var(--text-main);
+    line-height: 1.1;
+    font-weight: 700;
     margin: 0;
   }
 
-  .create-aside .page-title::after {
-    content: '';
-    display: block;
-    width: 40px;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--wine);
-    margin-top: 14px;
+  .wizard-subtitle {
+    font-size: 0.88rem;
+    color: #6b5e65;
+    line-height: 1.45;
   }
 
-  .create-aside .page-lead {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: 1.2rem;
-    line-height: 1.5;
-    color: #6b5f64;
-    margin: 0;
-  }
-
-  .steps {
-    list-style: none;
-    padding: 0;
+  /* Form */
+  .wizard-form {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    margin-top: 8px;
-    position: relative;
   }
 
-  .steps li {
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-    position: relative;
-  }
-
-  .steps li:not(:last-child)::before {
-    content: '';
-    position: absolute;
-    left: 13px;
-    top: 30px;
-    bottom: -14px;
-    width: 1px;
-    background: rgba(140, 47, 75, 0.2);
-  }
-
-  .steps li div {
+  /* Clean Card */
+  .clean-card {
+    background: #ffffff;
+    border-radius: 22px;
+    padding: 20px;
+    box-shadow: 0 4px 16px rgba(140, 47, 75, 0.04);
+    border: 1px solid rgba(220, 205, 195, 0.4);
     display: flex;
     flex-direction: column;
-    font-size: 0.9rem;
-    color: #6b5f64;
+    gap: 14px;
   }
 
-  .steps li strong {
-    color: var(--text-main);
-    font-size: 0.98rem;
-  }
-
-  .step-num {
-    flex-shrink: 0;
-    display: inline-flex;
+  .card-section-header {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--grad-gold-rose);
-    color: #fff;
-    font-size: 0.8rem;
+    gap: 6px;
+    font-size: 0.72rem;
     font-weight: 800;
-    box-shadow: 0 4px 10px rgba(140, 47, 75, 0.25);
+    letter-spacing: 0.08em;
+    color: #8c7840;
+    text-transform: uppercase;
   }
 
-  .switch {
-    font-size: 0.92rem;
-    color: var(--text-muted);
-    margin-top: 8px;
-  }
-
-  .create-form {
+  .field-block {
     display: flex;
     flex-direction: column;
-    gap: 26px;
-  }
-
-  fieldset {
-    border: none;
-    padding: 0;
-    margin: 0;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  legend {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text-main);
-    margin-bottom: 14px;
-    padding: 0;
-  }
-
-  .row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 14px;
-    min-width: 0;
-  }
-
-  .input-group {
-    min-width: 0;
-    max-width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .timer-row {
-    margin-top: 16px;
-  }
-
-  .timer-row input[type="datetime-local"] {
+    gap: 5px;
     width: 100%;
-    max-width: 100%;
     min-width: 0;
-    box-sizing: border-box;
-    font-size: 0.92rem;
-    padding: 11px 12px;
   }
 
-  @media (max-width: 640px) {
-    .row {
-      grid-template-columns: 1fr;
-      gap: 14px;
-    }
-    .timer-row {
-      grid-template-columns: 1fr;
+  .flex-1 {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .spouses-inputs-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  @media (min-width: 540px) {
+    .spouses-inputs-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: end;
       gap: 12px;
     }
   }
 
-  .switch-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 14px 16px;
-    border-radius: 22px;
-    border: 1px solid rgba(36, 28, 32, 0.08);
-    background: var(--bg-primary);
-    cursor: pointer;
-  }
-
-  .switch-row input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .switch-track {
-    position: relative;
-    flex-shrink: 0;
-    width: 46px;
-    height: 28px;
-    border-radius: var(--radius-full);
-    background: rgba(36, 28, 32, 0.18);
-    transition: background 0.2s;
-  }
-
-  .switch-thumb {
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-    transition: transform 0.2s;
-  }
-
-  .switch-row input:checked + .switch-track {
-    background: var(--wine);
-  }
-
-  .switch-row input:checked + .switch-track .switch-thumb {
-    transform: translateX(18px);
-  }
-
-  .switch-row input:focus-visible + .switch-track {
-    outline: 2px solid var(--wine);
-    outline-offset: 3px;
-  }
-
-  .switch-text {
+  .desktop-row-2col {
     display: flex;
     flex-direction: column;
-    font-size: 0.85rem;
-    color: #6b5f64;
+    gap: 12px;
   }
 
-  .switch-text strong {
-    color: var(--text-main);
-    font-size: 0.95rem;
+  @media (min-width: 540px) {
+    .desktop-row-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
   }
 
-  .account-section {
-    border-top: 1px dashed rgba(201, 169, 110, 0.4);
-    padding-top: 20px;
-    margin-top: 4px;
-  }
-
-  .section-note {
-    font-size: 0.88rem;
-    color: var(--text-muted);
-    line-height: 1.5;
-    margin: -6px 0 10px;
-  }
-
-  .spinner-on-dark {
-    border-color: rgba(255, 255, 255, 0.4);
-    border-top-color: #fff;
-  }
-
-  /* ---------- Invite reveal ---------- */
-  .reveal {
-    max-width: 640px;
-    margin: 0 auto;
+  .label-row {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 16px;
-    text-align: center;
+    justify-content: space-between;
   }
 
-  .reveal .page-title {
-    color: var(--text-main);
-    margin: 0;
+  .field-sublabel {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: #4a3c43;
+    text-transform: uppercase;
   }
 
-  .reveal .page-title::after {
-    content: '';
-    display: block;
-    width: 40px;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--wine);
-    margin: 14px auto 0;
-  }
-
-  .reveal .page-lead {
-    font-family: var(--font-display);
+  .field-tag-muted {
+    font-size: 0.72rem;
     font-style: italic;
-    font-size: 1.2rem;
-    color: #6b5f64;
-    margin: 0;
+    color: #8e7f86;
   }
 
-  .reveal-icon {
+  .field-tag-badge.gold {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #9c7b2c;
+  }
+
+  .input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .input-with-icon svg {
+    position: absolute;
+    left: 14px;
+    color: #7b6d74;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .clean-input {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    background: #f4efe9;
+    border: 1.5px solid transparent;
+    border-radius: 14px;
+    padding: 13px 16px 13px 44px;
+    font-family: var(--font-sans);
+    font-size: 16px !important; /* Prevents auto zoom on iOS */
+    color: var(--text-main);
+    transition: all 0.2s ease;
+    outline: none;
+  }
+
+  .clean-input:focus {
+    background: #ffffff;
+    border-color: var(--wine);
+    box-shadow: 0 0 0 3px rgba(140, 47, 75, 0.12);
+  }
+
+  .clean-input::placeholder {
+    color: #9c8e94;
+  }
+
+  .ampersand-divider {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    color: var(--wine);
-    background: var(--wine-tint);
-    border: 1px solid rgba(140, 47, 75, 0.18);
+    margin: -2px 0;
   }
 
-  .code-box {
+  @media (min-width: 540px) {
+    .ampersand-divider {
+      padding-bottom: 8px;
+    }
+  }
+
+  .ampersand-divider span {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f4efe9;
+    color: #7b6d74;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-style: italic;
+    font-weight: 600;
+  }
+
+  .field-hint {
+    font-size: 0.74rem;
+    color: #756970;
+    line-height: 1.35;
+    margin-top: 2px;
+  }
+
+  .capital-first {
+    text-transform: capitalize;
+  }
+
+  /* Timer card & Datetime inputs */
+  .timer-toggle-card {
+    background: #f5f0eb;
+    border: none;
+  }
+
+  .timer-card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .clock-icon-bubble {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #f4d068;
+    color: #4a3400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .timer-head-copy {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .timer-head-copy strong {
+    font-size: 0.88rem;
+    color: #2b1f24;
+  }
+
+  .timer-head-copy p {
+    font-size: 0.75rem;
+    color: #6b5d63;
+    line-height: 1.35;
+    margin: 0;
+  }
+
+  /* Clean Switch */
+  .clean-switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+
+  .clean-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .clean-switch .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #d1c7c2;
+    transition: 0.25s;
+    border-radius: 26px;
+  }
+
+  .clean-switch .slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.25s;
+    border-radius: 50%;
+  }
+
+  .clean-switch input:checked + .slider {
+    background-color: var(--wine);
+  }
+
+  .clean-switch input:checked + .slider:before {
+    transform: translateX(20px);
+  }
+
+  .timer-full-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
     width: 100%;
-    padding: 24px 22px;
-    border-radius: 28px;
-    background: var(--grad-dusk);
-    border: 1px solid rgba(233, 201, 143, 0.3);
-    box-shadow: 0 18px 40px rgba(74, 31, 51, 0.28);
+    box-sizing: border-box;
+  }
+
+  .timer-range-card {
+    background: #fbf9f6;
+    border: 1px solid rgba(220, 205, 195, 0.5);
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .timer-range-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .timer-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .timer-dot.start {
+    background: #2ea869;
+    box-shadow: 0 0 6px rgba(46, 168, 105, 0.4);
+  }
+
+  .timer-dot.end {
+    background: var(--wine);
+    box-shadow: 0 0 6px rgba(140, 47, 75, 0.4);
+  }
+
+  .timer-inputs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .mini-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #7b6d74;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+
+  .timer-cell-input {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    font-size: 16px !important;
+    padding: 10px 12px !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(200, 185, 175, 0.4) !important;
+    border-radius: 10px !important;
+    color: var(--text-main);
+  }
+
+  @media (max-width: 360px) {
+    .timer-inputs-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Preview Code Card */
+  .preview-code-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .preview-code-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .qr-icon-bubble {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #fae0ea;
+    color: var(--wine);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .code-preview-text {
+    display: block;
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+    color: var(--wine);
+    margin-top: 2px;
+  }
+
+  .auto-tag {
+    background: #eae5e0;
+    color: #65585f;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+
+  /* Transparency card */
+  .transparency-card {
+    background: #f5f0eb;
+    border: none;
+    flex-direction: row;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .sparkle-bubble {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f4d068;
+    color: #4a3400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .transparency-card strong {
+    display: block;
+    font-size: 0.88rem;
+    color: #2b1f24;
+    margin-bottom: 2px;
+  }
+
+  .transparency-card p {
+    font-size: 0.78rem;
+    color: #6b5d63;
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  .email-verify-wrapper {
+    margin-bottom: 6px;
+  }
+
+  /* Buttons */
+  .submit-action-btn {
+    width: 100%;
+    min-height: 50px;
+    background: var(--wine);
+    color: #ffffff;
+    border: none;
+    border-radius: 999px;
     font-family: var(--font-sans);
-    font-size: clamp(1.8rem, 8vw, 3rem);
+    font-size: 0.98rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(140, 47, 75, 0.28);
+    transition: all 0.15s ease;
+  }
+
+  .submit-action-btn:hover {
+    background: var(--wine-deep);
+  }
+
+  .bottom-safe-note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.73rem;
+    color: #6a5e64;
+    text-align: center;
+  }
+
+  .bottom-safe-note svg {
+    color: #8c7840;
+  }
+
+  .back-link-btn {
+    background: transparent;
+    border: none;
+    color: var(--wine);
+    font-weight: 700;
+    font-size: 0.86rem;
+    cursor: pointer;
+    align-self: center;
+    padding: 6px 12px;
+  }
+
+  .eye-btn {
+    position: absolute;
+    right: 12px;
+    background: transparent;
+    border: none;
+    color: #7b6d74;
+    cursor: pointer;
+    padding: 4px;
+    z-index: 2;
+  }
+
+  .preauth-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #eef7f2;
+    border-radius: 12px;
+    padding: 12px;
+    color: #246845;
+    font-size: 0.82rem;
+  }
+
+  /* Code Reveal screen */
+  .reveal-card {
+    background: #ffffff;
+    border-radius: 26px;
+    padding: 32px 20px 24px;
+    box-shadow: 0 6px 24px rgba(140, 47, 75, 0.06);
+    border: 1px solid rgba(220, 205, 195, 0.4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .reveal-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #fae0ea;
+    color: var(--wine);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+  }
+
+  .step-badge-text {
+    font-size: 0.72rem;
     font-weight: 800;
-    letter-spacing: 0.3em;
-    text-indent: 0.3em;
-    background-clip: padding-box;
-    color: var(--gold-bright);
-    user-select: all;
-    overflow-wrap: anywhere;
+    letter-spacing: 0.1em;
+    color: #8c7840;
+  }
+
+  .code-big-display {
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: var(--wine);
+    background: #fbf6f2;
+    border: 1.5px dashed rgba(140, 47, 75, 0.35);
+    padding: 16px 28px;
+    border-radius: 16px;
+    margin: 8px 0;
   }
 
   .reveal-actions {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 10px;
-  }
-
-  .link-line {
-    max-width: 100%;
-    padding: 8px 16px;
-    border-radius: 9999px;
-    background: var(--bg-primary);
-    border: 1px solid rgba(36, 28, 32, 0.07);
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    overflow-wrap: anywhere;
-    user-select: all;
-  }
-
-  .reveal-footer-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
+    gap: 8px;
     width: 100%;
   }
 
-  .link-btn-subtle {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 0.88rem;
-    font-weight: 600;
+  .action-pill-btn {
+    background: #ffffff;
+    border: 1px solid rgba(140, 47, 75, 0.18);
+    color: var(--wine);
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 0.84rem;
+    font-weight: 700;
     cursor: pointer;
-    padding: 6px 12px;
-    border-radius: 9999px;
-    transition: color 0.2s;
   }
 
-  @media (hover: hover) {
-    .link-btn-subtle:hover {
-      color: var(--wine);
-      text-decoration: underline;
-    }
+  .action-pill-btn.primary-wine {
+    background: var(--wine);
+    color: #ffffff;
+    border-color: var(--wine);
   }
 
-  .link-btn-back {
-    margin-top: 6px;
-    background: none;
+  .reveal-footer {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .secondary-plain-btn {
+    background: transparent;
     border: none;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    transition: color 0.15s ease;
-    padding: 4px 0;
-  }
-
-  @media (hover: hover) {
-    .link-btn-back:hover {
-      color: var(--wine);
-    }
-  }
-
-  .link-btn-danger {
-    margin-top: 6px;
-    background: none;
-    border: none;
-    cursor: pointer;
+    color: #6a5e64;
     font-size: 0.84rem;
     font-weight: 600;
-    color: #a63552;
-    transition: color 0.15s ease;
-    text-decoration: underline;
-  }
-
-  @media (hover: hover) {
-    .link-btn-danger:hover {
-      color: #7e2740;
-    }
-  }
-
-  .link-btn-subtle:focus-visible,
-  .link-btn-back:focus-visible,
-  .link-btn-danger:focus-visible {
-    outline: 2px solid var(--wine);
-    outline-offset: 2px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .switch-track,
-    .switch-thumb {
-      transition: none;
-    }
-  }
-
-  @media (max-width: 900px) {
-    .create-layout {
-      grid-template-columns: 1fr;
-      gap: 28px;
-    }
-    .create-aside { position: static; }
-  }
-
-  /* Password with toggle button */
-  .pwd-input-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-
-  .pwd-input-wrap .input-field {
-    padding-right: 42px;
-    width: 100%;
-  }
-
-  .btn-toggle-pwd {
-    position: absolute;
-    right: 12px;
-    background: none;
-    border: none;
-    color: var(--text-muted);
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
-    transition: color 0.15s ease;
+    padding: 8px;
   }
 
-  .btn-toggle-pwd:hover {
-    color: var(--wine);
-  }
-
-  /* Preauth Box */
-  .preauth-box {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 14px 18px;
-    border-radius: 14px;
-    background: rgba(201, 169, 110, 0.08);
-    border: 1px solid rgba(201, 169, 110, 0.28);
-    margin-bottom: 16px;
-  }
-
-  .preauth-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: #8c2f4b;
-    font-weight: 700;
-    font-size: 0.85rem;
-  }
-
-  .preauth-text {
-    font-size: 0.88rem;
-    color: #4a4045;
-    margin: 0;
-    line-height: 1.45;
-  }
-
-  /* Guide Modal Overlay & Card */
-  .guide-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(20, 10, 15, 0.68);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    z-index: 1000;
-    display: flex;
-    justify-content: center;
-    padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px));
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    animation: fadeIn 0.25s ease-out;
-  }
-
-  .guide-modal-card {
-    background: #ffffff;
-    max-width: 640px;
-    width: 100%;
-    margin: auto;
-    border-radius: 28px;
-    padding: 36px 32px 32px;
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.22);
-    border: 1px solid rgba(201, 169, 110, 0.35);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    position: relative;
-    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes slideUp {
-    from { transform: translateY(24px) scale(0.97); opacity: 0; }
-    to { transform: translateY(0) scale(1); opacity: 1; }
-  }
-
-  .guide-sparkle-icon {
-    font-size: 2.8rem;
-    line-height: 1;
-    margin-bottom: 12px;
-    animation: pulseGlow 2s infinite ease-in-out;
-  }
-
-  @keyframes pulseGlow {
-    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(201, 169, 110, 0.4)); }
-    50% { transform: scale(1.1); filter: drop-shadow(0 0 12px rgba(201, 169, 110, 0.8)); }
-  }
-
-  .guide-modal-header {
-    margin-bottom: 22px;
-  }
-
-  .guide-eyebrow {
-    display: inline-block;
-    font-size: 0.76rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--wine);
-    background: var(--wine-tint);
-    padding: 4px 12px;
-    border-radius: 9999px;
-    margin-bottom: 10px;
-  }
-
-  .guide-title {
-    font-size: clamp(1.5rem, 4vw, 1.9rem);
-    font-weight: 800;
-    color: #241c20;
-    margin: 0 0 8px;
-    line-height: 1.25;
-  }
-
-  .guide-lead-text {
-    font-size: 1rem;
-    color: #5d5257;
-    margin: 0;
-    line-height: 1.5;
-  }
-
-  /* Instruction Card with Mini Navbar */
-  .guide-instruction-card {
-    width: 100%;
-    background: #faf7f2;
-    border: 1px solid rgba(201, 169, 110, 0.28);
-    border-radius: 20px;
-    padding: 20px;
-    margin-bottom: 26px;
-    text-align: left;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .guide-instruction-intro {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-  }
-
-  .guide-info-badge {
-    width: 32px;
-    height: 32px;
+  .spinner-white {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
     border-radius: 50%;
-    background: var(--wine-tint);
-    color: var(--wine);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    margin-top: 2px;
+    animation: spin 0.8s linear infinite;
   }
 
-  .guide-info-title {
-    font-size: 0.98rem;
-    font-weight: 700;
-    color: #241c20;
-    margin: 0 0 4px;
-  }
-
-  .guide-info-sub {
-    font-size: 0.88rem;
-    color: #63575c;
-    margin: 0;
-    line-height: 1.45;
-  }
-
-  /* Mini Navbar Preview Container */
-  .mini-navbar-wrapper {
-    background: #ffffff;
-    border-radius: 14px;
-    border: 1px solid rgba(201, 169, 110, 0.35);
-    padding: 12px 14px 14px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-  }
-
-  .mini-navbar-tag {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #8c8286;
-    margin-bottom: 10px;
-  }
-
-  .mini-navbar-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 8px 12px;
-    background: #ffffff;
-    border-radius: 10px;
-    border: 1px solid rgba(0, 0, 0, 0.07);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-    overflow-x: auto;
-  }
-
-  .mini-nav-brand {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: #8c2f4b;
-    white-space: nowrap;
-  }
-
-  .mini-rings-svg {
-    color: var(--gold-primary);
-    display: flex;
-  }
-
-  .mini-nav-links {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    position: relative;
-    padding-top: 18px;
-  }
-
-  .mini-nav-anchor {
-    font-size: 0.72rem;
-    color: #8a7e84;
-    white-space: nowrap;
-  }
-
-  /* Spotlight sul pulsante Accedi */
-  .spotlight-accedi-wrap {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .spotlight-balloon {
-    position: absolute;
-    top: -24px;
-    white-space: nowrap;
-    background: #8c2f4b;
-    color: #ffffff;
-    font-size: 0.68rem;
-    font-weight: 800;
-    padding: 3px 8px;
-    border-radius: 6px;
-    box-shadow: 0 3px 10px rgba(140, 47, 75, 0.35);
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    animation: bounceTooltip 1.6s infinite ease-in-out;
-  }
-
-  @keyframes bounceTooltip {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-  }
-
-  .balloon-arrow {
-    font-size: 0.7rem;
-    line-height: 1;
-  }
-
-  .mini-accedi-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    border-radius: 8px;
-    background: #fffdf8;
-    color: #8c2f4b;
-    font-size: 0.75rem;
-    font-weight: 800;
-    border: 2px solid var(--gold-primary);
-    box-shadow: 0 0 12px rgba(201, 169, 110, 0.6);
-    animation: goldPulse 2s infinite ease-in-out;
-    white-space: nowrap;
-  }
-
-  @keyframes goldPulse {
-    0%, 100% { box-shadow: 0 0 6px rgba(201, 169, 110, 0.4); border-color: var(--gold-primary); }
-    50% { box-shadow: 0 0 16px rgba(201, 169, 110, 0.85); border-color: #e9c98f; }
-  }
-
-  .mini-btn-code {
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: #63575c;
-    background: #f2edf0;
-    padding: 3px 7px;
-    border-radius: 6px;
-    white-space: nowrap;
-  }
-
-  .mini-btn-crea {
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: #241c20;
-    background: var(--gold-primary);
-    padding: 3px 8px;
-    border-radius: 6px;
-    white-space: nowrap;
-  }
-
-  .guide-actions {
-    width: 100%;
-  }
-
-  .guide-btn-next {
-    width: 100%;
-    padding: 15px 24px;
-    font-size: 1.05rem;
-    justify-content: center;
-    box-shadow: 0 6px 20px rgba(201, 169, 110, 0.35);
-  }
-
-  @media (max-width: 520px) {
-    .row { grid-template-columns: 1fr; gap: 14px; }
-    :global(.auth-card) { padding: 20px 16px; }
-    .guide-modal-card { padding: 24px 18px 22px; border-radius: 20px; }
-    .mini-nav-anchor { display: none; }
-    legend { font-size: 1.3rem; margin-bottom: 10px; }
-    .create-aside .page-title { font-size: 2.1rem; }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 </style>

@@ -195,7 +195,7 @@
     position: sticky;
     top: 0;
     z-index: 90;
-    background: #ffffff;
+    background: #faf7f2;
     border-bottom: 1px solid rgba(201, 169, 110, 0.22);
     box-shadow: 0 2px 14px rgba(0, 0, 0, 0.04);
   }

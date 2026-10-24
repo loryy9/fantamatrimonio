@@ -59,6 +59,25 @@
     });
   });
 
+  // Aggiorna dinamicamente la barra di stato su iPhone/Safari per combaciare perfettamente con la topbar
+  $effect(() => {
+    const inGame = appState.isInGame;
+    if (typeof document !== 'undefined') {
+      const targetColor = inGame ? '#6a2037' : '#faf7f2';
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) {
+        meta.setAttribute('content', targetColor);
+      }
+      document.documentElement.style.backgroundColor = targetColor;
+      document.body.style.backgroundColor = targetColor;
+      if (inGame) {
+        document.documentElement.classList.add('in-game-active');
+      } else {
+        document.documentElement.classList.remove('in-game-active');
+      }
+    }
+  });
+
   onMount(() => {
     function handleLocationChange() {
       isAdminRoute = checkIsAdminRoute();
@@ -123,44 +142,52 @@
     {/if}
   </div>
 {:else}
-  <!-- NAVBAR BIANCA CLASSICA CON LOGO E SCRITTA A SINISTRA, NAVMENU A DESTRA PER TUTTE LE ALTRE VIEW -->
+  <!-- NAVBAR BIANCA CLASSICA CON LOGO E SCRITTA A SINISTRA, NAVMENU A DESTRA PER LE VIEW GENERALI -->
   <div class="site">
-    <SiteHeader />
+    {#if appState.authView !== 'join' && appState.authView !== 'create' && !appState.pendingInvite}
+      <SiteHeader />
+    {/if}
 
     {#if appState.authView === 'entry' && !appState.pendingInvite}
       <main class="site-landing">
         <LandingView />
       </main>
+    {:else if appState.pendingInvite || appState.authView === 'create'}
+      <main class="site-fullscreen-main">
+        <CreateEventView />
+      </main>
+    {:else if appState.authView === 'join'}
+      <main class="site-fullscreen-main">
+        <LoginView />
+      </main>
     {:else}
       <main class="site-main" class:site-dashboard-page={appState.authView === 'dashboard' || appState.activeTab === 'dashboard'}>
-        {#if appState.pendingInvite || appState.authView === 'create'}
-          <CreateEventView />
-        {:else if appState.authView === 'dashboard' || appState.activeTab === 'dashboard'}
+        {#if appState.authView === 'dashboard' || appState.activeTab === 'dashboard'}
           <DashboardView />
         {:else if appState.authView === 'login-secure'}
           <SecureLoginView />
-        {:else if appState.authView === 'join'}
-          <LoginView />
         {:else}
           <LandingView />
         {/if}
       </main>
     {/if}
 
-    <footer class="site-footer">
-      <span>Fanta Matrimonio · Gioca, scatta, rispondi e scala la classifica</span>
-      <a
-        href="/admin"
-        class="admin-link-subtle"
-        onclick={(e) => {
-          e.preventDefault();
-          history.pushState(null, '', '/admin');
-          window.dispatchEvent(new PopStateEvent('popstate'));
-        }}
-      >
-        Console Admin
-      </a>
-    </footer>
+    {#if appState.authView !== 'join' && appState.authView !== 'create' && !appState.pendingInvite}
+      <footer class="site-footer">
+        <span>Fanta Matrimonio · Gioca, scatta, rispondi e scala la classifica</span>
+        <a
+          href="/admin"
+          class="admin-link-subtle"
+          onclick={(e) => {
+            e.preventDefault();
+            history.pushState(null, '', '/admin');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
+        >
+          Console Admin
+        </a>
+      </footer>
+    {/if}
   </div>
 {/if}
 
@@ -200,6 +227,13 @@
   .site-landing {
     flex: 1;
     width: 100%;
+  }
+
+  .site-fullscreen-main {
+    flex: 1;
+    width: 100%;
+    padding: 0;
+    margin: 0;
   }
 
   .site-dashboard-page {

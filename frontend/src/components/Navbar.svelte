@@ -80,15 +80,21 @@
 
   /* straight edges, with the bottom cut on a diagonal */
   .band {
-    --cut: 8px;
+    --cut: 6px;
     position: relative;
     overflow: hidden;
-    padding: var(--safe-top) 0 var(--cut);
+    padding: 0 0 var(--cut);
     background:
       radial-gradient(60% 140% at 100% 0%, rgba(233, 201, 143, 0.28), transparent 60%),
       radial-gradient(40% 120% at 0% 100%, rgba(201, 98, 127, 0.4), transparent 70%),
       linear-gradient(115deg, #4a1226 0%, var(--wine) 55%, #a33a58 100%);
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), 0 100%);
+  }
+
+  @media (display-mode: standalone) {
+    .band {
+      padding-top: env(safe-area-inset-top, 0px);
+    }
   }
 
   /* champagne line that follows the cut */
@@ -126,7 +132,7 @@
     align-items: center;
     gap: 8px;
     max-width: 1100px;
-    height: 72px;
+    height: 56px;
     margin: 0 auto;
     padding: 0 14px;
   }

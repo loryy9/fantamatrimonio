@@ -1,8 +1,20 @@
-
-[] Bloccare il campo password fino a che non ha messo campo di verifica
-
-[] al refresh della pagina se sono nella partita mi porta alla home, non farà più controllo session storage?
-
-[] se ho già fatto l'accesso e vengo buttato fuori, come faccio a riaccedere? non posso rimettere nickname email ecc.. magari mandiamo la mail con "per rientrare premi qui" o troviamo una soluzione migliore
-
 [] WEBSOCKET
+[] Account normale con email e password + eventuale accedi con google e Facebook
+[] Far sparire entra "con codice"
+[] togliere frasi di troppo in classifica
+[] avvicinare la classifica togliendo spazio sopra
+[] vedere se aumentare titoli 
+[] controllare se è possibile che tutti abbiano lo stesso punteggio
+[] rivedere in generale testi login sposi
+[] Togliere la location
+[] Per la data verifichiamo cosa consiglia claudio 
+[] Email già esistente da segnalare quando la si verifica
+[] Rivedere componente scroll orizzontale
+[] Fare drawer da destra per creazione sfide matrimonio
+[] unificare stile della creazione evento con la modifica da console sposo
+[] console sposi "fuori" dal gioco, gestire le modifiche dalla dashboard dei matrimoni
+[] mettere sidebar in tutte le pagine, in modo da buttare dentro logout ed eventuali altri tasti
+[] Togliere nome sposi in home e spostare piu su nome giocatore
+[] Visualizzazione dettagliata delle foto deve permettermi di scorrere tra le foto
+[] Se carico una foto dalla al tesoro va in galleria ed è corretto. se dalla galleria cancello, deve riattivare quella sfida
+[] Connessione cloudflares bucket per caricare immagini

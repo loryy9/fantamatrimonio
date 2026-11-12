@@ -1,20 +1,25 @@
 [] WEBSOCKET
+[] Rivedere grafica in generale da mobile, tutto molto ammassato e poco "solido"
 [P] Account normale con email e password + eventuale accedi con google e Facebook
 [P] Far sparire entra "con codice"
-[] togliere frasi di troppo in classifica
-[] avvicinare la classifica togliendo spazio sopra
+[P] togliere frasi di troppo in classifica
+[] Adeguare tutti i tasti grafici per fare in modo che abbiano la stessa dimensione
+[P] avvicinare la classifica togliendo spazio sopra
 [] vedere se aumentare titoli 
+[] Da mobile, durante la creazione dell'evento i campi data escono
 [P] controllare se è possibile che tutti abbiano lo stesso punteggio
 [] rivedere in generale testi login sposi
-[] Togliere la location
+[P] Togliere la location
 [] Per la data verifichiamo cosa consiglia claudio 
-[] Email già esistente da segnalare quando la si verifica
+[P] Email già esistente da segnalare quando la si verifica
 [] Rivedere componente scroll orizzontale
 [P] Fare drawer da destra per creazione sfide matrimonio
-[] unificare stile della creazione evento con la modifica da console sposo
-[] console sposi "fuori" dal gioco, gestire le modifiche dalla dashboard dei matrimoni
+[P] unificare stile della creazione evento con la modifica da console sposo
+[P] console sposi "fuori" dal gioco, gestire le modifiche dalla dashboard dei matrimoni
 [] mettere sidebar in tutte le pagine, in modo da buttare dentro logout ed eventuali altri tasti
-[] Togliere nome sposi in home e spostare piu su nome giocatore
+[P] Togliere nome sposi in home e spostare piu su nome giocatore
 [] Visualizzazione dettagliata delle foto deve permettermi di scorrere tra le foto
 [] Se carico una foto dalla al tesoro va in galleria ed è corretto. se dalla galleria cancello, deve riattivare quella sfida
 [] Connessione cloudflares bucket per caricare immagini
+[] testare bene tutti i vari login 
+[] logout consentito durante il gioco?

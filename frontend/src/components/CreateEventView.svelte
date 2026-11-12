@@ -315,7 +315,7 @@
       </span>
 
       {#if wizardStep === 1}
-        <h1 class="page-title">Chi sono i <span class="gold-gradient-text">festeggiati?</span></h1>
+        <h1 class="page-title">Chi sono i <span class="create-title-accent">festeggiati?</span></h1>
         <p class="page-lead">
           Questi nomi compariranno nell'app degli invitati, nelle classifiche delle sfide e nelle foto condivise.
         </p>
@@ -1281,7 +1281,10 @@
     display: grid;
     grid-template-columns: 1fr minmax(0, 520px);
     gap: 56px;
-    align-items: start;
+    align-items: center;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
   }
   .create-intro {
     display: flex;
@@ -1294,36 +1297,41 @@
   .create-intro .page-title {
     font-size: clamp(2.2rem, 4vw, 3.1rem);
     line-height: 1.05;
-    color: var(--text-main);
+    color: var(--wine);
     margin: 0;
   }
   .create-intro .page-title::after {
-    content: '';
-    display: block;
-    width: 40px;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--wine);
-    margin-top: 14px;
+    content: none;
   }
-  .create-intro .page-lead {
+  .create-title-accent {
+    color: var(--wine);
     font-family: var(--font-display);
     font-style: italic;
-    font-size: 1.2rem;
-    line-height: 1.5;
+    font-weight: 400;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    border-bottom: 2px solid #ecd189;
+    padding-bottom: 1px;
+  }
+  .create-intro .page-lead {
+    font-family: var(--font-sans);
+    font-style: normal;
+    font-size: 1rem;
+    line-height: 1.55;
     color: #6b5f64;
     margin: 0;
+    max-width: 48ch;
   }
   .eyebrow {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--gold-dark);
-    padding: 6px 14px;
+    color: var(--wine);
+    padding: 5px 14px;
     border-radius: var(--radius-full);
-    background: rgba(201, 169, 110, 0.12);
-    border: 1px solid rgba(201, 169, 110, 0.3);
+    background: #fae9f0;
+    border: 1px solid rgba(140, 47, 75, 0.12);
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1353,14 +1361,20 @@
     text-align: center;
   }
   .form-title {
-    font-size: 1.55rem;
+    font-size: 1.45rem;
     font-weight: 700;
     margin: 0 0 4px;
+    color: var(--wine);
   }
   .create-form {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    padding: 28px;
+    border-radius: 24px;
+    background: #fff;
+    border: 1px solid rgba(220, 205, 195, 0.45);
+    box-shadow: 0 4px 20px rgba(140, 47, 75, 0.06), 0 1px 4px rgba(0, 0, 0, 0.03);
   }
   .create-fields {
     display: flex;
@@ -1379,6 +1393,7 @@
   .create-fields .input-field {
     min-width: 0;
     max-width: 100%;
+    font-size: 16px;
   }
   .create-fields input[type="date"],
   .create-fields input[type="time"] {
@@ -1464,16 +1479,43 @@
 
   @media (max-width: 900px) {
     .create-layout {
-      grid-template-columns: 1fr;
-      gap: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 18px;
+      max-width: 560px;
     }
     .create-intro {
       position: static;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+    }
+    .create-intro .page-title {
+      font-size: clamp(2.2rem, 8vw, 2.85rem);
+      line-height: 1.08;
+    }
+    .create-intro .page-lead {
+      max-width: 42ch;
+      font-size: 0.95rem;
+    }
+    .create-progress {
+      max-width: 220px;
     }
   }
   @media (max-width: 520px) {
     .create-form.auth-card {
-      padding: 22px 18px;
+      padding: 24px 22px;
+      border-radius: 24px;
+    }
+    .eyebrow {
+      max-width: 100%;
+      font-size: 0.64rem;
+      letter-spacing: 0.08em;
+      padding: 6px 12px;
+    }
+    .switch {
+      font-size: 0.88rem;
     }
   }
   @media (max-width: 420px) {

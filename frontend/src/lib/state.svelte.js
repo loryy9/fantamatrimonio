@@ -388,8 +388,11 @@ class AppState {
     } finally {
       this.pendingInvite = null;
       this.token = null;
-      this.jwtToken = null;
-      this.account = null;
+      this.refreshToken = null;
+      if (this.refreshTimer) {
+        clearTimeout(this.refreshTimer);
+        this.refreshTimer = null;
+      }
       this.setUser(null);
       this.event = null;
       this.challenges = [];
@@ -397,10 +400,15 @@ class AppState {
       this.leaderboard = [];
       this.galleryPhotos = [];
       localStorage.removeItem('fm_auth_token');
-      localStorage.removeItem('fm_jwt_token');
+      localStorage.removeItem('fm_refresh_token');
       this.stopPolling();
-      this.setAuthView('entry');
-      this.showToast('Creazione annullata. Tutti i dati sono stati rimossi.', 'info');
+      if (this.jwtToken && this.account) {
+        this.openDashboard();
+        this.showToast('Creazione annullata. L’account è ancora attivo.', 'info');
+      } else {
+        this.setAuthView('entry');
+        this.showToast('Creazione annullata.', 'info');
+      }
     }
   }
 

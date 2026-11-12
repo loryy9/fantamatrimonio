@@ -28,7 +28,7 @@
   // "Crea" (form e registrazione) usa la topbar del sito; setup e condivisione restano a tutto schermo.
   const showCreateForm = $derived(appState.authView === 'create' && !appState.pendingInvite);
   const showSiteChrome = $derived(
-    showGate || showCreateForm || (appState.authView !== 'join' && appState.authView !== 'create' && !appState.pendingInvite)
+    showGate || showCreateForm || appState.authView === 'join' || (appState.authView !== 'create' && !appState.pendingInvite)
   );
 
   function checkIsAdminRoute() {
@@ -122,6 +122,7 @@
   </div>
 {:else if appState.activeTab === 'setup' && appState.isCouple}
   <div class="site">
+    <SiteHeader />
     <main class="site-fullscreen-main">
       <OnboardingSetup
         editMode={true}
@@ -174,7 +175,7 @@
         <CreateEventView />
       </main>
     {:else if appState.authView === 'join'}
-      <main class="site-fullscreen-main">
+      <main class="site-main">
         <LoginView />
       </main>
     {:else}

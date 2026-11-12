@@ -17,6 +17,7 @@
   let isSaving = $state(false);
   let isLoadingData = $state(false);
   let errorMessage = $state('');
+  let savedChallengeSnapshot = $state(null);
 
   // Cloni locali modificabili dei preset
   let quizzes = $state(
@@ -41,8 +42,23 @@
     }))
   );
 
+  function getChallengeSnapshot() {
+    return {
+      quizzes: quizzes.map(item => ({ ...item, vote_options: [...item.vote_options] })),
+      hunts: hunts.map(item => ({ ...item })),
+      moments: moments.map(item => ({ ...item }))
+    };
+  }
+
+  const hasChallengeChanges = $derived.by(() =>
+    savedChallengeSnapshot !== null && JSON.stringify(getChallengeSnapshot()) !== JSON.stringify(savedChallengeSnapshot)
+  );
+
   onMount(async () => {
-    if (!editMode) return;
+    if (!editMode) {
+      savedChallengeSnapshot = getChallengeSnapshot();
+      return;
+    }
     isLoadingData = true;
     try {
       const existing = initialChallenges !== null ? initialChallenges : await api.getChallenges(true);
@@ -52,6 +68,7 @@
       }));
       hunts = existing.filter(ch => ch.type === 'hunt').map(ch => ({ ...ch, id: ch.id, selected: ch.active !== false }));
       moments = existing.filter(ch => ch.type === 'vote').map(ch => ({ ...ch, id: ch.id, selected: ch.active !== false }));
+      savedChallengeSnapshot = getChallengeSnapshot();
     } catch (err) {
       errorMessage = err.message || 'Errore nel caricamento delle sfide.';
     } finally {
@@ -64,44 +81,24 @@
   const selectedHuntCount = $derived(hunts.filter(h => h.selected).length);
   const selectedMomentsCount = $derived(moments.filter(m => m.selected).length);
 
-  let tabsNavEl = $state(null);
-  let canScrollLeft = $state(false);
-  let canScrollRight = $state(false);
-
-  function checkTabsScroll() {
-    if (!tabsNavEl) return;
-    canScrollLeft = tabsNavEl.scrollLeft > 6;
-    canScrollRight = tabsNavEl.scrollLeft < (tabsNavEl.scrollWidth - tabsNavEl.clientWidth - 6);
-  }
-
-  function scrollTabsLeft() {
-    if (tabsNavEl) {
-      tabsNavEl.scrollBy({ left: -140, behavior: 'smooth' });
-    }
-  }
-
-  function scrollTabsRight() {
-    if (tabsNavEl) {
-      tabsNavEl.scrollBy({ left: 140, behavior: 'smooth' });
-    }
-  }
-
   function selectSection(sec, event) {
     activeSection = sec;
     if (event?.currentTarget) {
       event.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
-    setTimeout(checkTabsScroll, 200);
   }
 
-  $effect(() => {
-    if (tabsNavEl) {
-      checkTabsScroll();
-      const ro = new ResizeObserver(() => checkTabsScroll());
-      ro.observe(tabsNavEl);
-      return () => ro.disconnect();
+  function resetChallenges() {
+    if (!hasChallengeChanges || !savedChallengeSnapshot) return;
+    if (!confirm('Confermi di voler ripristinare le opzioni alla versione precedente?')) return;
+
+    if (savedChallengeSnapshot) {
+      quizzes = savedChallengeSnapshot.quizzes.map(item => ({ ...item, vote_options: [...item.vote_options] }));
+      hunts = savedChallengeSnapshot.hunts.map(item => ({ ...item }));
+      moments = savedChallengeSnapshot.moments.map(item => ({ ...item }));
     }
-  });
+    appState.showToast('Impostazioni ripristinate.', 'success');
+  }
 
   // --- Drawer laterale per la creazione di nuove sfide ---
   let drawerOpen = $state(false);
@@ -332,28 +329,9 @@
 </script>
 
 <div class="onboarding-wrapper">
-  <!-- Header con riepilogo -->
   <header class="onboarding-header">
-    <div class="header-top-row">
-      <div class="header-badge">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        {editMode ? 'Gestione matrimonio · Sfide' : 'Passo 2 di 2 · Configurazione Attività'}
-      </div>
-
-      <button
-        type="button"
-        class="btn-cancel-header"
-        disabled={isSaving || isCancelling}
-        onclick={handleCancelCreation}
-        title={editMode ? 'Torna alla dashboard' : "Annulla ed elimina l'evento dal database"}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        <span>{editMode ? 'Dashboard' : isCancelling ? 'Annullamento...' : 'Annulla creazione'}</span>
-      </button>
-    </div>
-
     <h1 class="page-title font-serif">
-      Personalizza i giochi di <span class="gold-gradient-text">{appState.event?.spouse1_name || 'Voi'} &amp; {appState.event?.spouse2_name || 'Sposi'}</span>
+      Personalizzate i giochi del vostro <span class="setup-title-accent">matrimonio</span>
     </h1>
     <p class="page-lead">
       {editMode
@@ -375,16 +353,9 @@
 
   <!-- Navigazione Sezioni Sticky sotto all'header -->
   <div class="sticky-tabs-container">
+    {#if !editMode}<div class="setup-progress" role="progressbar" aria-label="Avanzamento configurazione matrimonio" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span></span></div>{/if}
     <div class="tabs-scroll-container">
-      {#if canScrollLeft}
-        <button class="scroll-fade-edge left" onclick={scrollTabsLeft} aria-label="Scorri indietro">
-          <span class="scroll-arrow-chip">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-          </span>
-        </button>
-      {/if}
-
-      <div class="section-tabs" bind:this={tabsNavEl} onscroll={checkTabsScroll}>
+      <div class="section-tabs" aria-label="Sezioni dei giochi">
         <button
           class="tab-btn {activeSection === 'quiz' ? 'active' : ''}"
           onclick={(e) => selectSection('quiz', e)}
@@ -416,30 +387,6 @@
         </button>
       </div>
 
-      {#if canScrollRight}
-        <button class="scroll-fade-edge right" onclick={scrollTabsRight} aria-label="Scorri per altre opzioni">
-          <span class="scroll-arrow-chip">
-            <span class="scroll-chip-text">Altro</span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-          </span>
-        </button>
-      {/if}
-    </div>
-
-    <div class="tabs-swipe-indicator" aria-hidden="true">
-      <div class="swipe-dots">
-        <span class="swipe-dot" class:active={activeSection === 'quiz'}></span>
-        <span class="swipe-dot" class:active={activeSection === 'hunt'}></span>
-        <span class="swipe-dot" class:active={activeSection === 'moments'}></span>
-      </div>
-      {#if canScrollRight}
-        <span class="swipe-label">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="inline-arrow"><path d="m9 18 6-6-6-6"/></svg>
-          Scorri a destra per altre opzioni
-        </span>
-      {:else}
-        <span class="swipe-label all-seen">Tutte le sezioni visibili</span>
-      {/if}
     </div>
   </div>
 
@@ -562,40 +509,15 @@
 
   <!-- Footer con azioni di salvataggio -->
   <footer class="onboarding-footer glass-card">
-    <div class="footer-left">
-      {#if !editMode}
-        <button
-          type="button"
-          class="btn btn-secondary"
-          disabled={isSaving || isCancelling || isLoadingData || (editMode && !!errorMessage)}
-          onclick={() => handleSave(true)}
-        >
-          Usa preset consigliati &amp; continua
-        </button>
-      {/if}
-      <button
-        type="button"
-        class="btn-cancel-footer"
-        disabled={isSaving || isCancelling}
-        onclick={handleCancelCreation}
-        title={editMode ? 'Torna alla dashboard' : "Annulla ed elimina l'evento dal database"}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        <span>{editMode ? 'Dashboard' : 'Annulla ed elimina'}</span>
-      </button>
-      <span class="footer-hint">{editMode ? 'Le sfide si possono aggiornare in qualsiasi momento' : 'Tutto potrà essere modificato dalla dashboard'}</span>
-    </div>
-
-    <button
-      type="button"
-      class="btn btn-primary btn-lg"
-      disabled={isSaving || isCancelling || isLoadingData || (editMode && !!errorMessage)}
-      onclick={() => handleSave(false)}
-    >
+    <button type="button" class="setup-action-cancel" disabled={isSaving || isCancelling} onclick={handleCancelCreation}>
+      {isCancelling ? 'Annullamento…' : 'Annulla'}
+    </button>
+    <button type="button" class="setup-action-reset" disabled={isSaving || isCancelling || isLoadingData || !hasChallengeChanges} onclick={resetChallenges}>Ripristina</button>
+    <button type="button" class="btn btn-primary btn-lg setup-action-save" disabled={isSaving || isCancelling || isLoadingData || !!errorMessage} onclick={() => handleSave(false)}>
       {#if isSaving}
-        <span class="spinner-sm"></span> Salvataggio in corso...
+        <span class="spinner-sm"></span> Salvataggio…
       {:else}
-        {editMode ? 'Salva modifiche e torna alla dashboard →' : 'Salva attività e ottieni il codice invito →'}
+        Salva
       {/if}
     </button>
   </footer>
@@ -820,9 +742,9 @@
   }
 
   .onboarding-wrapper {
-    max-width: 960px;
+    max-width: 1080px;
     margin: 0 auto;
-    padding: 16px 20px 80px;
+    padding: 16px 24px 128px;
     display: flex;
     flex-direction: column;
     gap: 24px;
@@ -834,6 +756,23 @@
     flex-direction: column;
     align-items: center;
     gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  .setup-progress {
+    width: 100%;
+    height: 3px;
+    margin: 0 0 8px;
+    background: rgba(140, 47, 75, 0.12);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .setup-progress span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #a63552;
   }
 
   .header-top-row {
@@ -911,29 +850,34 @@
   }
 
   .page-title {
-    font-size: 2.4rem;
-    line-height: 1.1;
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    line-height: 1.08;
     margin: 0;
-    color: var(--text-main);
+    color: var(--wine);
   }
 
   .page-title::after {
-    content: '';
-    display: block;
-    width: 40px;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--wine);
-    margin: 14px auto 0;
+    content: none;
+  }
+
+  .setup-title-accent {
+    color: var(--wine);
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    border-bottom: 2px solid #ecd189;
+    padding-bottom: 1px;
   }
 
   .page-lead {
-    max-width: 720px;
+    max-width: 680px;
     color: #6b5f64;
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: 1.2rem;
-    line-height: 1.5;
+    font-family: var(--font-sans);
+    font-style: normal;
+    font-size: 1rem;
+    line-height: 1.55;
     margin: 0;
   }
 
@@ -946,8 +890,8 @@
   .sticky-tabs-container {
     position: -webkit-sticky;
     position: sticky;
-    top: calc(var(--site-header-height, 46px) + var(--safe-top, 0px));
-    z-index: 35;
+    top: 50px;
+    z-index: 60;
     background: var(--bg-primary);
     padding: 8px 0 10px;
     margin: 0 0 16px;
@@ -1037,14 +981,14 @@
 
   .section-tabs {
     display: flex;
-    gap: 6px;
-    padding: 5px;
-    background: #fff;
-    border: 1px solid rgba(36, 28, 32, 0.07);
-    border-radius: 9999px;
+    gap: 8px;
+    padding: 6px;
+    background: #f1ece8;
+    border: 1px solid rgba(36, 28, 32, 0.06);
+    border-radius: 18px;
     overflow-x: auto;
     scrollbar-width: none;
-    box-shadow: 0 6px 18px rgba(140, 47, 75, 0.07);
+    box-shadow: 0 4px 14px rgba(140, 47, 75, 0.06);
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
   }
@@ -1054,80 +998,25 @@
   }
 
   @media (max-width: 640px) {
-    .tabs-swipe-indicator {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 6px 6px 0;
-      color: var(--ink-soft);
-      font-size: 0.74rem;
-      font-weight: 600;
-    }
-
-    .swipe-dots {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .swipe-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: rgba(36, 28, 32, 0.18);
-      transition: all 0.2s ease;
-    }
-
-    .swipe-dot.active {
-      width: 16px;
-      border-radius: 4px;
-      background: var(--wine);
-    }
-
-    .swipe-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      color: var(--wine);
-      font-weight: 700;
-      font-size: 0.72rem;
-    }
-
-    .swipe-label.all-seen {
-      color: var(--text-dim);
-      font-weight: 500;
-    }
-
-    .inline-arrow {
-      animation: bounce-subtle 1.8s infinite ease-in-out;
-    }
-
     .section-tabs {
-      padding-right: 54px !important;
+      gap: 6px;
+      padding: 5px;
       scrollbar-width: thin;
-      scrollbar-color: rgba(140, 47, 75, 0.25) transparent;
+      scrollbar-color: rgba(140, 47, 75, 0.28) transparent;
     }
-
-    .section-tabs::-webkit-scrollbar {
-      height: 3px !important;
-      display: block !important;
-    }
-
-    .section-tabs::-webkit-scrollbar-thumb {
-      background: rgba(140, 47, 75, 0.22);
-      border-radius: 9999px;
-    }
+    .section-tabs::-webkit-scrollbar { height: 3px; }
+    .section-tabs::-webkit-scrollbar-thumb { background: rgba(140, 47, 75, 0.28); border-radius: 99px; }
   }
 
   .tab-btn {
-    flex: 1 0 auto;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     padding: 11px 16px;
     border: none;
-    border-radius: 9999px;
+    border-radius: 13px;
     background: transparent;
     color: var(--text-muted);
     font-weight: 600;
@@ -1509,31 +1398,44 @@
 
   /* Footer */
   .onboarding-footer {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.25fr;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 18px 24px;
-    border-radius: 28px;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid rgba(36, 28, 32, 0.07);
-    box-shadow: 0 16px 40px rgba(74, 31, 51, 0.16);
+    gap: 10px;
+    width: min(100%, 720px);
+    margin: 0 auto;
+    padding: 12px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(36, 28, 32, 0.08);
+    box-shadow: 0 8px 28px rgba(74, 31, 51, 0.14);
     position: sticky;
-    bottom: 20px;
+    bottom: max(10px, env(safe-area-inset-bottom, 0px));
     z-index: 50;
   }
 
-  .footer-left {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+  .setup-action-cancel,
+  .setup-action-reset {
+    min-height: 48px;
+    padding: 10px 12px;
+    border: 1px solid rgba(36, 28, 32, 0.1);
+    border-radius: 14px;
+    background: #f8f5f2;
+    color: #5f5158;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 650;
+    cursor: pointer;
   }
 
-  .footer-hint {
-    font-size: 0.8rem;
-    color: var(--text-muted);
+  .setup-action-reset { background: #fff; }
+  .setup-action-save { min-height: 48px; justify-content: center; border-radius: 14px; padding: 10px 12px; }
+  .setup-action-cancel:disabled,
+  .setup-action-reset:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  @media (hover: hover) {
+    .setup-action-cancel:hover:not(:disabled),
+    .setup-action-reset:hover:not(:disabled) { border-color: rgba(140, 47, 75, 0.28); color: var(--wine); }
   }
 
   .spinner-sm {
@@ -1563,15 +1465,17 @@
 
   @media (max-width: 768px) {
     .onboarding-wrapper {
-      padding: 12px 14px 100px;
+      padding: 14px 20px 112px;
+      gap: 18px;
     }
 
     .page-title {
-      font-size: 1.9rem;
+      font-size: clamp(2rem, 7.5vw, 2.55rem);
     }
 
     .page-lead {
-      font-size: 1.05rem;
+      font-size: 0.96rem;
+      max-width: 42ch;
     }
 
     .setup-card {
@@ -1589,20 +1493,26 @@
     .compact-quiz-actions { justify-content: space-between; }
 
     .onboarding-footer {
-      flex-direction: column;
-      align-items: stretch;
-      bottom: 10px;
-      padding: 16px;
+      grid-template-columns: 0.85fr 0.85fr 1.2fr;
+      gap: 8px;
+      padding: 9px;
+      border-radius: 19px;
     }
 
-    .footer-left {
-      align-items: center;
-      text-align: center;
-    }
+    .setup-action-cancel,
+    .setup-action-reset,
+    .setup-action-save { min-height: 46px; padding: 9px 6px; font-size: 0.84rem; }
 
     .section-helper {
       flex-direction: column;
       align-items: stretch;
     }
   }
+
+  @media (max-width: 380px) {
+    .onboarding-wrapper { padding-left: 14px; padding-right: 14px; }
+    .setup-progress { margin-left: -14px; margin-right: -14px; }
+    .tab-btn { padding: 10px 12px; font-size: 0.82rem; }
+  }
+
 </style>

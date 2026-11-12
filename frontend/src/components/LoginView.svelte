@@ -151,33 +151,6 @@
 </script>
 
 <div class="guest-screen">
-  <!-- Minimal Top Header -->
-  <header class="guest-topbar">
-    <button
-      type="button"
-      class="top-icon-btn"
-      onclick={() => appState.setAuthView('entry')}
-      aria-label="Torna indietro"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 12H5M12 19l-7-7 7-7"/>
-      </svg>
-    </button>
-
-    <div class="top-title">Entra nel matrimonio</div>
-
-    <button
-      type="button"
-      class="top-icon-btn user-avatar-pill"
-      onclick={() => appState.openDashboard()}
-      aria-label="I miei matrimoni"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-      </svg>
-    </button>
-  </header>
-
   <div class="guest-container">
     <!-- Hero Header -->
     <div class="guest-hero">
@@ -197,6 +170,7 @@
       </p>
     </div>
 
+    <div class="guest-form-column">
     <!-- Main Card -->
     <form class="clean-card" onsubmit={handleSubmit}>
       <!-- Campo Codice Invito -->
@@ -359,6 +333,8 @@
       </div>
     </div>
 
+    </div>
+
     <!-- Subtle Footer info -->
     <footer class="minimal-footer">
       <div class="footer-divider">
@@ -388,72 +364,22 @@
     align-items: center;
   }
 
-  /* Top Minimal Bar */
-  .guest-topbar {
-    width: 100%;
-    max-width: 500px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 16px 2px;
-  }
-
-  @media (display-mode: standalone) {
-    .guest-topbar {
-      padding-top: max(6px, env(safe-area-inset-top, 0px));
-    }
-  }
-
-  .top-icon-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    color: var(--wine);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background 0.15s ease, transform 0.15s ease;
-  }
-
-  .top-icon-btn:hover {
-    background: rgba(74, 14, 46, 0.06);
-  }
-
-  .top-icon-btn:active {
-    transform: scale(0.94);
-  }
-
-  .top-title {
-    font-family: var(--font-display);
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--wine);
-    letter-spacing: -0.01em;
-  }
-
-  .user-avatar-pill {
-    background: var(--wine);
-    color: #ffffff;
-    width: 36px;
-    height: 36px;
-  }
-
-  .user-avatar-pill:hover {
-    background: var(--wine-deep);
-  }
-
   /* Main Container */
   .guest-container {
     width: 100%;
-    max-width: 520px;
-    margin: 10px auto 36px;
-    padding: 10px 20px 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 10px 0 32px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
+    align-items: center;
+    gap: clamp(32px, 5vw, 64px);
+  }
+
+  .guest-form-column {
+    width: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 16px;
   }
 
@@ -461,8 +387,8 @@
   .guest-hero {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    text-align: center;
+    align-items: flex-start;
+    text-align: left;
     margin-top: 4px;
     margin-bottom: 8px;
   }
@@ -502,7 +428,7 @@
     color: #6a5e64;
     line-height: 1.5;
     max-width: 42ch;
-    margin: 0 auto;
+    margin: 0;
   }
 
   /* Clean Card */
@@ -516,6 +442,36 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
+  }
+
+  .minimal-footer {
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 900px) {
+    .guest-container {
+      max-width: 560px;
+      padding: 0 0 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .guest-hero {
+      align-items: center;
+      text-align: center;
+    }
+
+    .guest-subtitle {
+      margin: 0 auto;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .guest-container {
+      padding: 0 0 24px;
+    }
   }
 
   .field-block {

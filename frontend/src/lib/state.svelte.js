@@ -369,7 +369,7 @@ class AppState {
   async finishOnboarding(targetTab = null) {
     this.pendingInvite = null;
     if (targetTab === 'dashboard') {
-      this.openDashboard();
+      this.openDashboard(this.event?.id);
       return;
     }
     this.authView = 'entry';

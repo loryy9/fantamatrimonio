@@ -5,6 +5,7 @@
   import OnboardingSetup from './OnboardingSetup.svelte';
   import EmailVerificationField from './EmailVerificationField.svelte';
   import SocialButtons from './SocialButtons.svelte';
+  import SiteHeader from './SiteHeader.svelte';
 
   // Wizard: 1 Nomi & Cerimonia -> 2 Registrazione (solo se non si ha già un account) -> 'setup' -> 'share'.
   let wizardStep = $state(1);
@@ -66,14 +67,6 @@
         endDate = eventDate;
       }
     }
-  });
-
-  // Anteprima codice automatico
-  const generatedCodePreview = $derived.by(() => {
-    const s1 = spouse1.trim().replace(/[^a-zA-Z]/g, '').slice(0, 5).toUpperCase() || 'ELENA';
-    const s2 = spouse2.trim().replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'DAV';
-    const year = eventDate ? eventDate.split('-')[0].slice(-2) : '26';
-    return `${s1}-${s2}-${year}`;
   });
 
   // Data leggibile in italiano
@@ -261,6 +254,7 @@
 </script>
 
 {#if currentStep === 'setup'}
+  {#if appState.pendingInvite}<SiteHeader />{/if}
   <OnboardingSetup onComplete={() => { currentStep = 'share'; scrollToTopInstant(); }} />
 {:else if currentStep === 'share' || appState.pendingInvite}
   <!-- SCHERMATA CODICE PRONTO -->
@@ -404,18 +398,6 @@
               </div>
             {/if}
           </div>
-
-          <div class="code-preview">
-            <div>
-              <span class="input-label">Anteprima codice invito</span>
-              <strong class="code-preview-value font-serif">{generatedCodePreview}</strong>
-            </div>
-            <span class="auto-pill">Automatico</span>
-          </div>
-
-          <p class="free-note">
-            <strong>Nessun costo nascosto.</strong> I primi 20 invitati sono completamente gratuiti, con tutte le funzionalità: foto illimitate, quiz e tabellone proiettabile.
-          </p>
 
           <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
             {#if isSubmitting}
@@ -1457,37 +1439,6 @@
   }
   .timer-grid .input-group {
     margin-bottom: 0;
-  }
-  .code-preview {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 16px;
-    border-radius: 16px;
-    border: 1px dashed rgba(201, 169, 110, 0.5);
-    margin-bottom: 14px;
-  }
-  .code-preview-value {
-    display: block;
-    font-size: 1.2rem;
-    color: var(--wine);
-    letter-spacing: 0.04em;
-    margin-top: 2px;
-  }
-  .auto-pill {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--gold-dark);
-    background: rgba(201, 169, 110, 0.15);
-    border-radius: 999px;
-    padding: 4px 10px;
-  }
-  .free-note {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    line-height: 1.5;
-    margin: 0 0 14px;
   }
   .verification-note {
     display: flex;

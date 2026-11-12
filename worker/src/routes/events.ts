@@ -1,6 +1,6 @@
 /**
  * Rotte per la creazione e gestione degli eventi (matrimoni).
- * POST   /api/events                  -> crea un matrimonio + account sposi
+ * POST   /api/events                  -> crea un matrimonio (richiede un account autenticato)
  * GET    /api/events/preview/:code    -> anteprima pubblica dal codice invito
  * GET    /api/events/me               -> configurazione dell'evento corrente
  * PATCH  /api/events/me               -> aggiorna la configurazione (solo sposi)
@@ -10,14 +10,13 @@
  */
 import { Hono } from "hono";
 import { z } from "zod";
-import { createJwt, decodeJwt, hashPassword, isJwt, requireCouple, requireUser, verifyPassword } from "../auth";
+import { decodeJwt, isJwt, requireCouple, requireUser } from "../auth";
 import type { Row } from "../db";
 import type { Env, AppEnv } from "../env";
 import { ApiError } from "../errors";
 import { generateInviteCode } from "../invite";
 import { accountOut, eventOut, userOut } from "../serializers";
-import { dateTime, normalize, parseJson, setFields } from "../util";
-import { verifyCode } from "../verification";
+import { dateTime, parseJson, setFields } from "../util";
 
 const router = new Hono<AppEnv>();
 
@@ -61,12 +60,6 @@ const CreateEventRequest = z.object({
   enable_timer: z.boolean().default(false),
   start_time: dateTime.nullish(),
   end_time: dateTime.nullish(),
-  couple_first_name: z.string(),
-  couple_last_name: z.string(),
-  couple_secret_word: str, // facoltativo per retrocompatibilita' test
-  couple_email: str,
-  couple_password: str,
-  verification_code: str, // OTP 6 cifre inviato via email
 });
 
 router.post("/", async (c) => {
@@ -80,76 +73,24 @@ router.post("/", async (c) => {
     throw new ApiError(422, "L'orario di fine deve essere successivo a quello di inizio.");
   }
 
-  const first = normalize(body.couple_first_name);
-  const last = normalize(body.couple_last_name);
-  if (!body.spouse1_name.trim() || !body.spouse2_name.trim() || !first || !last) {
-    throw new ApiError(422, "I nomi degli sposi e il referente sono obbligatori.");
+  if (!body.spouse1_name.trim() || !body.spouse2_name.trim()) {
+    throw new ApiError(422, "I nomi degli sposi sono obbligatori.");
   }
 
-  let accountId: string | null = null;
-  let jwtToken: string | null = null;
-  let accountData: Row | null = null;
-  let coupleEmail = body.couple_email ? body.couple_email.trim().toLowerCase() : null;
-  const couplePassword = body.couple_password || null;
-
-  // 1. Utente gia' loggato con JWT
+  // Serve un account: chi crea il matrimonio deve aver gia' effettuato il login.
   const authorization = c.req.header("authorization");
-  if (authorization?.startsWith("Bearer ")) {
-    const tokenStr = authorization.slice("Bearer ".length).trim();
-    if (isJwt(tokenStr)) {
-      const payload = await decodeJwt(cfg, tokenStr);
-      if (payload && payload.type === "account") {
-        const existing = await db.queryOne("SELECT * FROM accounts WHERE id = $1", [String(payload.sub)]);
-        if (existing) {
-          accountId = existing.id;
-          accountData = accountOut(existing);
-          jwtToken = tokenStr;
-          coupleEmail = existing.email;
-        }
-      }
-    }
-  }
+  const tokenStr = authorization?.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
+  const payload = tokenStr && isJwt(tokenStr) ? await decodeJwt(cfg, tokenStr) : null;
+  const existing =
+    payload && payload.type === "account"
+      ? await db.queryOne("SELECT * FROM accounts WHERE id = $1", [String(payload.sub)])
+      : null;
+  if (!existing) throw new ApiError(401, "Accedi o registrati per creare un matrimonio.");
 
-  // 2. Se non gia' loggato, email e password sono obbligatorie
-  if (!accountId) {
-    if (!coupleEmail || !couplePassword) {
-      throw new ApiError(422, "Email e password sono obbligatorie per creare l'account degli sposi.");
-    }
-    if (couplePassword.length < 6) throw new ApiError(422, "La password deve essere di almeno 6 caratteri.");
-
-      const existingAccount = await db.queryOne("SELECT * FROM accounts WHERE email = $1", [coupleEmail]);
-      if (existingAccount) {
-        if (!existingAccount.password_hash || !(await verifyPassword(couplePassword, existingAccount.password_hash))) {
-          throw new ApiError(
-            409,
-            "Esiste già un account con questa email. Inserisci la password corretta o accedi prima.",
-          );
-        }
-        accountId = existingAccount.id;
-        jwtToken = await createJwt(cfg, String(accountId));
-        accountData = accountOut(existingAccount);
-      } else {
-        let isVerified = false;
-        if (body.verification_code) {
-          if (!(await verifyCode(db, coupleEmail, body.verification_code, "register_couple", true))) {
-            throw new ApiError(400, "Codice di verifica non valido o scaduto.");
-          }
-          isVerified = true;
-        } else {
-          throw new ApiError(400, "Il codice di verifica inviato via email è obbligatorio.");
-        }
-
-        const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-        const account = await db.execute(
-          `INSERT INTO accounts (email, password_hash, display_name, is_verified, registered_at)
-           VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-          [coupleEmail, await hashPassword(couplePassword), `${cap(first)} ${cap(last)}`, isVerified],
-        );
-        accountId = account!.id;
-        jwtToken = await createJwt(cfg, String(accountId));
-        accountData = accountOut(account!);
-      }
-    }
+  const accountId = existing.id as string;
+  const jwtToken = tokenStr;
+  const accountData: Row = accountOut(existing);
+  const coupleName = String(existing.display_name || "").trim() || `${body.spouse1_name.trim()} & ${body.spouse2_name.trim()}`;
 
   let created: { event: Row; user: Row; token: string; refreshToken: string } | null = null;
   for (let attempt = 0; attempt < 5 && !created; attempt++) {
@@ -164,7 +105,7 @@ router.post("/", async (c) => {
         const user = (await tx.execute(
           `INSERT INTO users (event_id, role, nickname, pin, account_id)
            VALUES ($1, 'couple', $2, NULL, $3) RETURNING *`,
-          [event.id, `${first} ${last}`.trim(), accountId],
+          [event.id, coupleName, accountId],
         ))!;
         const token = crypto.randomUUID();
         const refreshToken = crypto.randomUUID();

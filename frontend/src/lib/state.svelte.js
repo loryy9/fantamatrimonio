@@ -19,9 +19,10 @@ function readAuthView() {
 class AppState {
   authView = $state(readAuthView()); // 'entry' | 'join' | 'create' | 'login-secure' | 'dashboard'
   pendingInvite = $state(null); // invite code shown right after creating an event
+  pendingJoinCode = null; // codice invito di un link, ricordato se l'ospite passa dal login classico
   user = $state(null);
   event = $state(null);
-  account = $state(null); // account registrato (email + password)
+  account = $state(null); // account dell'utente (email/password o social)
   token = $state(localStorage.getItem('fm_auth_token') || null);
   refreshToken = $state(localStorage.getItem('fm_refresh_token') || null);
   jwtToken = $state(localStorage.getItem('fm_jwt_token') || null);
@@ -29,12 +30,6 @@ class AppState {
   activeTab = $state(readAuthView());
   quizSubTab = $state('quiz'); // 'quiz' | 'vote'
   showInstructionsModal = $state(false);
-  showUpgradeModal = $state(false); // modal per registrazione account
-  showAccountPromptBanner = $state(false); // banner "Non vuoi perderti le cose di questo matrimonio?"
-  accountPromptSource = $state(null); // 'photos' | 'quiz'
-  showClaimModal = $state(false); // modal per completamento account da link email
-  pendingClaimToken = $state(null);
-  claimData = $state(null);
   refreshTimer = null;
 
   challenges = $state([]);
@@ -135,9 +130,6 @@ class AppState {
       first_name: formatName(nick),
       last_name: formatName(u.last_name || '')
     };
-    try {
-      sessionStorage.removeItem('fm_dismissed_account_prompt');
-    } catch (_) {}
   }
 
   _scheduleAutoRefresh(expiresInSeconds) {
@@ -165,20 +157,6 @@ class AppState {
     }
   }
 
-  triggerAccountPrompt(source = 'activity') {
-    if (this.hasAccount || this.isCouple) return;
-    const dismissedKey = this.user?.id ? `fm_dismissed_account_prompt_${this.user.id}` : 'fm_dismissed_account_prompt';
-    if (sessionStorage.getItem(dismissedKey) === 'true') return;
-    this.accountPromptSource = source;
-    this.showAccountPromptBanner = true;
-  }
-
-  dismissAccountPrompt() {
-    this.showAccountPromptBanner = false;
-    const dismissedKey = this.user?.id ? `fm_dismissed_account_prompt_${this.user.id}` : 'fm_dismissed_account_prompt';
-    sessionStorage.setItem(dismissedKey, 'true');
-  }
-
   _saveTokens(sessionToken, jwt, account, refreshToken = null, expiresIn = null) {
     if (sessionToken) {
       this.token = sessionToken;
@@ -204,19 +182,22 @@ class AppState {
     this.isLoadingAuth = true;
     try {
       const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-      const claimParam = urlParams?.get('claim')?.trim() || urlParams?.get('claim_token')?.trim();
       const codeParam = urlParams?.get('code')?.trim();
 
-      // Se l'utente clicca il link ricevuto via mail (claim token)
-      if (claimParam) {
-        await this.resolveClaim(claimParam);
-        this.isLoadingAuth = false;
-        return;
-      }
-
+      // Link d'invito: se c'e' gia' un account lo recuperiamo, cosi' si salta il login.
       if (codeParam) {
         this.authView = 'join';
         this.activeTab = 'join';
+        if (this.jwtToken) {
+          try {
+            const res = await api.getMe();
+            if (res.account) this.account = res.account;
+          } catch (_) {
+            this.logout();
+            this.authView = 'join';
+            this.activeTab = 'join';
+          }
+        }
         this.isLoadingAuth = false;
         return;
       }
@@ -267,18 +248,8 @@ class AppState {
     if (typeof window === 'undefined') return;
     const path = window.location.pathname.toLowerCase();
     const urlParams = new URLSearchParams(window.location.search);
-    const claimParam = urlParams.get('claim')?.trim() || urlParams.get('claim_token')?.trim();
     const codeParam = urlParams.get('code')?.trim();
     if (this.pendingInvite) return;
-
-    if (claimParam && !this.showClaimModal && !this.claimData) {
-      this.resolveClaim(claimParam);
-      return;
-    }
-
-    if (urlParams.get('upgrade') === '1' && (this.user || this.token)) {
-      this.showUpgradeModal = true;
-    }
 
     if (codeParam) {
       this.authView = 'join';
@@ -336,6 +307,11 @@ class AppState {
   }
 
   setAuthView(view) {
+    if (typeof window !== 'undefined') {
+      const urlCode = new URLSearchParams(window.location.search).get('code');
+      if (view === 'login-secure' && urlCode) this.pendingJoinCode = urlCode.trim().toUpperCase();
+      else if (view === 'entry' || view === 'create') this.pendingJoinCode = null;
+    }
     this.authView = view;
     if (view === 'create') {
       this.activeTab = 'create';
@@ -412,25 +388,22 @@ class AppState {
     }
   }
 
-  async login(payload, argFirst, argLast, argSecret, argCouple = false, argEmail = null) {
+  /** Entra in un matrimonio con il codice invito (serve un account). */
+  async join(inviteCode, nickname = '') {
     try {
-      const res = await api.login(payload, argFirst, argLast, argSecret, argCouple, argEmail);
+      const res = await api.join(inviteCode, nickname);
       this._saveTokens(res.token, res.jwt, res.account, res.refresh_token, res.expires_in);
       this.setUser(res.user);
-      const code = typeof payload === 'object' && payload !== null ? (payload.inviteCode || payload.invite_code) : payload;
       this.event = {
         ...(res.event || {}),
-        invite_code: res.event?.invite_code || (code ? code.trim().toUpperCase() : '')
+        invite_code: res.event?.invite_code || inviteCode.trim().toUpperCase()
       };
-
-      const storageKey = `fm_logged_in_before_${this.user.id}`;
-      const isFirstTime = res.is_new === true || (!localStorage.getItem(storageKey) && res.is_new !== false);
 
       if (this.isCouple) {
         const coupleNames = [this.event?.spouse1_name, this.event?.spouse2_name].filter(Boolean).join(' & ');
         this.showToast(coupleNames ? `Bentornati ${coupleNames}!` : 'Bentornati Sposi!', 'success');
         this.setGameTab('manage', true);
-      } else if (isFirstTime) {
+      } else if (res.is_new) {
         this.showToast(`Benvenuto/a ${this.user.first_name}!`, 'success');
         this.setGameTab('home', true);
       } else {
@@ -439,16 +412,15 @@ class AppState {
       }
 
       this.authView = 'entry';
+      this.pendingJoinCode = null;
       history.replaceState(null, '', this.gameRoute);
       window.dispatchEvent(new PopStateEvent('popstate'));
-
-      localStorage.setItem(storageKey, 'true');
 
       await this.loadInitialData();
       this.startPolling();
       return { success: true };
     } catch (err) {
-      if (err.code !== 'NICKNAME_EXISTS') {
+      if (err.code !== 'NICKNAME_TAKEN') {
         this.showToast(err.message || 'Errore durante l\'accesso', 'error');
       }
       return {
@@ -460,12 +432,27 @@ class AppState {
     }
   }
 
-  async loginSecure(email, password) {
-    try {
-      const res = await api.loginSecure(email, password);
-      this._saveTokens(null, res.jwt, res.account);
-      this.account = res.account;
+  /**
+   * Dopo un login/registrazione riuscito. Con `redirect` (default) porta alla dashboard utente;
+   * senza resta nella schermata corrente (es. "entra con codice" o "crea matrimonio").
+   */
+  async _completeAccountAuth(res, { redirect = true, toast = '' } = {}) {
+    this._saveTokens(null, res.jwt, res.account);
+    this.account = res.account;
 
+    if (redirect && this.pendingJoinCode) {
+      // L'ospite era arrivato da un link d'invito: lo riportiamo al form con il codice gia' inserito.
+      const code = this.pendingJoinCode;
+      this.pendingJoinCode = null;
+      this.authView = 'join';
+      this.activeTab = 'join';
+      history.pushState(null, '', `/entra?code=${encodeURIComponent(code)}`);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      if (toast) this.showToast(toast, 'success');
+      return;
+    }
+
+    if (redirect) {
       // Resetta e scollega qualsiasi sessione / stato di gioco del singolo matrimonio
       this.user = null;
       this.event = null;
@@ -475,48 +462,47 @@ class AppState {
       this.galleryPhotos = [];
       this.stopPolling();
 
-      // Vai SEMPRE e subito alla dashboard utente!
       this.activeTab = 'dashboard';
       history.pushState(null, '', '/dashboard_utente');
       window.dispatchEvent(new PopStateEvent('popstate'));
-
-      // Carica i dati dashboard
       await this.loadDashboardEvents();
+    }
+    if (toast) this.showToast(toast, 'success');
+  }
 
-      this.showToast(`Bentornato/a ${res.account.display_name}!`, 'success');
-
+  async loginSecure(email, password, opts = {}) {
+    try {
+      const res = await api.loginSecure(email, password);
+      await this._completeAccountAuth(res, {
+        ...opts,
+        toast: `Bentornato/a ${res.account.first_name || res.account.display_name}!`
+      });
       return { success: true, events: res.events || [] };
     } catch (err) {
-      this.showToast(err.message || 'Email o password non corretti', 'error');
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Email o password non corretti' };
     }
   }
 
-  async register(email, password, displayName, verificationCode = null) {
+  async loginSocial(provider, token, opts = {}) {
     try {
-      const res = await api.register(email, password, displayName, verificationCode);
-      this._saveTokens(null, res.jwt, res.account);
-      this.account = res.account;
-
-      // Resetta e scollega qualsiasi sessione / stato di gioco del singolo matrimonio
-      this.user = null;
-      this.event = null;
-      this.challenges = [];
-      this.mySubmissions = [];
-      this.leaderboard = [];
-      this.galleryPhotos = [];
-      this.stopPolling();
-
-      this.activeTab = 'dashboard';
-      history.pushState(null, '', '/dashboard_utente');
-      window.dispatchEvent(new PopStateEvent('popstate'));
-
-      await this.loadDashboardEvents();
-      this.showToast('Account creato con successo!', 'success');
+      const res = await api.loginSocial(provider, token);
+      await this._completeAccountAuth(res, {
+        ...opts,
+        toast: `Benvenuto/a ${res.account.first_name || res.account.display_name}!`
+      });
       return { success: true };
     } catch (err) {
-      this.showToast(err.message || 'Errore nella registrazione', 'error');
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Accesso non riuscito' };
+    }
+  }
+
+  async register(fields, opts = {}) {
+    try {
+      const res = await api.register(fields);
+      await this._completeAccountAuth(res, { ...opts, toast: 'Account creato con successo!' });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message || 'Errore nella registrazione' };
     }
   }
 
@@ -542,81 +528,6 @@ class AppState {
     } catch (err) {
       console.error('Errore selezione evento:', err);
       this.showToast('Impossibile entrare nell\'evento', 'error');
-    }
-  }
-
-  async resolveClaim(claimToken) {
-    try {
-      const res = await api.getClaimInfo(claimToken);
-      if (res.token) {
-        this.token = res.token;
-        localStorage.setItem('fm_auth_token', res.token);
-      }
-      if (res.user) {
-        this.setUser(res.user);
-      }
-      if (res.event) {
-        this.event = res.event;
-      }
-      if (res.already_registered) {
-        if (res.jwt) {
-          this.jwtToken = res.jwt;
-          localStorage.setItem('fm_jwt_token', res.jwt);
-        }
-        if (res.account) {
-          this.account = res.account;
-        }
-        this.showToast('Bentornato! Il tuo account è già registrato.', 'success');
-        this.openDashboard();
-        return;
-      }
-
-      this.pendingClaimToken = claimToken;
-      this.claimData = res;
-      this.showClaimModal = true;
-      if (this.event) {
-        await this.loadInitialData();
-      }
-    } catch (err) {
-      console.error('Errore claim link:', err);
-      this.showToast(err.message || 'Il link via email non è valido o è scaduto.', 'error');
-      this.syncRouteFromUrl();
-    }
-  }
-
-  async completeClaim(password, firstName = null, lastName = null, displayName = null) {
-    if (!this.pendingClaimToken) {
-      return { success: false, error: 'Token di recupero non trovato' };
-    }
-    try {
-      const res = await api.completeClaim(this.pendingClaimToken, password, firstName, lastName, displayName);
-      this._saveTokens(res.token, res.jwt, res.account);
-      if (res.user) this.setUser(res.user);
-      if (res.event) this.event = res.event;
-      this.showClaimModal = false;
-      this.pendingClaimToken = null;
-      this.claimData = null;
-      this.showToast('Account registrato con successo! Benvenuto nella tua dashboard!', 'success');
-      this.openDashboard();
-      return { success: true };
-    } catch (err) {
-      this.showToast(err.message || 'Errore nella creazione account', 'error');
-      return { success: false, error: err.message };
-    }
-  }
-
-  async upgradeAccount(email, password, firstName = null, lastName = null, displayName = null, verificationCode = null) {
-    try {
-      const res = await api.upgradeAccount(email, password, firstName, lastName, displayName, verificationCode);
-      this._saveTokens(null, res.jwt, res.account);
-      this.showUpgradeModal = false;
-      this.showAccountPromptBanner = false;
-      this.showToast('Account registrato! Ora puoi accedere con email e password.', 'success');
-      this.openDashboard();
-      return { success: true };
-    } catch (err) {
-      this.showToast(err.message || 'Errore nell\'upgrade', 'error');
-      return { success: false, error: err.message };
     }
   }
 
@@ -649,16 +560,9 @@ class AppState {
     this.leaderboard = [];
     this.galleryPhotos = [];
     this.dashboardEvents = [];
-    this.showAccountPromptBanner = false;
     localStorage.removeItem('fm_auth_token');
     localStorage.removeItem('fm_refresh_token');
     localStorage.removeItem('fm_jwt_token');
-    try {
-      sessionStorage.removeItem('fm_dismissed_account_prompt');
-      if (this.user?.id) {
-        sessionStorage.removeItem(`fm_dismissed_account_prompt_${this.user.id}`);
-      }
-    } catch (_) {}
     this.stopPolling();
     this.activeTab = 'entry';
     this.setAuthView('entry');

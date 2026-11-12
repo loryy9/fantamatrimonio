@@ -4,9 +4,24 @@
   import { copyToClipboard } from '../lib/clipboard.js';
   import OnboardingSetup from './OnboardingSetup.svelte';
   import EmailVerificationField from './EmailVerificationField.svelte';
+  import SocialButtons from './SocialButtons.svelte';
 
-  // Wizard state: 1 (Nomi & Cerimonia) -> 2 (Credenziali & Accesso) -> 'setup' (Modalità) -> 'share' (Codice pronto)
+  // Wizard: 1 Nomi & Cerimonia -> 2 Registrazione (solo se non si ha già un account) -> 'setup' -> 'share'.
   let wizardStep = $state(1);
+  const totalSteps = $derived(appState.hasAccount ? 2 : 3);
+  const progress = $derived(Math.round((wizardStep / totalSteps) * 100));
+
+  // Step 2: registrazione / accesso di chi crea il matrimonio
+  let authMode = $state('register'); // 'register' | 'login'
+  let cFirst = $state('');
+  let cLast = $state('');
+  let cEmail = $state('');
+  let cPassword = $state('');
+  let cCode = $state('');
+  let cVerified = $state(false);
+  let showPassword = $state(false);
+  let lEmail = $state('');
+  let lPassword = $state('');
 
   // Step 1: Nomi & Cerimonia
   let spouse1 = $state('');
@@ -21,16 +36,6 @@
   let endDate = $state(new Date().toISOString().split('T')[0]);
   let endTime = $state('23:30');
 
-  // Step 2: Credenziali
-  const isPreAuthenticated = $derived(appState.hasAccount && appState.account);
-  let coupleFirst = $state(appState.account?.display_name?.split(' ')[0] || '');
-  let coupleLast = $state(appState.account?.display_name?.split(' ').slice(1).join(' ') || '');
-  let coupleEmail = $state(appState.account?.email || '');
-  let couplePassword = $state('');
-  let couplePhone = $state('');
-  let coupleVerificationCode = $state('');
-  let coupleEmailVerified = $state(false);
-  let showPassword = $state(false);
   let isSubmitting = $state(false);
   let copied = $state('');
 
@@ -80,18 +85,73 @@
     appState.pendingInvite ? `${window.location.origin}/?code=${appState.pendingInvite}` : ''
   );
 
-  async function goToStep2(e) {
-    e.preventDefault();
+  /** Valida il passo 1 e prepara i dati dell'evento (null + toast se qualcosa non va). */
+  function buildPayload() {
     if (!spouse1.trim() || !spouse2.trim()) {
       appState.showToast('Inserisci il nome di entrambi gli sposi.', 'error');
-      return;
+      return null;
     }
-    if (!coupleFirst.trim()) coupleFirst = spouse1.trim();
-    if (!coupleLast.trim()) coupleLast = spouse2.trim();
+    let startIso = null;
+    let endIso = null;
+    if (enableTimer) {
+      if (!startDate || !startTime || !endDate || !endTime) {
+        appState.showToast('Imposta sia giorno che ora di inizio e di chiusura delle sfide.', 'error');
+        return null;
+      }
+      const dStart = new Date(`${startDate}T${startTime}`);
+      const dEnd = new Date(`${endDate}T${endTime}`);
+      if (isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) {
+        appState.showToast('Date e orari non validi.', 'error');
+        return null;
+      }
+      if (dEnd <= dStart) {
+        appState.showToast("La chiusura delle sfide deve essere successiva all'inizio.", 'error');
+        return null;
+      }
+      startIso = dStart.toISOString();
+      endIso = dEnd.toISOString();
+    }
+    return {
+      spouse1_name: spouse1.trim(),
+      spouse2_name: spouse2.trim(),
+      enable_timer: enableTimer,
+      start_time: startIso,
+      end_time: endIso
+    };
+  }
 
-    wizardStep = 2;
+  async function createTheEvent() {
+    const payload = buildPayload();
+    if (!payload) {
+      wizardStep = 1;
+      await tick();
+      scrollToTopInstant();
+      return false;
+    }
+    const res = await appState.createEvent(payload);
+    if (!res.success) {
+      appState.showToast(res.error || 'Impossibile creare il matrimonio.', 'error');
+      return false;
+    }
+    currentStep = 'setup';
     await tick();
     scrollToTopInstant();
+    return true;
+  }
+
+  // Passo 1: con un account si crea subito, altrimenti si passa alla registrazione.
+  async function handleStep1(e) {
+    e.preventDefault();
+    if (!buildPayload()) return;
+    if (appState.hasAccount) {
+      isSubmitting = true;
+      await createTheEvent();
+      isSubmitting = false;
+    } else {
+      wizardStep = 2;
+      await tick();
+      scrollToTopInstant();
+    }
   }
 
   async function goToStep1() {
@@ -100,74 +160,68 @@
     scrollToTopInstant();
   }
 
-  async function handleFinalSubmit(e) {
-    e.preventDefault();
-
-    if (!spouse1.trim() || !spouse2.trim()) {
-      wizardStep = 1;
-      await tick();
-      scrollToTopInstant();
-      appState.showToast('Inserisci il nome di entrambi gli sposi.', 'error');
+  async function afterAuth(res) {
+    if (!res.success) {
+      appState.showToast(res.error, 'error');
       return;
     }
+    await createTheEvent();
+  }
 
-    if (!isPreAuthenticated) {
-      if (!coupleEmail.trim()) {
-        appState.showToast('Inserisci l\'email degli sposi.', 'error');
-        return;
-      }
-      if (!coupleEmailVerified && (!coupleVerificationCode || coupleVerificationCode.trim().length !== 6)) {
-        appState.showToast('Verifica la tua email inserendo il codice a 6 cifre inviato.', 'error');
-        return;
-      }
-      if (!couplePassword.trim() || couplePassword.trim().length < 6) {
-        appState.showToast('La password deve contenere almeno 6 caratteri.', 'error');
-        return;
-      }
+  async function handleRegister(e) {
+    e.preventDefault();
+    if (!cFirst.trim() || !cLast.trim()) {
+      appState.showToast('Nome e cognome sono obbligatori.', 'error');
+      return;
     }
-
-    let startIso = null;
-    let endIso = null;
-    if (enableTimer) {
-      if (!startDate || !startTime || !endDate || !endTime) {
-        appState.showToast('Imposta sia giorno che ora di inizio e di chiusura delle sfide.', 'error');
-        return;
-      }
-      const dStart = new Date(`${startDate}T${startTime}`);
-      const dEnd = new Date(`${endDate}T${endTime}`);
-      if (isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) {
-        appState.showToast('Date e orari non validi.', 'error');
-        return;
-      }
-      if (dEnd <= dStart) {
-        appState.showToast('La chiusura delle sfide deve essere successiva all\'inizio.', 'error');
-        return;
-      }
-      startIso = dStart.toISOString();
-      endIso = dEnd.toISOString();
+    if (cPassword.length < 6) {
+      appState.showToast('La password deve contenere almeno 6 caratteri.', 'error');
+      return;
     }
-
+    if (!cVerified && cCode.trim().length !== 6) {
+      appState.showToast('Verifica la tua email inserendo il codice a 6 cifre.', 'error');
+      return;
+    }
     isSubmitting = true;
-    const res = await appState.createEvent({
-      spouse1_name: spouse1.trim(),
-      spouse2_name: spouse2.trim(),
-      enable_timer: enableTimer,
-      start_time: startIso,
-      end_time: endIso,
-      couple_first_name: coupleFirst.trim() || spouse1.trim(),
-      couple_last_name: coupleLast.trim() || spouse2.trim(),
-      couple_email: !isPreAuthenticated ? coupleEmail.trim().toLowerCase() : undefined,
-      couple_password: !isPreAuthenticated ? couplePassword.trim() : undefined,
-      verification_code: !isPreAuthenticated && coupleVerificationCode.trim() ? coupleVerificationCode.trim() : undefined
-    });
-    isSubmitting = false;
+    try {
+      await afterAuth(
+        await appState.register(
+          {
+            email: cEmail.trim(),
+            password: cPassword,
+            firstName: cFirst.trim(),
+            lastName: cLast.trim(),
+            nickname: '',
+            verificationCode: cCode.trim()
+          },
+          { redirect: false }
+        )
+      );
+    } finally {
+      isSubmitting = false;
+    }
+  }
 
-    if (!res.success) {
-      appState.showToast(res.error || 'Impossibile creare il matrimonio.', 'error');
-    } else {
-      currentStep = 'setup';
-      await tick();
-      scrollToTopInstant();
+  async function handleLogin(e) {
+    e.preventDefault();
+    if (!lEmail.trim() || !lPassword) {
+      appState.showToast('Email e password sono obbligatorie.', 'error');
+      return;
+    }
+    isSubmitting = true;
+    try {
+      await afterAuth(await appState.loginSecure(lEmail.trim(), lPassword, { redirect: false }));
+    } finally {
+      isSubmitting = false;
+    }
+  }
+
+  async function handleSocial(provider, token) {
+    isSubmitting = true;
+    try {
+      await afterAuth(await appState.loginSocial(provider, token, { redirect: false }));
+    } finally {
+      isSubmitting = false;
     }
   }
 
@@ -244,178 +298,74 @@
     </div>
   </div>
 {:else}
-  <!-- WIZARD STEP 1 & 2 -->
-  <div class="wizard-screen">
-    <!-- STICKY HEADER COMPATTA E SENZA SPAZIO MORTO -->
-    <div class="sticky-step-header">
-      <div class="sticky-inner">
-        <header class="wizard-topbar">
-          <button
-            type="button"
-            class="top-icon-btn"
-            onclick={() => {
-              if (wizardStep === 2) goToStep1();
-              else appState.setAuthView('entry');
-            }}
-            aria-label="Torna indietro"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 12H5M12 19l-7-7 7-7"/>
-            </svg>
-          </button>
+  <!-- WIZARD: stessa struttura delle altre pagine del sito (intro + auth-card) -->
+  <div class="create-layout">
+    <div class="create-intro">
+      <span class="eyebrow">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+        Nuovo matrimonio · Passo {wizardStep} di {totalSteps}
+      </span>
 
-          <div class="top-nav-center">
-            <span class="sub-brand">FANTA MATRIMONIO</span>
-            <span class="step-pill-indicator">
-              Passo {wizardStep} di 3 • {wizardStep === 1 ? 'Gli Sposi' : 'Dettagli Evento'}
-            </span>
-          </div>
+      {#if wizardStep === 1}
+        <h1 class="page-title">Chi sono i <span class="gold-gradient-text">festeggiati?</span></h1>
+        <p class="page-lead">
+          Questi nomi compariranno nell'app degli invitati, nelle classifiche delle sfide e nelle foto condivise.
+        </p>
+      {:else}
+        <h1 class="page-title">{authMode === 'register' ? 'Create il vostro' : 'Bentornati,'} <span class="gold-gradient-text">{authMode === 'register' ? 'account' : 'sposi'}</span></h1>
+        <p class="page-lead">
+          {authMode === 'register'
+            ? 'Serve a voi per gestire la festa: console di regia, classifica e foto restano sempre a vostra disposizione. Registrandovi creiamo subito il matrimonio.'
+            : 'Accedete con il vostro account: creeremo il matrimonio con quei dati.'}
+        </p>
+      {/if}
 
-          <div class="top-nav-right">
-            <span class="step-percent-tag">{wizardStep === 1 ? '33%' : '66%'}</span>
-            <button
-              type="button"
-              class="top-icon-btn user-avatar-pill"
-              onclick={() => appState.setAuthView('login-secure')}
-              aria-label="Accedi"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-              </svg>
-            </button>
-          </div>
-        </header>
-
-        <!-- Barra di avanzamento continua -->
-        <div class="step-progress-wrapper">
-          <div class="step-progress-bar" style="width: {wizardStep === 1 ? '33%' : '66%'}"></div>
-        </div>
+      <div class="create-progress" aria-hidden="true">
+        <div class="create-progress-bar" style="width: {progress}%"></div>
       </div>
+
+      <p class="switch">
+        {#if wizardStep === 2}
+          <button type="button" class="link-btn" onclick={goToStep1}>‹ Torna ai nomi degli sposi</button>
+        {:else}
+          <button type="button" class="link-btn" onclick={() => appState.setAuthView('entry')}>‹ Annulla e torna alla home</button>
+        {/if}
+      </p>
     </div>
 
-    <!-- CONTENITORE FORM -->
-    <div class="wizard-container">
+    <div class="auth-card create-form">
       {#if wizardStep === 1}
-        <!-- ================= PASSO 1: NOMI E CERIMONIA ================= -->
-        <div class="wizard-header">
-          <h1 class="wizard-title font-serif">Chi sono i festeggiati?</h1>
-          <p class="wizard-subtitle">
-            Questi nomi compariranno nell'app degli invitati, nelle classifiche delle sfide e nelle foto condivise.
-          </p>
-        </div>
+        <h2 class="form-title font-serif">Il vostro matrimonio</h2>
 
-        <form class="wizard-form" onsubmit={goToStep2}>
-          <!-- Card Nomi Sposi -->
-          <div class="clean-card">
-            <div class="card-section-header">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-              </svg>
-              <span>GLI SPOSI</span>
+        <form class="create-fields" onsubmit={handleStep1}>
+          <div class="name-row">
+            <div class="input-group">
+              <label for="spouse1" class="input-label">Sposo/a 1</label>
+              <input id="spouse1" type="text" class="input-field" placeholder="Elena" bind:value={spouse1} autocomplete="off" required />
             </div>
-
-            <div class="spouses-inputs-row">
-              <div class="field-block flex-1">
-                <label for="spouse1" class="field-sublabel">NOME SPOSO/A 1</label>
-                <div class="input-with-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <input
-                    id="spouse1"
-                    type="text"
-                    class="clean-input"
-                    placeholder="Elena"
-                    bind:value={spouse1}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div class="ampersand-divider">
-                <span>&amp;</span>
-              </div>
-
-              <div class="field-block flex-1">
-                <label for="spouse2" class="field-sublabel">NOME SPOSO/A 2</label>
-                <div class="input-with-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <input
-                    id="spouse2"
-                    type="text"
-                    class="clean-input"
-                    placeholder="Davide"
-                    bind:value={spouse2}
-                    required
-                  />
-                </div>
-              </div>
+            <div class="input-group">
+              <label for="spouse2" class="input-label">Sposo/a 2</label>
+              <input id="spouse2" type="text" class="input-field" placeholder="Davide" bind:value={spouse2} autocomplete="off" required />
             </div>
           </div>
 
-          <!-- Card Dettagli Cerimonia -->
-          <div class="clean-card">
-            <div class="card-section-header">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
-              </svg>
-              <span>DETTAGLI CERIMONIA</span>
+          <div class="name-row">
+            <div class="input-group">
+              <label for="eventDate" class="input-label">Data dell'evento</label>
+              <input id="eventDate" type="date" class="input-field" bind:value={eventDate} required />
+              {#if readableDate}<span class="field-hint capital-first">{readableDate}</span>{/if}
             </div>
-
-            <div class="desktop-row-2col">
-              <div class="field-block flex-1">
-                <label for="eventDate" class="field-sublabel">DATA DELL'EVENTO</label>
-                <div class="input-with-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>
-                  </svg>
-                  <input
-                    id="eventDate"
-                    type="date"
-                    class="clean-input"
-                    bind:value={eventDate}
-                    required
-                  />
-                </div>
-                {#if readableDate}
-                  <p class="field-hint capital-first">{readableDate}</p>
-                {/if}
-              </div>
-
-              <div class="field-block flex-1">
-                <div class="label-row">
-                  <label for="eventLocation" class="field-sublabel">LUOGO / LOCATION</label>
-                  <span class="field-tag-muted">Facoltativo</span>
-                </div>
-                <div class="input-with-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
-                  </svg>
-                  <input
-                    id="eventLocation"
-                    type="text"
-                    class="clean-input"
-                    placeholder="Villa dei Fiori, Roma"
-                    bind:value={eventLocation}
-                  />
-                </div>
-              </div>
+            <div class="input-group">
+              <label for="eventLocation" class="input-label">Luogo <span class="optional">(facoltativo)</span></label>
+              <input id="eventLocation" type="text" class="input-field" placeholder="Villa dei Fiori, Roma" bind:value={eventLocation} />
             </div>
           </div>
 
-          <!-- Card Orario di apertura giochi (con Giorno e Ora sia per inizio che per fine, senza overflow!) -->
-          <div class="clean-card timer-toggle-card">
-            <div class="timer-card-head">
-              <div class="clock-icon-bubble">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-              </div>
-              <div class="timer-head-copy">
+          <div class="option-box">
+            <div class="option-head">
+              <div class="option-copy">
                 <strong>Orario di apertura giochi</strong>
-                <p>Attiva le missioni e il quiz solo durante il ricevimento per evitare spoiler prima del brindisi.</p>
+                <span>Missioni e quiz attivi solo durante il ricevimento, per evitare spoiler prima del brindisi.</span>
               </div>
               <label class="clean-switch">
                 <input type="checkbox" bind:checked={enableTimer} />
@@ -424,235 +374,123 @@
             </div>
 
             {#if enableTimer}
-              <div class="timer-full-fields">
-                <!-- Inizio Sfide -->
-                <div class="timer-range-card">
-                  <div class="timer-range-header">
-                    <span class="timer-dot start"></span>
-                    <span class="field-sublabel">INIZIO SFIDE</span>
-                  </div>
-                  <div class="timer-inputs-grid">
-                    <div class="field-block">
-                      <label for="startDateInput" class="mini-label">Giorno inizio</label>
-                      <input
-                        id="startDateInput"
-                        type="date"
-                        class="clean-input timer-cell-input"
-                        bind:value={startDate}
-                      />
-                    </div>
-                    <div class="field-block">
-                      <label for="startTimeInput" class="mini-label">Ora inizio</label>
-                      <input
-                        id="startTimeInput"
-                        type="time"
-                        class="clean-input timer-cell-input"
-                        bind:value={startTime}
-                      />
-                    </div>
-                  </div>
+              <div class="timer-grid">
+                <div class="input-group">
+                  <label for="startDateInput" class="input-label">Giorno inizio</label>
+                  <input id="startDateInput" type="date" class="input-field" bind:value={startDate} />
                 </div>
-
-                <!-- Chiusura Sfide -->
-                <div class="timer-range-card">
-                  <div class="timer-range-header">
-                    <span class="timer-dot end"></span>
-                    <span class="field-sublabel">CHIUSURA SFIDE E VOTI</span>
-                  </div>
-                  <div class="timer-inputs-grid">
-                    <div class="field-block">
-                      <label for="endDateInput" class="mini-label">Giorno fine</label>
-                      <input
-                        id="endDateInput"
-                        type="date"
-                        class="clean-input timer-cell-input"
-                        bind:value={endDate}
-                      />
-                    </div>
-                    <div class="field-block">
-                      <label for="endTimeInput" class="mini-label">Ora fine</label>
-                      <input
-                        id="endTimeInput"
-                        type="time"
-                        class="clean-input timer-cell-input"
-                        bind:value={endTime}
-                      />
-                    </div>
-                  </div>
+                <div class="input-group">
+                  <label for="startTimeInput" class="input-label">Ora inizio</label>
+                  <input id="startTimeInput" type="time" class="input-field" bind:value={startTime} />
+                </div>
+                <div class="input-group">
+                  <label for="endDateInput" class="input-label">Giorno fine</label>
+                  <input id="endDateInput" type="date" class="input-field" bind:value={endDate} />
+                </div>
+                <div class="input-group">
+                  <label for="endTimeInput" class="input-label">Ora fine</label>
+                  <input id="endTimeInput" type="time" class="input-field" bind:value={endTime} />
                 </div>
               </div>
             {/if}
           </div>
 
-          <!-- Card Anteprima Codice Invito -->
-          <div class="clean-card preview-code-card">
-            <div class="preview-code-left">
-              <div class="qr-icon-bubble">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect width="6" height="6" x="3" y="3" rx="1"/><rect width="6" height="6" x="15" y="3" rx="1"/><rect width="6" height="6" x="3" y="15" rx="1"/><path d="m15 15 3 3M15 21l6-6"/>
-                </svg>
-              </div>
-              <div>
-                <span class="field-sublabel">ANTEPRIMA CODICE INVITO</span>
-                <strong class="code-preview-text font-serif">{generatedCodePreview}</strong>
-              </div>
-            </div>
-            <span class="auto-tag">Automatico</span>
-          </div>
-
-          <!-- Bottone Continua -->
-          <button type="submit" class="submit-action-btn">
-            <span>Continua: Crea Account Sposi</span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-          </button>
-
-          <p class="bottom-safe-note">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-            Potrai modificare questi dettagli in qualsiasi momento dalle impostazioni.
-          </p>
-        </form>
-
-      {:else}
-        <!-- ================= PASSO 2: CREDENZIALI SPOSI ================= -->
-        <div class="wizard-header">
-          <div class="gold-pill-badge">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <span>AREA RISERVATA AGLI SPOSI</span>
-          </div>
-
-          <h1 class="wizard-title font-serif">Create il vostro accesso</h1>
-          <p class="wizard-subtitle">
-            Servirà a voi due per accedere alla Console di Regia, proiettare la classifica e scaricare tutte le foto ad alta risoluzione a fine serata.
-          </p>
-        </div>
-
-        <form class="wizard-form" onsubmit={handleFinalSubmit}>
-          <div class="clean-card">
-            {#if isPreAuthenticated}
-              <div class="preauth-notice">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-                <div>
-                  <strong>Account già collegato</strong>
-                  <span>State creando il matrimonio con <strong>{appState.account?.email}</strong></span>
-                </div>
-              </div>
-            {:else}
-              <!-- Verifica Email con codice OTP -->
-              <div class="email-verify-wrapper">
-                <EmailVerificationField
-                  bind:email={coupleEmail}
-                  bind:verificationCode={coupleVerificationCode}
-                  bind:verified={coupleEmailVerified}
-                  purpose="register_couple"
-                  label="Email degli sposi"
-                  placeholder="es. marco.elena@matrimonio.it"
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <!-- Password di gestione -->
-              <div class="field-block">
-                <div class="label-row">
-                  <label for="couplePassword" class="field-sublabel">PASSWORD DI GESTIONE</label>
-                  <span class="field-tag-muted">Min. 8 caratteri</span>
-                </div>
-
-                <div class="input-with-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  </svg>
-                  <input
-                    id="couplePassword"
-                    type={showPassword ? 'text' : 'password'}
-                    class="clean-input"
-                    placeholder="Scegliete una chiave d'accesso"
-                    bind:value={couplePassword}
-                    minlength="6"
-                    required
-                    disabled={isSubmitting}
-                  />
-                  <button
-                    type="button"
-                    class="eye-btn"
-                    onclick={() => showPassword = !showPassword}
-                    aria-label={showPassword ? 'Nascondi' : 'Mostra'}
-                  >
-                    {#if showPassword}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                        <line x1="1" y1="1" x2="23" y2="23"/>
-                      </svg>
-                    {:else}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
-                      </svg>
-                    {/if}
-                  </button>
-                </div>
-              </div>
-
-              <!-- WhatsApp di riferimento -->
-              <div class="field-block">
-                <div class="label-row">
-                  <label for="couplePhone" class="field-sublabel">WHATSAPP DI RIFERIMENTO</label>
-                  <span class="field-tag-muted">FACOLTATIVO</span>
-                </div>
-
-                <div class="input-with-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  <input
-                    id="couplePhone"
-                    type="tel"
-                    class="clean-input"
-                    placeholder="+39 340 123 4567"
-                    bind:value={couplePhone}
-                  />
-                </div>
-                <p class="field-hint">Per ricevere il backup istantaneo del link della console e gli avvisi live durante i festeggiamenti.</p>
-              </div>
-            {/if}
-          </div>
-
-          <!-- Card Nessun costo nascosto -->
-          <div class="clean-card transparency-card">
-            <div class="sparkle-bubble">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
-              </svg>
-            </div>
+          <div class="code-preview">
             <div>
-              <strong>Nessun costo nascosto</strong>
-              <p>I primi 20 invitati sono <strong>completamente gratuiti</strong> con tutte le funzionalità incluse: upload foto illimitato, quiz e tabellone proiettabile.</p>
+              <span class="input-label">Anteprima codice invito</span>
+              <strong class="code-preview-value font-serif">{generatedCodePreview}</strong>
             </div>
+            <span class="auto-pill">Automatico</span>
           </div>
 
-          <!-- Bottone finale -->
-          <button type="submit" class="submit-action-btn" disabled={isSubmitting}>
+          <p class="free-note">
+            <strong>Nessun costo nascosto.</strong> I primi 20 invitati sono completamente gratuiti, con tutte le funzionalità: foto illimitate, quiz e tabellone proiettabile.
+          </p>
+
+          <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
             {#if isSubmitting}
-              <span class="spinner spinner-white"></span>
-              <span>Creazione evento in corso...</span>
+              <div class="spinner spinner-on-dark"></div>
+              <span>Creazione in corso...</span>
             {:else}
-              <span>Continua: Scegli le modalità</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
+              <span>{appState.hasAccount ? 'Continua: scegli le modalità' : 'Continua: crea il tuo account'}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             {/if}
           </button>
-
-          <button type="button" class="back-link-btn" onclick={goToStep1}>
-            ‹ Indietro
-          </button>
+          <p class="field-hint center">Potrai modificare questi dettagli in qualsiasi momento dalle impostazioni.</p>
         </form>
+      {:else}
+        <h2 class="form-title font-serif">{authMode === 'register' ? 'Registrati' : 'Accedi'}</h2>
+
+        <SocialButtons onToken={handleSocial} busy={isSubmitting} label={authMode === 'register' ? 'Registrati con' : 'Accedi con'} />
+
+        {#if authMode === 'register'}
+          <form class="create-fields" onsubmit={handleRegister}>
+            <EmailVerificationField
+              bind:email={cEmail}
+              bind:verificationCode={cCode}
+              bind:verified={cVerified}
+              purpose="register_account"
+              label="Email"
+              placeholder="es. marco.elena@email.it"
+              disabled={isSubmitting}
+            />
+            {#if cVerified}
+              <div class="name-row">
+                <div class="input-group">
+                  <label for="cFirst" class="input-label">Nome</label>
+                  <input id="cFirst" type="text" class="input-field" placeholder="Elena" bind:value={cFirst} autocomplete="given-name" required />
+                </div>
+                <div class="input-group">
+                  <label for="cLast" class="input-label">Cognome</label>
+                  <input id="cLast" type="text" class="input-field" placeholder="Rossi" bind:value={cLast} autocomplete="family-name" required />
+                </div>
+              </div>
+              <div class="input-group">
+                <label for="cPassword" class="input-label">Password</label>
+                <input id="cPassword" type={showPassword ? 'text' : 'password'} class="input-field" placeholder="Almeno 6 caratteri" bind:value={cPassword} autocomplete="new-password" minlength="6" required disabled={isSubmitting} />
+                <button type="button" class="link-btn align-start" onclick={() => (showPassword = !showPassword)}>
+                  {showPassword ? 'Nascondi password' : 'Mostra password'}
+                </button>
+              </div>
+              <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
+                {#if isSubmitting}
+                  <div class="spinner spinner-on-dark"></div>
+                  <span>Creazione in corso...</span>
+                {:else}
+                  <span>Crea account e matrimonio</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                {/if}
+              </button>
+            {:else}
+              <div class="verification-note" role="status">
+                <strong>Verifica prima la tua email</strong>
+                <span>Dopo la verifica compariranno nome, cognome, password e il pulsante per creare account e matrimonio.</span>
+              </div>
+            {/if}
+          </form>
+          <p class="switch center">Hai già un account? <button type="button" class="link-btn" onclick={() => (authMode = 'login')}>Accedi</button></p>
+        {:else}
+          <form class="create-fields" onsubmit={handleLogin}>
+            <div class="input-group">
+              <label for="lEmail" class="input-label">Email</label>
+              <input id="lEmail" type="email" class="input-field" placeholder="es. marco.elena@email.it" bind:value={lEmail} autocomplete="email" required />
+            </div>
+            <div class="input-group">
+              <label for="lPassword" class="input-label">Password</label>
+              <input id="lPassword" type="password" class="input-field" placeholder="La tua password" bind:value={lPassword} autocomplete="current-password" required />
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
+              {#if isSubmitting}
+                <div class="spinner spinner-on-dark"></div>
+                <span>Accesso in corso...</span>
+              {:else}
+                <span>Accedi e crea il matrimonio</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              {/if}
+            </button>
+          </form>
+          <p class="switch center">Non hai un account? <button type="button" class="link-btn" onclick={() => (authMode = 'register')}>Registrati</button></p>
+        {/if}
       {/if}
     </div>
   </div>
@@ -1430,5 +1268,229 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  .step2-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .step2-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 420px) {
+    .step2-row { grid-template-columns: 1fr; }
+  }
+
+  /* ── Wizard di creazione: stesso stile delle altre pagine (login/registrazione) ── */
+  .create-layout {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 520px);
+    gap: 56px;
+    align-items: start;
+  }
+  .create-intro {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    position: sticky;
+    top: 96px;
+  }
+  .create-intro .page-title {
+    font-size: clamp(2.2rem, 4vw, 3.1rem);
+    line-height: 1.05;
+    color: var(--text-main);
+    margin: 0;
+  }
+  .create-intro .page-title::after {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--wine);
+    margin-top: 14px;
+  }
+  .create-intro .page-lead {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.2rem;
+    line-height: 1.5;
+    color: #6b5f64;
+    margin: 0;
+  }
+  .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--gold-dark);
+    padding: 6px 14px;
+    border-radius: var(--radius-full);
+    background: rgba(201, 169, 110, 0.12);
+    border: 1px solid rgba(201, 169, 110, 0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .create-progress {
+    width: 100%;
+    max-width: 260px;
+    height: 4px;
+    border-radius: 4px;
+    background: rgba(201, 169, 110, 0.25);
+    overflow: hidden;
+  }
+  .create-progress-bar {
+    height: 100%;
+    background: var(--wine);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+  .switch {
+    font-size: 0.92rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin: 0;
+  }
+  .switch.center,
+  .field-hint.center {
+    text-align: center;
+  }
+  .form-title {
+    font-size: 1.55rem;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .create-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .create-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .name-row,
+  .timer-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .input-group {
+    min-width: 0;
+  }
+  .optional {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 0.85em;
+  }
+  .option-box {
+    background: rgba(201, 169, 110, 0.08);
+    border: 1px solid rgba(201, 169, 110, 0.25);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .option-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .option-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .option-copy span {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+  .timer-grid {
+    margin-top: 14px;
+  }
+  .timer-grid .input-group {
+    margin-bottom: 0;
+  }
+  .code-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    border: 1px dashed rgba(201, 169, 110, 0.5);
+    margin-bottom: 14px;
+  }
+  .code-preview-value {
+    display: block;
+    font-size: 1.2rem;
+    color: var(--wine);
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+  }
+  .auto-pill {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--gold-dark);
+    background: rgba(201, 169, 110, 0.15);
+    border-radius: 999px;
+    padding: 4px 10px;
+  }
+  .free-note {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0 0 14px;
+  }
+  .verification-note {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(201, 169, 110, 0.1);
+    border: 1px solid rgba(201, 169, 110, 0.35);
+  }
+  .verification-note span {
+    color: #6b5f64;
+    font-size: 0.9rem;
+  }
+  .align-start {
+    align-self: flex-start;
+    font-size: 0.85rem;
+  }
+  .spinner-on-dark {
+    border-color: rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+  }
+
+  @media (max-width: 900px) {
+    .create-layout {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    .create-intro {
+      position: static;
+    }
+  }
+  @media (max-width: 520px) {
+    .create-form.auth-card {
+      padding: 22px 18px;
+    }
+  }
+  @media (max-width: 420px) {
+    .name-row,
+    .timer-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

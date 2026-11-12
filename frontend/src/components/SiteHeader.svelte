@@ -154,25 +154,14 @@
         <button class="nav-link nav-anchor" onclick={() => handleAnchorClick('giochi')}><svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h4M8 9v4"/><path d="M15 12h.01M18 10h.01"/><rect width="20" height="12" x="2" y="6" rx="4"/></svg><span>I giochi</span><svg class="row-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
 
         <button
-          class="nav-link nav-login-link"
+          class="btn btn-secondary nav-action-btn nav-guest-btn"
           class:active={appState.authView === 'login-secure'}
           onclick={() => appState.setAuthView('login-secure')}
-          title="Hai già un account? Accedi con email e password"
+          title="Accedi al tuo account"
           aria-label="Accedi al tuo account"
         >
           <svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span>Accedi</span>
-          <svg class="row-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
-        </button>
-
-        <button
-          class="btn btn-secondary nav-action-btn nav-guest-btn"
-          class:active={appState.authView === 'join'}
-          onclick={() => appState.setAuthView('join')}
-          title="Partecipa alla festa con il codice invito"
-        >
-          <svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
-          <span>Entra con codice</span>
           <svg class="row-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
 

@@ -1,16 +1,16 @@
 [] WEBSOCKET
-[] Account normale con email e password + eventuale accedi con google e Facebook
-[] Far sparire entra "con codice"
+[P] Account normale con email e password + eventuale accedi con google e Facebook
+[P] Far sparire entra "con codice"
 [] togliere frasi di troppo in classifica
 [] avvicinare la classifica togliendo spazio sopra
 [] vedere se aumentare titoli 
-[] controllare se è possibile che tutti abbiano lo stesso punteggio
+[P] controllare se è possibile che tutti abbiano lo stesso punteggio
 [] rivedere in generale testi login sposi
 [] Togliere la location
 [] Per la data verifichiamo cosa consiglia claudio 
 [] Email già esistente da segnalare quando la si verifica
 [] Rivedere componente scroll orizzontale
-[] Fare drawer da destra per creazione sfide matrimonio
+[P] Fare drawer da destra per creazione sfide matrimonio
 [] unificare stile della creazione evento con la modifica da console sposo
 [] console sposi "fuori" dal gioco, gestire le modifiche dalla dashboard dei matrimoni
 [] mettere sidebar in tutte le pagine, in modo da buttare dentro logout ed eventuali altri tasti

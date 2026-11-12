@@ -11,23 +11,21 @@
 
   let inviteCode = $state(getCodeFromUrl());
   let nickname = $state('');
-  let pin = $state('');
-  let showPin = $state(false);
   let isSubmitting = $state(false);
   let showQrModal = $state(false);
 
-  // Errore nickname già esistente
+  // Errore nickname già in uso nel matrimonio
   let duplicateNickError = $state('');
-  let duplicateNickName = $state('');
 
-  const isAccountJoin = $derived(appState.hasAccount);
+  const defaultNick = $derived(
+    appState.account?.nickname || appState.account?.first_name || appState.account?.display_name || ''
+  );
 
   let eventPreview = $state(null);
   let previewLoading = $state(false);
   let previewError = $state('');
 
   let checkTimer = null;
-  let pinInputEl = $state(null);
   let nickInputEl = $state(null);
   let inviteInputEl = $state(null);
 
@@ -60,10 +58,6 @@
     }
     window.addEventListener('popstate', onLocation);
     window.addEventListener('hashchange', onLocation);
-
-    if (appState.account && !nickname && appState.account.display_name) {
-      nickname = appState.account.display_name;
-    }
 
     const urlCode = getCodeFromUrl();
     if (urlCode) inviteCode = urlCode;
@@ -118,12 +112,6 @@
     appState.showToast('Digita il codice stampato sul tableau o segnaposto', 'info');
   }
 
-  function handleRetryPin() {
-    pin = '';
-    duplicateNickError = '';
-    setTimeout(() => pinInputEl?.focus(), 50);
-  }
-
   function handleChangeNickname() {
     duplicateNickError = '';
     setTimeout(() => {
@@ -142,33 +130,14 @@
       return;
     }
 
-    if (!nickname.trim()) {
-      appState.showToast('Inserisci il tuo nome o nickname.', 'error');
-      nickInputEl?.focus();
-      return;
-    }
-
-    if (!isAccountJoin) {
-      const cleanPin = pin.trim();
-      if (!cleanPin || cleanPin.length !== 4 || !/^\d{4}$/.test(cleanPin)) {
-        appState.showToast('Inserisci un PIN di 4 cifre (es. il tuo anno di nascita).', 'error');
-        pinInputEl?.focus();
-        return;
-      }
-    }
-
     isSubmitting = true;
     try {
-      const res = await appState.login({
-        inviteCode: inviteCode.trim().toUpperCase(),
-        nickname: nickname.trim(),
-        pin: pin.trim(),
-      });
+      const res = await appState.join(inviteCode.trim().toUpperCase(), nickname.trim());
 
       if (!res.success) {
-        if (res.code === 'NICKNAME_EXISTS') {
-          duplicateNickName = res.detail?.nickname || nickname.trim();
-          duplicateNickError = res.error || `Per questo matrimonio c'è già un "${duplicateNickName}". Se sei tu inserisci il tuo PIN, altrimenti usa un altro nome.`;
+        if (res.code === 'NICKNAME_TAKEN') {
+          duplicateNickError = res.error;
+          handleChangeNickname();
         } else {
           appState.showToast(res.error || 'Accesso non riuscito. Controlla il codice.', 'error');
         }
@@ -195,13 +164,13 @@
       </svg>
     </button>
 
-    <div class="top-title">Guest Login</div>
+    <div class="top-title">Entra nel matrimonio</div>
 
     <button
       type="button"
       class="top-icon-btn user-avatar-pill"
-      onclick={() => appState.setAuthView('login-secure')}
-      aria-label="Area Sposi e Account"
+      onclick={() => appState.openDashboard()}
+      aria-label="I miei matrimoni"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
@@ -216,7 +185,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
         </svg>
-        <span>ACCESSO INVITATI</span>
+        <span>ENTRA CON IL CODICE</span>
       </div>
 
       <h1 class="guest-title font-serif">
@@ -224,7 +193,7 @@
       </h1>
 
       <p class="guest-subtitle">
-        Nessuna app da scaricare. Inserisci il codice per iniziare a giocare, scattare foto e votare con gli sposi.
+        Inserisci il codice del matrimonio per iniziare a giocare, scattare foto e votare con gli sposi.
       </p>
     </div>
 
@@ -296,7 +265,8 @@
       <!-- Campo Nome / Nickname -->
       <div class="field-block">
         <div class="field-header">
-          <label for="guestNick" class="field-label">IL TUO NOME O SOPRANNOME</label>
+          <label for="guestNick" class="field-label">NICKNAME</label>
+          <span class="field-tag muted">Facoltativo</span>
         </div>
         <div class="field-input-box">
           <input
@@ -305,80 +275,20 @@
             type="text"
             class="clean-input"
             class:input-has-error={!!duplicateNickError}
-            placeholder="es. Zia Pina, Marco, Vale e Luca..."
+            placeholder={defaultNick ? `Se vuoto: ${defaultNick}` : 'es. Zia Pina, Marco, Vale e Luca...'}
             bind:value={nickname}
             oninput={() => duplicateNickError = ''}
-            required
             disabled={isSubmitting}
           />
         </div>
-        <p class="field-hint">Come vuoi comparire nella classifica e sull'album di nozze</p>
+        <p class="field-hint">Come vuoi comparire nella classifica e sull'album di nozze. Se lo lasci vuoto usiamo il tuo nome.</p>
       </div>
 
       <!-- Conflitto Nickname -->
       {#if duplicateNickError}
         <div class="conflict-box">
-          <strong>Nome già presente</strong>
-          <p>Se sei tu inserisci il tuo PIN di 4 cifre per continuare. Altrimenti prova con un soprannome diverso.</p>
-          <div class="conflict-actions">
-            <button type="button" class="btn btn-secondary btn-sm" onclick={handleRetryPin}>Inserisci PIN</button>
-            <button type="button" class="btn btn-sm btn-ghost" onclick={handleChangeNickname}>Cambia nome</button>
-          </div>
-        </div>
-      {/if}
-
-      <!-- Campo PIN 4 Cifre (se non pre-autenticato) -->
-      {#if !isAccountJoin}
-        <div class="field-block">
-          <div class="field-header">
-            <label for="guestPin" class="field-label">
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px">
-                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-              PIN PERSONALE A 4 CIFRE
-            </label>
-            <span class="field-tag muted">Es. Anno di nascita</span>
-          </div>
-          <div class="field-input-box">
-            <input
-              id="guestPin"
-              bind:this={pinInputEl}
-              type={showPin ? 'text' : 'password'}
-              inputmode="numeric"
-              pattern="[0-9]*"
-              maxlength="4"
-              class="clean-input pin-input"
-              class:input-has-error={!!duplicateNickError}
-              placeholder="••••"
-              bind:value={pin}
-              oninput={(e) => {
-                pin = e.target.value.replace(/\D/g, '').slice(0, 4);
-                duplicateNickError = '';
-              }}
-              autocomplete="current-password"
-              required
-              disabled={isSubmitting}
-            />
-            <button
-              type="button"
-              class="eye-btn"
-              onclick={() => showPin = !showPin}
-              aria-label={showPin ? 'Nascondi PIN' : 'Mostra PIN'}
-            >
-              {#if showPin}
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              {:else}
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              {/if}
-            </button>
-          </div>
-          <p class="field-hint">Ti servirà solo per rientrare se chiudi il browser durante la festa</p>
+          <strong>Nickname già in uso</strong>
+          <p>{duplicateNickError}</p>
         </div>
       {/if}
 
@@ -400,7 +310,7 @@
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           <path d="m9 12 2 2 4-4"/>
         </svg>
-        <span>Nessuna registrazione o password richiesta</span>
+        <span>Stai entrando come {appState.account?.display_name || 'ospite'}</span>
       </div>
     </form>
 
@@ -428,19 +338,19 @@
         </svg>
       </div>
       <div class="sub-card-body text-center">
-        <h3 class="sub-card-title">Siete gli sposi o hai già un account?</h3>
+        <h3 class="sub-card-title">Siete gli sposi?</h3>
         <p class="sub-card-text">
-          Gestisci missioni, foto degli invitati e la classifica in tempo reale.
+          Gestite missioni, foto degli invitati e la classifica in tempo reale dalla vostra dashboard.
         </p>
         <button
           type="button"
           class="console-btn"
-          onclick={() => appState.setAuthView('login-secure')}
+          onclick={() => appState.openDashboard()}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
           </svg>
-          <span>Accedi alla Console Sposi</span>
+          <span>Vai ai miei matrimoni</span>
         </button>
         <p class="create-event-prompt">
           Non avete ancora un Fanta Matrimonio?

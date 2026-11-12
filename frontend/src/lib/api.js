@@ -13,8 +13,9 @@ export class ApiError extends Error {
 }
 
 function getStoredToken() {
-  // Preferisci JWT se disponibile, altrimenti session token
-  return localStorage.getItem('fm_jwt_token') || localStorage.getItem('fm_auth_token');
+  // Il session token e' legato a uno specifico matrimonio: ha la precedenza sul JWT dell'account
+  // (che da solo risolve sempre l'evento piu' recente).
+  return localStorage.getItem('fm_auth_token') || localStorage.getItem('fm_jwt_token');
 }
 
 async function request(endpoint, options = {}) {
@@ -97,30 +98,14 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
-  // ── Auth (login veloce: nickname + pin) ───────────────────────────────────
-  async login(payload, argFirst, argLast, argSecret, argCouple = false, argEmail = null) {
-    let body;
-    if (typeof payload === 'object' && payload !== null) {
-      body = {
-        invite_code: payload.inviteCode || payload.invite_code,
-        nickname: payload.nickname,
-        pin: payload.pin,
-        secret_word: payload.secretWord || payload.secret_word || payload.pin,
-        is_couple: !!(payload.isCouple || payload.is_couple)
-      };
-    } else {
-      body = {
-        invite_code: payload,
-        nickname: argFirst,
-        pin: argSecret,
-        secret_word: argSecret,
-        is_couple: !!argCouple
-      };
-    }
-
-    return await request('/auth/login', {
+  // ── Entra in un matrimonio (account autenticato + codice invito) ─────────
+  async join(inviteCode, nickname = '') {
+    return await request('/auth/join', {
       method: 'POST',
-      body: JSON.stringify(body)
+      body: JSON.stringify({
+        invite_code: inviteCode,
+        nickname: nickname || undefined
+      })
     });
   },
 
@@ -151,20 +136,22 @@ export const api = {
     });
   },
 
-  // ── Auth (registrazione sicura) ───────────────────────────────────────────
-  async register(email, password, displayName, verificationCode = null) {
+  // ── Auth (registrazione) ──────────────────────────────────────────────────
+  async register({ email, password, firstName, lastName, nickname = '', verificationCode }) {
     return await request('/auth/register', {
       method: 'POST',
       body: JSON.stringify({
         email,
         password,
-        display_name: displayName,
-        verification_code: verificationCode || undefined
+        first_name: firstName,
+        last_name: lastName,
+        nickname: nickname || undefined,
+        verification_code: verificationCode
       })
     });
   },
 
-  // ── Auth (login sicuro con email/password) ────────────────────────────────
+  // ── Auth (login con email/password) ───────────────────────────────────────
   async loginSecure(email, password) {
     return await request('/auth/login-secure', {
       method: 'POST',
@@ -172,39 +159,16 @@ export const api = {
     });
   },
 
-  // ── Auth (upgrade account) ────────────────────────────────────────────────
-  async upgradeAccount(email, password, firstName = null, lastName = null, displayName = null, verificationCode = null) {
-    return await request('/auth/upgrade', {
+  // ── Auth (login social: Google / Facebook) ────────────────────────────────
+  async loginSocial(provider, token) {
+    return await request('/auth/social', {
       method: 'POST',
-      body: JSON.stringify({
-        email,
-        password,
-        first_name: firstName || undefined,
-        last_name: lastName || undefined,
-        display_name: displayName || undefined,
-        verification_code: verificationCode || undefined
-      })
+      body: JSON.stringify({ provider, token })
     });
   },
 
-  async getClaimInfo(claimToken) {
-    return await request('/auth/claim-info', {
-      method: 'POST',
-      body: JSON.stringify({ claim_token: claimToken })
-    });
-  },
-
-  async completeClaim(claimToken, password, firstName = null, lastName = null, displayName = null) {
-    return await request('/auth/complete-claim', {
-      method: 'POST',
-      body: JSON.stringify({
-        claim_token: claimToken,
-        password,
-        first_name: firstName || undefined,
-        last_name: lastName || undefined,
-        display_name: displayName || undefined
-      })
-    });
+  async getAuthProviders() {
+    return await request('/auth/providers');
   },
 
   async createEvent(payload) {

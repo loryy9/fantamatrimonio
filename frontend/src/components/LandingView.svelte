@@ -239,7 +239,7 @@
         <div class="step-card">
           <div class="step-circle gold">2</div>
           <div class="step-card-body">
-            <h3>Condividete QR Code o PIN</h3>
+            <h3>Condividete QR Code o codice</h3>
             <p>Stampatelo sui segnatavoli col QR code o inviate il link via WhatsApp: gli invitati aprono la schermata di benvenuto con un click.</p>
           </div>
         </div>

@@ -7,3 +7,10 @@ FRONTEND_URL=http://localhost:5173
 REGISTRATION_REMINDER_DAYS=0
 GMAIL_ADDRESS=tuaemail@gmail.com
 GMAIL_APP_PASSWORD=abcd efgh ijkl mnop
+
+# Login social (opzionale: senza questi valori i pulsanti non compaiono)
+# Google: console.cloud.google.com > API e servizi > Credenziali > ID client OAuth (Applicazione web)
+GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
+# Facebook: developers.facebook.com > App > Impostazioni > Di base
+FACEBOOK_APP_ID=
+FACEBOOK_APP_SECRET=

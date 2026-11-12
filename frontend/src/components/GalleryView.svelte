@@ -194,12 +194,6 @@
             appState.refreshUser(true),
             appState.refreshLeaderboard()
           ])
-            .then(() => {
-              const myPhotos = appState.galleryPhotos.filter(p => isMyPhoto(p));
-              if (myPhotos.length >= 2) {
-                appState.triggerAccountPrompt('photos');
-              }
-            })
             .catch(e => console.warn('Background sync:', e));
         })
         .catch((err) => {
@@ -217,7 +211,7 @@
     const isEnded = eventTimer.status === 'ended';
     const msg = isEnded
       ? 'Vuoi rimuovere questa foto dalla galleria?'
-      : 'Vuoi rimuovere questa foto dalla galleria? Perderai i 10 punti guadagnati con questo scatto.';
+      : 'Vuoi rimuovere questa foto dalla galleria? Perderai i punti guadagnati con questo scatto (se è una missione della caccia, tornerà da rifare).';
     if (!confirm(msg)) return;
     try {
       // Rimozione istantanea dalla UI
@@ -225,14 +219,17 @@
       if (activeModalPhoto?.id === photoId) {
         activeModalPhoto = null;
       }
-      await api.deletePhoto(photoId);
-      if (isEnded) {
-        appState.showToast('Foto rimossa dalla galleria', 'info');
-      } else {
-        appState.showToast('Foto rimossa dalla galleria (-10 PT)', 'info');
-      }
+      const res = await api.deletePhoto(photoId);
+      const removed = Number(res?.points_removed) || 0;
+      const reopened = res?.challenge_type === 'hunt' ? ' · missione di nuovo disponibile' : '';
+      appState.showToast(
+        removed > 0 ? `Foto rimossa (-${removed} PT)${reopened}` : `Foto rimossa dalla galleria${reopened}`,
+        'info'
+      );
       await Promise.all([
         appState.refreshUser(true),
+        appState.refreshMySubmissions(),
+        appState.refreshChallenges(),
         appState.refreshLeaderboard(),
         appState.refreshGallery(true)
       ]);

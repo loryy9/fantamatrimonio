@@ -44,7 +44,8 @@ router.get("/:user_id", requireUser, async (c) => {
   if (!user) throw new ApiError(404, "Utente non trovato.");
 
   const breakdown = await db.query(
-    `SELECT s.id, c.type, c.title, c.points, s.answer_text, s.image_url, s.created_at
+    `SELECT s.id, c.type, c.title, submission_points(s.challenge_id, s.answer_text) AS points,
+            s.answer_text, s.image_url, s.created_at
      FROM user_submissions s
      JOIN challenges c ON c.id = s.challenge_id
      WHERE s.user_id = $1

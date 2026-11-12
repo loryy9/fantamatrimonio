@@ -1,5 +1,7 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
+  import { fly, fade } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import { api } from '../lib/api.js';
   import {
     DEFAULT_PHOTO_CHALLENGES,
@@ -81,19 +83,80 @@
     }
   });
 
-  // Aggiungi nuova domanda quiz
-  function addCustomQuiz() {
-    quizzes.push({
-      id: `custom_q_${Date.now()}`,
-      title: 'Nuova domanda sugli sposi...',
-      description: '',
-      points: 30,
-      type: 'quiz',
+  // --- Drawer laterale per la creazione di nuove sfide ---
+  let drawerOpen = $state(false);
+  let drawerType = $state('quiz'); // 'quiz' | 'hunt' | 'vote'
+  let dTitle = $state('');
+  let dDesc = $state('');
+  let dPoints = $state(30);
+  let dOptions = $state(['', '', '']);
+  let dCorrect = $state('');
+
+  $effect(() => {
+    if (!drawerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape') drawerOpen = false; };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  });
+
+  function openDrawer(type) {
+    drawerType = type;
+    dTitle = '';
+    dDesc = '';
+    dPoints = type === 'quiz' ? 30 : type === 'hunt' ? 25 : 10;
+    dOptions = type === 'quiz' ? ['', '', ''] : [];
+    dCorrect = '';
+    drawerOpen = true;
+  }
+
+  function addDrawerOption() {
+    if (dOptions.length < 6) dOptions.push('');
+  }
+
+  function removeDrawerOption(i) {
+    if (dOptions.length <= 2) return;
+    const removed = dOptions[i];
+    dOptions.splice(i, 1);
+    if (dCorrect === removed) dCorrect = '';
+  }
+
+  function saveDrawer() {
+    const title = dTitle.trim();
+    if (!title) {
+      appState.showToast('Inserisci il titolo o la domanda.', 'error');
+      return;
+    }
+    const base = {
+      title,
+      description: dDesc.trim(),
+      points: Number(dPoints) || 0,
+      type: drawerType,
       active: true,
-      selected: true,
-      vote_options: ['Opzione A', 'Opzione B', 'Opzione C'],
-      correct_answer: 'Opzione A'
-    });
+      selected: true
+    };
+
+    if (drawerType === 'quiz') {
+      const opts = dOptions.map(o => o.trim()).filter(Boolean);
+      if (opts.length < 2) {
+        appState.showToast('Inserisci almeno due opzioni di risposta.', 'error');
+        return;
+      }
+      if (!dCorrect || !opts.includes(dCorrect.trim())) {
+        appState.showToast('Seleziona la risposta corretta.', 'error');
+        return;
+      }
+      quizzes.unshift({ ...base, id: `custom_q_${Date.now()}`, vote_options: opts, correct_answer: dCorrect.trim() });
+    } else if (drawerType === 'hunt') {
+      hunts.unshift({ ...base, id: `custom_h_${Date.now()}` });
+    } else {
+      moments.unshift({ ...base, id: `custom_m_${Date.now()}` });
+    }
+    drawerOpen = false;
   }
 
   // Aggiungi nuova opzione a un quiz
@@ -111,32 +174,6 @@
     if (quiz.correct_answer === removed) {
       quiz.correct_answer = quiz.vote_options[0] || '';
     }
-  }
-
-  // Aggiungi nuova missione caccia
-  function addCustomHunt() {
-    hunts.push({
-      id: `custom_h_${Date.now()}`,
-      title: 'Nuova missione fotografica...',
-      description: 'Descrivi cosa devono fotografare gli invitati',
-      points: 25,
-      type: 'hunt',
-      active: true,
-      selected: true
-    });
-  }
-
-  // Aggiungi nuovo momento
-  function addCustomMoment() {
-    moments.push({
-      id: `custom_m_${Date.now()}`,
-      title: 'Nuovo momento o domanda...',
-      description: 'Cosa vuoi chiedere o far condividere agli invitati?',
-      points: 10,
-      type: 'vote',
-      active: true,
-      selected: true
-    });
   }
 
   // Salva tutte le sfide selezionate
@@ -347,7 +384,7 @@
           <strong>Quiz a risposta multipla:</strong> gli invitati accumulano punti indovinando la risposta corretta.
           Clicca sul pallino verde per impostare la risposta esatta!
         </div>
-        <button class="btn btn-secondary btn-sm" onclick={addCustomQuiz}>
+        <button class="btn btn-secondary btn-sm" onclick={() => openDrawer('quiz')}>
           + Aggiungi Domanda Quiz
         </button>
       </div>
@@ -452,7 +489,7 @@
         <div class="helper-info">
           <strong>Caccia al tesoro fotografica:</strong> missioni che gli invitati completano scattando o caricando una foto a tema durante il ricevimento.
         </div>
-        <button class="btn btn-secondary btn-sm" onclick={addCustomHunt}>
+        <button class="btn btn-secondary btn-sm" onclick={() => openDrawer('hunt')}>
           + Aggiungi Missione Fotografica
         </button>
       </div>
@@ -510,7 +547,7 @@
         <div class="helper-info">
           <strong>Momenti migliori &amp; dediche:</strong> domande aperte o pronostici in cui gli invitati lasciano pensieri speciali, aneddoti o auguri per gli sposi.
         </div>
-        <button class="btn btn-secondary btn-sm" onclick={addCustomMoment}>
+        <button class="btn btn-secondary btn-sm" onclick={() => openDrawer('vote')}>
           + Aggiungi Nuovo Momento
         </button>
       </div>
@@ -601,7 +638,224 @@
   </footer>
 </div>
 
+<!-- DRAWER NUOVA SFIDA (da destra) -->
+{#if drawerOpen}
+  <div class="drawer-backdrop" transition:fade={{ duration: 180 }} onclick={() => drawerOpen = false} role="presentation"></div>
+  <div class="drawer" role="dialog" aria-modal="true" aria-label="Nuova sfida" transition:fly={{ x: 520, duration: 260, easing: cubicOut, opacity: 1 }}>
+    <div class="drawer-head">
+      <h3 class="drawer-title font-serif">
+        {drawerType === 'quiz' ? 'Nuova Domanda Quiz' : drawerType === 'hunt' ? 'Nuova Missione Fotografica' : 'Nuovo Momento'}
+      </h3>
+      <button type="button" class="drawer-close" onclick={() => drawerOpen = false} aria-label="Chiudi pannello">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <div class="input-group">
+        <label for="d-title" class="input-label">{drawerType === 'quiz' ? 'Domanda' : 'Titolo'}</label>
+        <input id="d-title" type="text" class="input-field" bind:value={dTitle}
+          placeholder={drawerType === 'quiz' ? 'Es. Dove si sono conosciuti gli sposi?' : drawerType === 'hunt' ? 'Es. Selfie con la sposa' : 'Es. Un augurio speciale per gli sposi'} />
+      </div>
+
+      {#if drawerType !== 'quiz'}
+        <div class="input-group">
+          <label for="d-desc" class="input-label">Descrizione (opzionale)</label>
+          <textarea id="d-desc" class="input-field" rows="3" bind:value={dDesc}
+            placeholder="Suggerimento o istruzioni per gli invitati..."></textarea>
+        </div>
+      {/if}
+
+      <div class="input-group drawer-points">
+        <label for="d-points" class="input-label">Punti assegnati</label>
+        <input id="d-points" type="number" class="input-field" bind:value={dPoints} min="0" max="200" />
+      </div>
+
+      {#if drawerType === 'quiz'}
+        <div class="drawer-options">
+          <span class="input-label">Opzioni (tocca il cerchio per la risposta corretta)</span>
+          {#each dOptions as opt, i}
+            {@const isCorrect = dCorrect === opt && opt.trim() !== ''}
+            <div class="drawer-opt-row">
+              <button type="button" class="drawer-radio {isCorrect ? 'active' : ''}"
+                onclick={() => dCorrect = opt} aria-label="Imposta come corretta">
+                {#if isCorrect}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                {/if}
+              </button>
+              <input type="text" class="input-field" bind:value={dOptions[i]}
+                oninput={(e) => { if (isCorrect) dCorrect = e.target.value; }}
+                placeholder={`Opzione ${i + 1}`} />
+              <button type="button" class="drawer-remove" disabled={dOptions.length <= 2}
+                onclick={() => removeDrawerOption(i)} aria-label="Rimuovi opzione">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+          {/each}
+          {#if dOptions.length < 6}
+            <button type="button" class="add-opt-link" onclick={addDrawerOption}>+ Aggiungi un'altra opzione</button>
+          {/if}
+        </div>
+      {/if}
+    </div>
+
+    <div class="drawer-foot">
+      <button type="button" class="btn btn-secondary" onclick={() => drawerOpen = false}>Annulla</button>
+      <button type="button" class="btn btn-primary" onclick={saveDrawer}>Aggiungi</button>
+    </div>
+  </div>
+{/if}
+
 <style>
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(36, 28, 32, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 1000;
+  }
+
+  .drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(100%, 480px);
+    height: 100dvh;
+    z-index: 1001;
+    background: #fff;
+    box-shadow: -24px 0 60px -24px rgba(106, 32, 55, 0.45);
+    display: flex;
+    flex-direction: column;
+    overscroll-behavior: contain;
+  }
+
+  .drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: max(16px, env(safe-area-inset-top, 0px)) 16px 14px 20px;
+    border-bottom: 1px solid rgba(36, 28, 32, 0.07);
+  }
+
+  .drawer-title {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+    line-height: 1.15;
+  }
+
+  .drawer-close {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 999px;
+    background: #f7f3f1;
+    color: #6b5f64;
+    cursor: pointer;
+  }
+
+  .drawer-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 20px;
+  }
+
+  .drawer .input-field {
+    font-size: 16px;
+    min-height: 48px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .drawer textarea.input-field {
+    resize: vertical;
+    font-family: inherit;
+  }
+
+  .drawer-points {
+    max-width: 160px;
+  }
+
+  .drawer-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+    border-radius: 20px;
+    background: #fbf9f8;
+    border: 1px solid rgba(36, 28, 32, 0.07);
+  }
+
+  .drawer-opt-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .drawer-radio {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid #7d6f76;
+    background: #fff;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .drawer-radio.active {
+    background: #2f7a55;
+    border-color: #2f7a55;
+    box-shadow: 0 0 0 3px rgba(47, 122, 85, 0.22);
+  }
+
+  .drawer-remove {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #6b5f64;
+    cursor: pointer;
+  }
+
+  .drawer-remove:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .drawer-foot {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 10px;
+    padding: 12px 20px max(14px, env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(36, 28, 32, 0.07);
+  }
+
+  .drawer-foot .btn {
+    min-height: 48px;
+    justify-content: center;
+  }
+
   .onboarding-wrapper {
     max-width: 960px;
     margin: 0 auto;

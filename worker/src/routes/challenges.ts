@@ -192,7 +192,20 @@ router.patch("/:challenge_id", requireCouple, async (c) => {
   });
   params.push(id);
 
-  const updated = await db.execute(`UPDATE challenges SET ${sets.join(", ")} WHERE id = $${params.length} RETURNING *`, params);
+  const updated = await db.transaction(async (tx) => {
+    const row = await tx.execute(`UPDATE challenges SET ${sets.join(", ")} WHERE id = $${params.length} RETURNING *`, params);
+    // Cambiare la risposta corretta di un quiz cambia chi ha diritto ai punti: riallinea i totali.
+    if ("correct_answer" in updates && updates.correct_answer !== existing.correct_answer) {
+      await tx.execute(
+        `UPDATE users u SET total_points = COALESCE((
+           SELECT SUM(submission_points(s.challenge_id, s.answer_text)) FROM user_submissions s WHERE s.user_id = u.id
+         ), 0)
+         WHERE u.id IN (SELECT user_id FROM user_submissions WHERE challenge_id = $1)`,
+        [id],
+      );
+    }
+    return row;
+  });
   return c.json(updated);
 });
 

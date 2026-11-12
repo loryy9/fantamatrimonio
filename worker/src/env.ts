@@ -29,6 +29,11 @@ export interface Env {
   ADMIN_USERNAME?: string;
   ADMIN_PASSWORD?: string;
   ADMIN_SECRET_KEY?: string;
+
+  /** Login social: client id Google, app id/secret Facebook (il secret va con `wrangler secret put`). */
+  GOOGLE_CLIENT_ID?: string;
+  FACEBOOK_APP_ID?: string;
+  FACEBOOK_APP_SECRET?: string;
 }
 
 export type AppEnv = {

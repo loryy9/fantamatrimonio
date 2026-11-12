@@ -102,7 +102,7 @@ router.post("/photo", requireUser, async (c) => {
   return c.json({
     id: String(submission!.id),
     image_url: submission!.image_url,
-    points_awarded: awardPoints ? photoChallenge.points : 0,
+    points_awarded: photoChallenge.points,
     user: { first_name: user.nickname, last_name: "", nickname: user.nickname },
   });
 });
@@ -130,7 +130,8 @@ router.post("/photos", requireUser, async (c) => {
   const urls = await Promise.all(payloads.map((p) => uploadPhoto(c.env.PHOTOS, cfg, origin, p.data, p.type)));
 
   // 3. Insert nel DB (il trigger del database aggiorna i punti per ogni foto)
-  const ptsPerPhoto = awardPoints ? photoChallenge.points : 0;
+  // Punti reali = quelli della sfida scelta (il trigger DB usa sempre questi, mai un valore diverso).
+  const ptsPerPhoto = photoChallenge.points;
   const submissions: Row[] = [];
   for (const url of urls) {
     submissions.push(
@@ -150,20 +151,39 @@ router.post("/photos", requireUser, async (c) => {
   });
 });
 
-/** Elimina una foto (solo se caricata dall'utente corrente). Il trigger DB scala i punti. */
+/**
+ * Elimina una foto (solo se caricata dall'utente corrente; solo sfide photo/hunt).
+ * Il trigger DB scala i punti guadagnati; eliminando la submission la missione della caccia torna disponibile.
+ */
 router.delete("/photo/:id", requireUser, async (c) => {
   const db = c.get("db");
   const user = c.get("user");
   const submissionId = c.req.param("id");
 
-  const sub = await db.queryOne("SELECT * FROM user_submissions WHERE id = $1", [submissionId]);
+  const sub = await db.queryOne(
+    `SELECT s.*, c.type AS challenge_type, c.id AS cid
+     FROM user_submissions s JOIN challenges c ON c.id = s.challenge_id
+     WHERE s.id = $1`,
+    [submissionId],
+  );
   if (!sub) throw new ApiError(404, "Foto non trovata.");
   if (String(sub.user_id) !== String(user.id)) throw new ApiError(403, "Non puoi eliminare le foto di altri utenti.");
+  if (sub.challenge_type !== "photo" && sub.challenge_type !== "hunt") {
+    throw new ApiError(400, "Questa risposta non e' una foto e non puo' essere eliminata.");
+  }
 
+  // Punti realmente tolti dal trigger (calcolati prima della cancellazione)
+  const pts = await db.queryOne("SELECT submission_points($1, $2) AS pts", [sub.challenge_id, sub.answer_text]);
   await db.execute("DELETE FROM user_submissions WHERE id = $1", [submissionId]);
   if (sub.image_url) await deletePhoto(c.env.PHOTOS, sub.image_url);
 
-  return c.json({ success: true, deleted_id: submissionId });
+  return c.json({
+    success: true,
+    deleted_id: submissionId,
+    challenge_id: sub.challenge_id,
+    challenge_type: sub.challenge_type,
+    points_removed: Number(pts?.pts ?? 0),
+  });
 });
 
 // ── CACCIA FOTOGRAFICA (type=hunt) ──────────────────────────────────────────

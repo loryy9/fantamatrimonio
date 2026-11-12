@@ -34,6 +34,7 @@ export function accountOut(account: Row): Row {
     display_name: account.display_name,
     first_name: account.first_name ?? null,
     last_name: account.last_name ?? null,
+    nickname: account.nickname ?? null,
     is_verified: account.is_verified ?? false,
     registered_at: account.registered_at ? iso(account.registered_at) : null,
   };

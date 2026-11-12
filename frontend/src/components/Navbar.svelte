@@ -44,17 +44,6 @@
           <button class="icon-btn" onclick={() => appState.openDashboard()} title="I miei matrimoni (Dashboard)" aria-label="Dashboard">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
           </button>
-        {:else if !appState.isCouple}
-          <button
-            id="navbar-upgrade-btn"
-            class="icon-btn icon-btn-gold"
-            class:pulse-attention={appState.showAccountPromptBanner}
-            onclick={() => appState.showUpgradeModal = true}
-            title="Crea il tuo account permanente"
-            aria-label="Crea account"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
-          </button>
         {/if}
 
         <button class="icon-btn" onclick={handleLogout} title="Esci" aria-label="Esci">

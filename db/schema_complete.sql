@@ -37,12 +37,24 @@ CREATE TABLE IF NOT EXISTS accounts (
     display_name    TEXT        NOT NULL,
     first_name      TEXT,                    -- nome (salvato alla creazione account)
     last_name       TEXT,                    -- cognome (salvato alla creazione account)
+    nickname        TEXT,                    -- nickname facoltativo (default per i nuovi eventi)
     is_verified     BOOLEAN     NOT NULL DEFAULT FALSE,
     registered_at   TIMESTAMPTZ,             -- NULL = account guest non ancora registrato
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_accounts_email ON accounts (email);
+
+-- Identita' social (Google, Facebook) collegate a un account
+CREATE TABLE IF NOT EXISTS account_identities (
+    id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_id       UUID        NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    provider         TEXT        NOT NULL CHECK (provider IN ('google', 'facebook')),
+    provider_user_id TEXT        NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (provider, provider_user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_account_identities_account ON account_identities (account_id);
 
 -- 5. Tabella: users (partecipazione del singolo utente all'evento specifico)
 CREATE TABLE IF NOT EXISTS users (
@@ -133,31 +145,43 @@ CREATE INDEX IF NOT EXISTS idx_email_verification_codes
     ON email_verification_codes (email, code) 
     WHERE used_at IS NULL;
 
--- 11. Trigger per il calcolo automatico dei punti
+-- 11. Trigger per il calcolo automatico dei punti (quiz: solo se risposta corretta)
+-- Punti realmente guadagnati da una submission (0 se quiz sbagliato).
+CREATE OR REPLACE FUNCTION submission_points(p_challenge_id INTEGER, p_answer TEXT)
+RETURNS INTEGER AS $$
+    SELECT COALESCE(
+        CASE
+            WHEN c.type = 'quiz' THEN
+                CASE WHEN lower(trim(COALESCE(p_answer, ''))) = lower(trim(COALESCE(c.correct_answer, '')))
+                     THEN c.points ELSE 0 END
+            ELSE c.points
+        END, 0)
+    FROM challenges c WHERE c.id = p_challenge_id
+    UNION ALL SELECT 0
+    LIMIT 1;
+$$ LANGUAGE sql STABLE;
+
 CREATE OR REPLACE FUNCTION update_user_points()
 RETURNS TRIGGER AS $$
-DECLARE
-    pts INTEGER;
-    old_pts INTEGER;
 BEGIN
     IF TG_OP = 'INSERT' THEN
-        SELECT points INTO pts FROM challenges WHERE id = NEW.challenge_id;
-        UPDATE users SET total_points = total_points + COALESCE(pts, 0) WHERE id = NEW.user_id;
+        UPDATE users SET total_points = total_points + submission_points(NEW.challenge_id, NEW.answer_text)
+            WHERE id = NEW.user_id;
         RETURN NEW;
 
     ELSIF TG_OP = 'UPDATE' THEN
-        SELECT points INTO pts     FROM challenges WHERE id = NEW.challenge_id;
-        SELECT points INTO old_pts FROM challenges WHERE id = OLD.challenge_id;
-        UPDATE users
-            SET total_points = total_points - COALESCE(old_pts, 0) + COALESCE(pts, 0)
+        UPDATE users SET total_points = total_points
+            - submission_points(OLD.challenge_id, OLD.answer_text)
+            + submission_points(NEW.challenge_id, NEW.answer_text)
             WHERE id = NEW.user_id;
         RETURN NEW;
 
     ELSIF TG_OP = 'DELETE' THEN
-        SELECT points INTO pts FROM challenges WHERE id = OLD.challenge_id;
-        UPDATE users SET total_points = total_points - COALESCE(pts, 0) WHERE id = OLD.user_id;
+        UPDATE users SET total_points = total_points - submission_points(OLD.challenge_id, OLD.answer_text)
+            WHERE id = OLD.user_id;
         RETURN OLD;
     END IF;
+    RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 

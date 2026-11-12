@@ -23,6 +23,9 @@ export interface Config {
   adminUsername: string;
   adminPassword: string;
   adminSecretKey: string;
+  googleClientId: string;
+  facebookAppId: string;
+  facebookAppSecret: string;
 }
 
 export function getConfig(env: Env): Config {
@@ -56,5 +59,8 @@ export function getConfig(env: Env): Config {
     adminUsername: env.ADMIN_USERNAME ?? "",
     adminPassword: env.ADMIN_PASSWORD ?? "",
     adminSecretKey: env.ADMIN_SECRET_KEY ?? "",
+    googleClientId: clean(env.GOOGLE_CLIENT_ID),
+    facebookAppId: clean(env.FACEBOOK_APP_ID),
+    facebookAppSecret: clean(env.FACEBOOK_APP_SECRET),
   };
 }

@@ -3,15 +3,13 @@
   import { appState } from './lib/state.svelte.js';
   import Toast from './components/Toast.svelte';
   import InstructionsModal from './components/InstructionsModal.svelte';
-  import UpgradeAccountModal from './components/UpgradeAccountModal.svelte';
-  import ClaimAccountModal from './components/ClaimAccountModal.svelte';
-  import AccountPromptBanner from './components/AccountPromptBanner.svelte';
   import Navbar from './components/Navbar.svelte';
   import BottomNav from './components/BottomNav.svelte';
   import LandingView from './components/LandingView.svelte';
   import LoginView from './components/LoginView.svelte';
   import CreateEventView from './components/CreateEventView.svelte';
   import SecureLoginView from './components/SecureLoginView.svelte';
+  import AuthGate from './components/AuthGate.svelte';
   import HomeView from './components/HomeView.svelte';
   import GalleryView from './components/GalleryView.svelte';
   import HuntView from './components/HuntView.svelte';
@@ -23,6 +21,15 @@
   import SiteHeader from './components/SiteHeader.svelte';
 
   let mainContentEl = $state(null);
+
+  // "Entra" senza account: Registrati (col codice) / Accedi dentro il normale layout del sito.
+  // "Crea" gestisce la registrazione da solo, nel suo wizard.
+  const showGate = $derived(appState.authView === 'join' && !appState.pendingInvite && !appState.hasAccount);
+  // "Crea" (form e registrazione) usa la topbar del sito; setup e condivisione restano a tutto schermo.
+  const showCreateForm = $derived(appState.authView === 'create' && !appState.pendingInvite);
+  const showSiteChrome = $derived(
+    showGate || showCreateForm || (appState.authView !== 'join' && appState.authView !== 'create' && !appState.pendingInvite)
+  );
 
   function checkIsAdminRoute() {
     if (typeof window === 'undefined') return false;
@@ -98,9 +105,6 @@
 <Toast />
 {#if !isAdminRoute}
   <InstructionsModal />
-  <AccountPromptBanner />
-  <UpgradeAccountModal />
-  <ClaimAccountModal />
 {/if}
 
 {#if isAdminRoute}
@@ -144,13 +148,21 @@
 {:else}
   <!-- NAVBAR BIANCA CLASSICA CON LOGO E SCRITTA A SINISTRA, NAVMENU A DESTRA PER LE VIEW GENERALI -->
   <div class="site">
-    {#if appState.authView !== 'join' && appState.authView !== 'create' && !appState.pendingInvite}
+    {#if showSiteChrome}
       <SiteHeader />
     {/if}
 
     {#if appState.authView === 'entry' && !appState.pendingInvite}
       <main class="site-landing">
         <LandingView />
+      </main>
+    {:else if showGate}
+      <main class="site-main">
+        <AuthGate />
+      </main>
+    {:else if showCreateForm}
+      <main class="site-main">
+        <CreateEventView />
       </main>
     {:else if appState.pendingInvite || appState.authView === 'create'}
       <main class="site-fullscreen-main">
@@ -172,7 +184,7 @@
       </main>
     {/if}
 
-    {#if appState.authView !== 'join' && appState.authView !== 'create' && !appState.pendingInvite}
+    {#if showSiteChrome}
       <footer class="site-footer">
         <span>Fanta Matrimonio · Gioca, scatta, rispondi e scala la classifica</span>
         <a

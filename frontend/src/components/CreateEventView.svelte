@@ -26,15 +26,22 @@
   // Step 1: Nomi & Cerimonia
   let spouse1 = $state('');
   let spouse2 = $state('');
-  let eventDate = $state(new Date().toISOString().split('T')[0]);
+  let eventDate = $state(localDateString());
   let eventLocation = $state('');
   let enableTimer = $state(false);
 
   // Orari inizio e fine sfide: Giorno + Ora separati sia per inizio che per fine (nessun overflow su mobile!)
-  let startDate = $state(new Date().toISOString().split('T')[0]);
+  let startDate = $state(localDateString());
   let startTime = $state('12:00');
-  let endDate = $state(new Date().toISOString().split('T')[0]);
+  let endDate = $state(localDateString());
   let endTime = $state('23:30');
+
+  function localDateString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 
   let isSubmitting = $state(false);
   let copied = $state('');
@@ -91,6 +98,10 @@
       appState.showToast('Inserisci il nome di entrambi gli sposi.', 'error');
       return null;
     }
+    if (!eventDate || eventDate < localDateString()) {
+      appState.showToast("La data del matrimonio non può essere nel passato.", 'error');
+      return null;
+    }
     let startIso = null;
     let endIso = null;
     if (enableTimer) {
@@ -102,6 +113,10 @@
       const dEnd = new Date(`${endDate}T${endTime}`);
       if (isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) {
         appState.showToast('Date e orari non validi.', 'error');
+        return null;
+      }
+      if (dStart <= new Date()) {
+        appState.showToast("L'inizio dei giochi deve essere nel futuro.", 'error');
         return null;
       }
       if (dEnd <= dStart) {

@@ -72,6 +72,9 @@ router.post("/", async (c) => {
   if (body.enable_timer && body.start_time && body.end_time && body.end_time <= body.start_time) {
     throw new ApiError(422, "L'orario di fine deve essere successivo a quello di inizio.");
   }
+  if (body.enable_timer && body.start_time && body.start_time <= new Date()) {
+    throw new ApiError(422, "L'inizio dei giochi deve essere nel futuro.");
+  }
 
   if (!body.spouse1_name.trim() || !body.spouse2_name.trim()) {
     throw new ApiError(422, "I nomi degli sposi sono obbligatori.");

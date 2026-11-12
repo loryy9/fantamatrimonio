@@ -126,8 +126,8 @@
       <OnboardingSetup
         editMode={true}
         initialChallenges={appState.setupChallenges}
-        onComplete={() => appState.openDashboard()}
-        onCancel={() => appState.openDashboard()}
+        onComplete={() => appState.openDashboard(appState.event?.id)}
+        onCancel={() => appState.openDashboard(appState.event?.id)}
       />
     </main>
   </div>

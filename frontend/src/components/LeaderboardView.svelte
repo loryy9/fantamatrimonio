@@ -37,13 +37,11 @@
   <!-- Header -->
   <div class="page-header sticky-head">
     <div class="header-top">
-      <h1 class="page-title font-serif">Classifica Live</h1>
-      <div class="live-pill">
-        <span class="pulse-dot"></span>
-        <span class="live-text">Live</span>
-      </div>
+      <h1 class="page-title font-serif">Classifica</h1>
+      <span class="guest-count-badge">
+        {appState.leaderboard.length} {appState.leaderboard.length === 1 ? 'invitato iscritto' : 'invitati iscritti'}
+      </span>
     </div>
-    <p class="page-desc">Aggiornata in tempo reale con i punti di tutti gli invitati!</p>
   </div>
 
   <!-- Fixed Podium for Top 3 (Always Visible in Order: 2°, 1°, 3°) -->
@@ -114,20 +112,6 @@
 
   <!-- Tabella della Classifica -->
   <div class="leaderboard-table-card glass-card">
-    <div class="table-card-header">
-      <div class="table-title-group">
-        <h2 class="table-card-title font-serif">Classifica Generale</h2>
-        <span class="table-subtitle">Dal 4° posto in poi · Punti aggiornati in tempo reale</span>
-      </div>
-      <div class="table-count-badge">
-        {#if appState.leaderboard.length > 3}
-          {restOfBoard.length} {restOfBoard.length === 1 ? 'invitato' : 'invitati'} in lista
-        {:else}
-          {appState.leaderboard.length} {appState.leaderboard.length === 1 ? 'invitato' : 'invitati'}
-        {/if}
-      </div>
-    </div>
-
     <!-- Intestazioni colonne -->
     <div class="table-head">
       <span class="col-rank">Pos.</span>
@@ -154,10 +138,6 @@
             </div>
           </div>
         {/each}
-        <div class="empty-table-banner">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span>I primi 3 classificati sono sul podio in alto. I punteggi dal 4° posto in poi appariranno qui man mano che gli invitati giocano!</span>
-        </div>
       {:else}
         {#each restOfBoard as entry (entry.id)}
           {@const isMe = appState.user?.id === entry.id}
@@ -253,6 +233,18 @@
     gap: 12px;
   }
 
+  .guest-count-badge {
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    border: 1px solid rgba(140, 47, 75, 0.2);
+    border-radius: 999px;
+    background: var(--wine-tint);
+    color: var(--wine);
+    font-size: 0.76rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
   .page-title {
     font-family: var(--font-display);
     font-size: 2.3rem;
@@ -260,31 +252,6 @@
     line-height: 1.05;
     letter-spacing: -0.01em;
     color: var(--text-main);
-  }
-
-  .page-desc {
-    font-size: 0.95rem;
-    font-style: italic;
-    color: #6b5f64;
-    margin-top: 12px;
-    line-height: 1.5;
-  }
-
-  .live-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(127, 169, 148, 0.14);
-    border: 1px solid rgba(127, 169, 148, 0.4);
-    padding: 5px 12px;
-    border-radius: 999px;
-    flex-shrink: 0;
-  }
-
-  .live-text {
-    font-size: 0.74rem;
-    font-weight: 700;
-    color: #3f7a60;
   }
 
   /* Podium */
@@ -485,49 +452,10 @@
     background: #fff;
   }
 
-  .table-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 22px 22px 14px;
-  }
-
-  .table-title-group {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .table-card-title {
-    font-family: var(--font-display);
-    font-size: 1.6rem;
-    font-weight: 600;
-    margin: 0;
-    color: var(--text-main);
-  }
-
-  .table-subtitle {
-    font-size: 0.8rem;
-    color: #6b5f64;
-  }
-
-  .table-count-badge {
-    font-size: 0.76rem;
-    font-weight: 600;
-    padding: 5px 12px;
-    border-radius: 999px;
-    background: var(--wine-tint);
-    color: var(--wine);
-    border: 1px solid rgba(140, 47, 75, 0.2);
-    white-space: nowrap;
-  }
-
   .table-head {
     display: flex;
     align-items: center;
     padding: 8px 22px;
-    border-top: 1px solid rgba(36, 28, 32, 0.07);
     border-bottom: 1px solid rgba(36, 28, 32, 0.07);
     background: rgba(245, 228, 233, 0.35);
     font-size: 0.78rem;
@@ -861,7 +789,4 @@
     .step-3 { height: 48px; }
   }
 
-  @media (max-width: 380px) {
-    .table-card-header { flex-direction: column; align-items: flex-start; }
-  }
 </style>

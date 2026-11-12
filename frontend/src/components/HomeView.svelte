@@ -29,12 +29,6 @@
   const overall = $derived(totalAll ? doneAll / totalAll : 0);
   const RING = 2 * Math.PI * 34;
 
-  const rawSpouse1 = appState.event?.spouse1_name || import.meta.env.VITE_SPOUSE_1 || import.meta.env.VITE_NOME_1 || '';
-  const rawSpouse2 = appState.event?.spouse2_name || import.meta.env.VITE_SPOUSE_2 || import.meta.env.VITE_NOME_2 || '';
-  const spouse1 = formatName(rawSpouse1);
-  const spouse2 = formatName(rawSpouse2);
-  const coupleNames = spouse1 && spouse2 ? `${spouse1} & ${spouse2}` : (spouse1 || spouse2 || 'Gli Sposi');
-
   const beforeStart = $derived(eventTimer.status === 'before_start');
   const lockedBadge = $derived(`Alle ${eventTimer.startTimeFormatted || '12:00'}`);
 
@@ -85,15 +79,13 @@
 <div class="home-container">
   <section class="intro">
     <div class="intro-text">
-      <div class="couple font-serif">
-        <span class="rule"></span>
-        <span>{coupleNames}</span>
+      <div class="intro-topline">
+        <h1 class="title font-serif">Ciao, {formatName(appState.user?.first_name) || 'Invitato'}!</h1>
         <button class="rules-link" onclick={() => appState.showInstructionsModal = true} title="Rivedi le regole e le istruzioni">
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
           Come si gioca
         </button>
       </div>
-      <h1 class="title font-serif">Ciao, {formatName(appState.user?.first_name) || 'Invitato'}!</h1>
     </div>
 
     {#if beforeStart}
@@ -192,35 +184,18 @@
     gap: 22px;
   }
 
-  .couple {
+  .intro-topline {
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: var(--wine);
-    font-style: italic;
-    font-size: 1.2rem;
-    font-weight: 500;
-  }
-
-  .couple > span:nth-child(2) {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .couple .rule {
-    flex: none;
-    width: 28px;
-    height: 1px;
-    background: var(--wine);
-    opacity: 0.6;
+    justify-content: space-between;
+    gap: 12px;
   }
 
   .title {
-    margin-top: 4px;
+    min-width: 0;
+    margin: 0;
     color: var(--ink);
-    font-size: clamp(1.9rem, 8vw, 3.2rem);
+    font-size: clamp(1.8rem, 7vw, 2.9rem);
     font-weight: 600;
     line-height: 1.05;
     letter-spacing: -0.02em;
@@ -233,6 +208,7 @@
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
+    white-space: nowrap;
     gap: 6px;
     margin: 0 0 0 auto;
     padding: 0;
@@ -641,11 +617,7 @@
     }
 
     .title {
-      font-size: clamp(4.2rem, 6vw, 6rem);
-    }
-
-    .couple {
-      font-size: 1.45rem;
+      font-size: clamp(3.5rem, 5.7vw, 5.1rem);
     }
 
     .status {

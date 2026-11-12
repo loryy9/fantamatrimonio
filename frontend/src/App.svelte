@@ -46,12 +46,17 @@
     history.pushState(null, '', '/');
   }
 
-  // Reset scroll after tab changes and auth-view swaps (e.g. login -> code/nickname form).
+  let previousHasAccount = appState.hasAccount;
+
+  // Nell'accesso con codice, dopo il login dell'account si resta su "entra" e si passa
+  // alla fase successiva: riporta in cima la vista mobile solo in questo passaggio.
   $effect(() => {
-    const _tab = appState.activeTab;
-    const _subTab = appState.quizSubTab;
-    const _authView = appState.authView;
-    const _hasAccount = appState.hasAccount;
+    const hasAccount = appState.hasAccount;
+    const authView = appState.authView;
+    const becameLoggedInDuringJoin = authView === 'join' && !previousHasAccount && hasAccount;
+    previousHasAccount = hasAccount;
+
+    if (!becameLoggedInDuringJoin) return;
 
     if (mainContentEl) {
       mainContentEl.scrollTop = 0;
@@ -72,13 +77,14 @@
   $effect(() => {
     const inGame = appState.isInGame;
     if (typeof document !== 'undefined') {
-      const targetColor = inGame ? '#6a2037' : '#faf7f2';
+      const targetColor = inGame ? '#ffffff' : '#faf7f2';
+      const pageBackground = inGame ? '#6a2037' : '#faf7f2';
       const meta = document.querySelector('meta[name="theme-color"]');
       if (meta) {
         meta.setAttribute('content', targetColor);
       }
-      document.documentElement.style.backgroundColor = targetColor;
-      document.body.style.backgroundColor = targetColor;
+      document.documentElement.style.backgroundColor = pageBackground;
+      document.body.style.backgroundColor = pageBackground;
       if (inGame) {
         document.documentElement.classList.add('in-game-active');
       } else {
@@ -105,6 +111,9 @@
 </script>
 
 <Toast />
+{#if appState.isInGame}
+  <div class="game-safe-area-overlay" aria-hidden="true"></div>
+{/if}
 {#if !isAdminRoute}
   <InstructionsModal />
 {/if}

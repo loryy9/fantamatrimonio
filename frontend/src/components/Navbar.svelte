@@ -18,7 +18,7 @@
   }
 </script>
 
-<header class="navbar">
+<header class="navbar" class:game-mode={appState.isInGame}>
   <div class="band">
   <div class="bar">
     <span class="monogram font-serif" aria-hidden="true">{initials[0]}<i>&amp;</i>{initials[1]}</span>
@@ -79,6 +79,11 @@
       radial-gradient(40% 120% at 0% 100%, rgba(201, 98, 127, 0.4), transparent 70%),
       linear-gradient(115deg, #4a1226 0%, var(--wine) 55%, #a33a58 100%);
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), 0 100%);
+  }
+
+  /* White system-status safe area above the game header on iPhone. */
+  .navbar.game-mode .band {
+    padding-top: var(--safe-top);
   }
 
   @media (display-mode: standalone) {

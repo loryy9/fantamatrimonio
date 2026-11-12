@@ -13,7 +13,7 @@
   }
 </script>
 
-<div class="toast-container">
+<div class="toast-container" class:has-bottom-nav={appState.isInGame && !!appState.event}>
   {#each appState.toasts as toast (toast.id)}
     <div class="toast toast-{toast.type}" role="alert">
       <div class="toast-icon">
@@ -147,6 +147,32 @@
     to {
       opacity: 1;
       transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @media (max-width: 899px) {
+    .toast-container {
+      top: auto;
+      bottom: calc(16px + var(--safe-bottom));
+    }
+
+    .toast-container.has-bottom-nav {
+      bottom: calc(88px + var(--safe-bottom));
+    }
+
+    .toast {
+      animation-name: slideUp;
     }
   }
 

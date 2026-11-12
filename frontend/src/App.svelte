@@ -46,10 +46,12 @@
     history.pushState(null, '', '/');
   }
 
-  // Automatically reset scroll to top on any tab or subtab change
+  // Reset scroll after tab changes and auth-view swaps (e.g. login -> code/nickname form).
   $effect(() => {
     const _tab = appState.activeTab;
     const _subTab = appState.quizSubTab;
+    const _authView = appState.authView;
+    const _hasAccount = appState.hasAccount;
 
     if (mainContentEl) {
       mainContentEl.scrollTop = 0;

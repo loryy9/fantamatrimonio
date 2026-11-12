@@ -353,7 +353,6 @@
 
   <!-- Navigazione Sezioni Sticky sotto all'header -->
   <div class="sticky-tabs-container">
-    {#if !editMode}<div class="setup-progress" role="progressbar" aria-label="Avanzamento configurazione matrimonio" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span></span></div>{/if}
     <div class="tabs-scroll-container">
       <div class="section-tabs" aria-label="Sezioni dei giochi">
         <button
@@ -757,22 +756,6 @@
     align-items: center;
     gap: 12px;
     margin-bottom: 4px;
-  }
-
-  .setup-progress {
-    width: 100%;
-    height: 3px;
-    margin: 0 0 8px;
-    background: rgba(140, 47, 75, 0.12);
-    border-radius: 99px;
-    overflow: hidden;
-  }
-
-  .setup-progress span {
-    display: block;
-    width: 100%;
-    height: 100%;
-    background: #a63552;
   }
 
   .header-top-row {
@@ -1511,7 +1494,6 @@
 
   @media (max-width: 380px) {
     .onboarding-wrapper { padding-left: 14px; padding-right: 14px; }
-    .setup-progress { margin-left: -14px; margin-right: -14px; }
     .tab-btn { padding: 10px 12px; font-size: 0.82rem; }
   }
 

@@ -92,12 +92,6 @@
     <div class="wrap hero-grid">
       <!-- Colonna Sinistra (Copy + Azioni) -->
       <div class="hero-copy">
-        <div class="badge-pill">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
-          </svg>
-          <span>IL GIOCO UFFICIALE PER LE NOZZE</span>
-        </div>
 
         <h1 class="landing-title font-serif">
           Il vostro matrimonio, i vostri ricordi più veri.
@@ -110,7 +104,6 @@
         <!-- BOX ACCESSO RAPIDO OSPITI -->
         <div class="quick-join-card">
           <div class="quick-join-head">
-            <span class="card-step-num">01</span>
             <strong class="card-step-title">HAI UN CODICE INVITO?</strong>
             <span class="pill-tag">Ospiti</span>
           </div>
@@ -445,12 +438,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-  }
-
-  .card-step-num {
-    font-size: 0.8rem;
-    font-weight: 800;
-    color: var(--wine);
   }
 
   .card-step-title {

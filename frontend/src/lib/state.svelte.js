@@ -350,7 +350,7 @@ class AppState {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  async createEvent(payload) {
+  async createEvent(payload, { deferInvite = false } = {}) {
     try {
       const res = await api.createEvent(payload);
       this._saveTokens(res.token, res.jwt, res.account);
@@ -359,8 +359,9 @@ class AppState {
         ...(res.event || {}),
         invite_code: res.invite_code || res.event?.invite_code
       };
-      this.pendingInvite = res.invite_code;
-      return { success: true };
+      const inviteCode = res.invite_code || res.event?.invite_code || null;
+      this.pendingInvite = deferInvite ? null : inviteCode;
+      return { success: true, inviteCode };
     } catch (err) {
       return { success: false, error: err.message };
     }

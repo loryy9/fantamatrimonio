@@ -1,870 +1,852 @@
 <script>
-  import { onMount } from 'svelte';
-  import { appState } from '../lib/state.svelte.js';
-  import { api } from '../lib/api.js';
-  import QrScannerModal from './QrScannerModal.svelte';
+    import { slide } from "svelte/transition";
+    import { cubicOut } from "svelte/easing";
+    import { onMount } from "svelte";
+    import { appState } from "../lib/state.svelte.js";
+    import { api } from "../lib/api.js";
+    import QrScannerModal from "./QrScannerModal.svelte";
+    import PageIntro from "./PageIntro.svelte";
+    import SpouseCard from "./SpouseCard.svelte";
 
-  function getCodeFromUrl() {
-    if (typeof window === 'undefined') return '';
-    return (new URLSearchParams(window.location.search).get('code') || '').trim().toUpperCase();
-  }
-
-  let inviteCode = $state(getCodeFromUrl());
-  let nickname = $state('');
-  let isSubmitting = $state(false);
-  let showQrModal = $state(false);
-
-  // Errore nickname già in uso nel matrimonio
-  let duplicateNickError = $state('');
-
-  const defaultNick = $derived(
-    appState.account?.nickname || appState.account?.first_name || appState.account?.display_name || ''
-  );
-
-  let eventPreview = $state(null);
-  let previewLoading = $state(false);
-  let previewError = $state('');
-
-  let checkTimer = null;
-  let nickInputEl = $state(null);
-  let inviteInputEl = $state(null);
-
-  async function checkPreview(code) {
-    const c = (code || '').trim().toUpperCase();
-    if (c.length < 4) {
-      eventPreview = null;
-      previewError = '';
-      return;
-    }
-    previewLoading = true;
-    try {
-      const res = await api.getEventPreview(c);
-      eventPreview = res;
-      previewError = '';
-    } catch {
-      eventPreview = null;
-      if (c.length >= 6) {
-        previewError = 'Codice matrimonio non trovato. Controlla il codice ricevuto.';
-      }
-    } finally {
-      previewLoading = false;
-    }
-  }
-
-  onMount(() => {
-    function onLocation() {
-      const c = getCodeFromUrl();
-      if (c) inviteCode = c;
-    }
-    window.addEventListener('popstate', onLocation);
-    window.addEventListener('hashchange', onLocation);
-
-    const urlCode = getCodeFromUrl();
-    if (urlCode) inviteCode = urlCode;
-
-    return () => {
-      window.removeEventListener('popstate', onLocation);
-      window.removeEventListener('hashchange', onLocation);
-      clearTimeout(checkTimer);
+    const cardTransition = {
+        duration: typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240,
+        easing: cubicOut,
     };
-  });
 
-  $effect(() => {
-    const code = inviteCode.trim().toUpperCase();
-    clearTimeout(checkTimer);
-    if (code.length >= 4) {
-      checkTimer = setTimeout(() => {
-        checkPreview(code);
-      }, 150);
-    } else {
-      eventPreview = null;
-      previewError = '';
+    function getCodeFromUrl() {
+        if (typeof window === "undefined") return "";
+        return (new URLSearchParams(window.location.search).get("code") || "")
+            .trim()
+            .toUpperCase();
     }
-  });
 
-  function handleQrScanResult(scannedCode) {
-    if (scannedCode) {
-      inviteCode = scannedCode.trim().toUpperCase();
-      duplicateNickError = '';
-      checkPreview(inviteCode);
-      appState.showToast(`Codice ${inviteCode} rilevato!`, 'success');
-    }
-  }
+    let inviteCode = $state(getCodeFromUrl());
+    let nickname = $state("");
+    let isSubmitting = $state(false);
+    let showQrModal = $state(false);
 
-  async function handlePaste() {
-    try {
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        const text = await navigator.clipboard.readText();
-        if (text && text.trim()) {
-          const match = text.match(/[A-Za-z0-9\-_]{4,12}/);
-          if (match) {
-            inviteCode = match[0].toUpperCase();
-            checkPreview(inviteCode);
-            appState.showToast(`Codice ${inviteCode} incollato!`, 'info');
+    // Errore nickname già in uso nel matrimonio
+    let duplicateNickError = $state("");
+
+    const defaultNick = $derived(
+        appState.account?.nickname ||
+            appState.account?.first_name ||
+            appState.account?.display_name ||
+            "",
+    );
+
+    let eventPreview = $state(null);
+    let previewLoading = $state(false);
+    let previewError = $state("");
+
+    let checkTimer = null;
+    let nickInputEl = $state(null);
+    let inviteInputEl = $state(null);
+
+    async function checkPreview(code) {
+        const c = (code || "").trim().toUpperCase();
+        if (c.length < 4) {
+            eventPreview = null;
+            previewError = "";
             return;
-          }
         }
-      }
-    } catch {
-      // ignore
-    }
-    inviteInputEl?.focus();
-    appState.showToast('Digita il codice stampato sul tableau o segnaposto', 'info');
-  }
-
-  function handleChangeNickname() {
-    duplicateNickError = '';
-    setTimeout(() => {
-      nickInputEl?.focus();
-      nickInputEl?.select();
-    }, 50);
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    duplicateNickError = '';
-
-    if (!inviteCode.trim()) {
-      appState.showToast('Inserisci il codice del matrimonio.', 'error');
-      inviteInputEl?.focus();
-      return;
+        previewLoading = true;
+        try {
+            const res = await api.getEventPreview(c);
+            eventPreview = res;
+            previewError = "";
+        } catch {
+            eventPreview = null;
+            if (c.length >= 6) {
+                previewError =
+                    "Codice matrimonio non trovato. Controlla il codice ricevuto.";
+            }
+        } finally {
+            previewLoading = false;
+        }
     }
 
-    isSubmitting = true;
-    try {
-      const res = await appState.join(inviteCode.trim().toUpperCase(), nickname.trim());
+    onMount(() => {
+        function onLocation() {
+            const c = getCodeFromUrl();
+            if (c) inviteCode = c;
+        }
+        window.addEventListener("popstate", onLocation);
+        window.addEventListener("hashchange", onLocation);
 
-      if (!res.success) {
-        if (res.code === 'NICKNAME_TAKEN') {
-          duplicateNickError = res.error;
-          handleChangeNickname();
+        const urlCode = getCodeFromUrl();
+        if (urlCode) inviteCode = urlCode;
+
+        return () => {
+            window.removeEventListener("popstate", onLocation);
+            window.removeEventListener("hashchange", onLocation);
+            clearTimeout(checkTimer);
+        };
+    });
+
+    $effect(() => {
+        const code = inviteCode.trim().toUpperCase();
+        clearTimeout(checkTimer);
+        if (code.length >= 4) {
+            checkTimer = setTimeout(() => {
+                checkPreview(code);
+            }, 150);
         } else {
-          appState.showToast(res.error || 'Accesso non riuscito. Controlla il codice.', 'error');
+            eventPreview = null;
+            previewError = "";
         }
-      }
-    } catch (err) {
-      appState.showToast(err.message || 'Errore di connessione.', 'error');
-    } finally {
-      isSubmitting = false;
+    });
+
+    function handleQrScanResult(scannedCode) {
+        if (scannedCode) {
+            inviteCode = scannedCode.trim().toUpperCase();
+            duplicateNickError = "";
+            checkPreview(inviteCode);
+            appState.showToast(`Codice ${inviteCode} rilevato!`, "success");
+        }
     }
-  }
+
+    async function handlePaste() {
+        try {
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                const text = await navigator.clipboard.readText();
+                if (text && text.trim()) {
+                    const match = text.match(/[A-Za-z0-9\-_]{4,12}/);
+                    if (match) {
+                        inviteCode = match[0].toUpperCase();
+                        checkPreview(inviteCode);
+                        appState.showToast(
+                            `Codice ${inviteCode} incollato!`,
+                            "info",
+                        );
+                        return;
+                    }
+                }
+            }
+        } catch {
+            // ignore
+        }
+        inviteInputEl?.focus();
+        appState.showToast(
+            "Digita il codice stampato sul tableau o segnaposto",
+            "info",
+        );
+    }
+
+    function handleChangeNickname() {
+        duplicateNickError = "";
+        setTimeout(() => {
+            nickInputEl?.focus();
+            nickInputEl?.select();
+        }, 50);
+    }
+
+    async function handleSubmit(e) {
+        e.preventDefault();
+        duplicateNickError = "";
+
+        if (!inviteCode.trim()) {
+            appState.showToast("Inserisci il codice del matrimonio.", "error");
+            inviteInputEl?.focus();
+            return;
+        }
+
+        isSubmitting = true;
+        try {
+            const res = await appState.join(
+                inviteCode.trim().toUpperCase(),
+                nickname.trim(),
+            );
+
+            if (!res.success) {
+                if (res.code === "NICKNAME_TAKEN") {
+                    duplicateNickError = res.error;
+                    handleChangeNickname();
+                } else {
+                    appState.showToast(
+                        res.error ||
+                            "Accesso non riuscito. Controlla il codice.",
+                        "error",
+                    );
+                }
+            }
+        } catch (err) {
+            appState.showToast(
+                err.message || "Errore di connessione.",
+                "error",
+            );
+        } finally {
+            isSubmitting = false;
+        }
+    }
 </script>
 
 <div class="guest-screen">
-  <div class="guest-container">
-    <!-- Hero Header -->
-    <div class="guest-hero">
-      <div class="badge-pill">
-        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
-        </svg>
-        <span>ENTRA CON IL CODICE</span>
-      </div>
+    <div class="guest-container">
+        <!-- Hero Header -->
+        <div class="guest-hero">
+            <div class="guest-intro-slot">
+                <PageIntro before="Entra nella" accent="festa" lead="Inserisci il codice del matrimonio per iniziare a giocare, scattare foto e votare con gli sposi." />
+            </div>
+            <div class="spouse-card-slot">
+                <SpouseCard loggedIn />
+            </div>
+        </div>
 
-      <h1 class="guest-title font-serif">
-        Entra nella <em>festa</em>
-      </h1>
+        <div class="guest-form-column">
+            <!-- Main Card -->
+            <form class="clean-card" onsubmit={handleSubmit}>
+                <!-- Campo Codice Invito -->
+                <div class="field-block">
+                    <div class="field-header">
+                        <label for="inviteCode" class="field-label"
+                            >CODICE INVITO MATRIMONIO</label
+                        >
+                        <span class="field-tag required">Obbligatorio</span>
+                    </div>
+                    <div class="field-input-box">
+                        <input
+                            id="inviteCode"
+                            bind:this={inviteInputEl}
+                            type="text"
+                            class="clean-input code-style"
+                            placeholder="ES. PK9YMD"
+                            bind:value={inviteCode}
+                            oninput={(e) => {
+                                inviteCode = e.target.value.toUpperCase();
+                                duplicateNickError = "";
+                            }}
+                            autocomplete="off"
+                            autocapitalize="characters"
+                            spellcheck="false"
+                            required
+                        />
+                        <div class="code-action-btns">
+                            <button
+                                type="button"
+                                class="scan-btn"
+                                onclick={() => (showQrModal = true)}
+                                title="Scansiona codice QR con fotocamera o foto"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <path
+                                        d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"
+                                    />
+                                    <rect
+                                        width="6"
+                                        height="6"
+                                        x="9"
+                                        y="9"
+                                        rx="1"
+                                    />
+                                </svg>
+                                <span>Scansiona QR</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="paste-btn"
+                                onclick={handlePaste}
+                                title="Incolla dagli appunti"
+                            >
+                                Incolla
+                            </button>
+                        </div>
+                    </div>
+                    <p class="field-hint">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <circle cx="12" cy="12" r="10" /><path
+                                d="M12 16v-4M12 8h.01"
+                            />
+                        </svg>
+                        Lo trovi stampato sul segnaposto o nel tableau
+                    </p>
 
-      <p class="guest-subtitle">
-        Inserisci il codice del matrimonio per iniziare a giocare, scattare foto e votare con gli sposi.
-      </p>
+                    <!-- Preview feedback se il codice è valido -->
+                    {#if eventPreview}
+                        <div class="code-confirmed-pill" transition:slide|local={cardTransition}>
+                            <span class="check-icon">✓</span>
+                            <span
+                                >Matrimonio di <strong
+                                    >{eventPreview.spouse1_name} &amp; {eventPreview.spouse2_name}</strong
+                                ></span
+                            >
+                        </div>
+                    {:else if previewError}
+                        <div class="code-error-pill" transition:slide|local={cardTransition}>
+                            <span>{previewError}</span>
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- Campo Nome / Nickname -->
+                <div class="field-block">
+                    <div class="field-header">
+                        <label for="guestNick" class="field-label"
+                            >NICKNAME</label
+                        >
+                        <span class="field-tag muted">Facoltativo</span>
+                    </div>
+                    <div class="field-input-box">
+                        <input
+                            id="guestNick"
+                            bind:this={nickInputEl}
+                            type="text"
+                            class="clean-input"
+                            class:input-has-error={!!duplicateNickError}
+                            placeholder={defaultNick
+                                ? `Se vuoto: ${defaultNick}`
+                                : "es. Zia Pina, Marco, Vale e Luca..."}
+                            bind:value={nickname}
+                            oninput={() => (duplicateNickError = "")}
+                            disabled={isSubmitting}
+                        />
+                    </div>
+                    <p class="field-hint">
+                        Come vuoi comparire nella classifica e sull'album di
+                        nozze. Se lo lasci vuoto usiamo il tuo nome.
+                    </p>
+                </div>
+
+                <!-- Conflitto Nickname -->
+                {#if duplicateNickError}
+                    <div class="conflict-box">
+                        <strong>Nickname già in uso</strong>
+                        <p>{duplicateNickError}</p>
+                    </div>
+                {/if}
+
+                <!-- Pulsante Entra nel gioco -->
+                <button
+                    type="submit"
+                    class="submit-action-btn"
+                    disabled={isSubmitting}
+                >
+                    {#if isSubmitting}
+                        <span class="spinner spinner-white"></span>
+                        <span>Accesso in corso...</span>
+                    {:else}
+                        <span>Entra nel gioco</span>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    {/if}
+                </button>
+
+                <div class="secure-badge-note">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        <path d="m9 12 2 2 4-4" />
+                    </svg>
+                    <span
+                        >Stai entrando come {appState.account?.display_name ||
+                            "ospite"}</span
+                    >
+                </div>
+
+            </form>
+        </div>
     </div>
 
-    <div class="guest-form-column">
-    <!-- Main Card -->
-    <form class="clean-card" onsubmit={handleSubmit}>
-      <!-- Campo Codice Invito -->
-      <div class="field-block">
-        <div class="field-header">
-          <label for="inviteCode" class="field-label">CODICE INVITO MATRIMONIO</label>
-          <span class="field-tag required">Obbligatorio</span>
-        </div>
-        <div class="field-input-box">
-          <input
-            id="inviteCode"
-            bind:this={inviteInputEl}
-            type="text"
-            class="clean-input code-style"
-            placeholder="ES. PK9YMD"
-            bind:value={inviteCode}
-            oninput={(e) => { inviteCode = e.target.value.toUpperCase(); duplicateNickError = ''; }}
-            autocomplete="off"
-            autocapitalize="characters"
-            spellcheck="false"
-            required
-          />
-          <div class="code-action-btns">
-            <button
-              type="button"
-              class="scan-btn"
-              onclick={() => showQrModal = true}
-              title="Scansiona codice QR con fotocamera o foto"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
-                <rect width="6" height="6" x="9" y="9" rx="1"/>
-              </svg>
-              <span>Scansiona QR</span>
-            </button>
-            <button
-              type="button"
-              class="paste-btn"
-              onclick={handlePaste}
-              title="Incolla dagli appunti"
-            >
-              Incolla
-            </button>
-          </div>
-        </div>
-        <p class="field-hint">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
-          </svg>
-          Lo trovi stampato sul segnaposto o nel tableau
-        </p>
-
-        <!-- Preview feedback se il codice è valido -->
-        {#if eventPreview}
-          <div class="code-confirmed-pill">
-            <span class="check-icon">✓</span>
-            <span>Matrimonio di <strong>{eventPreview.spouse1_name} &amp; {eventPreview.spouse2_name}</strong></span>
-          </div>
-        {:else if previewError}
-          <div class="code-error-pill">
-            <span>{previewError}</span>
-          </div>
-        {/if}
-      </div>
-
-      <!-- Campo Nome / Nickname -->
-      <div class="field-block">
-        <div class="field-header">
-          <label for="guestNick" class="field-label">NICKNAME</label>
-          <span class="field-tag muted">Facoltativo</span>
-        </div>
-        <div class="field-input-box">
-          <input
-            id="guestNick"
-            bind:this={nickInputEl}
-            type="text"
-            class="clean-input"
-            class:input-has-error={!!duplicateNickError}
-            placeholder={defaultNick ? `Se vuoto: ${defaultNick}` : 'es. Zia Pina, Marco, Vale e Luca...'}
-            bind:value={nickname}
-            oninput={() => duplicateNickError = ''}
-            disabled={isSubmitting}
-          />
-        </div>
-        <p class="field-hint">Come vuoi comparire nella classifica e sull'album di nozze. Se lo lasci vuoto usiamo il tuo nome.</p>
-      </div>
-
-      <!-- Conflitto Nickname -->
-      {#if duplicateNickError}
-        <div class="conflict-box">
-          <strong>Nickname già in uso</strong>
-          <p>{duplicateNickError}</p>
-        </div>
-      {/if}
-
-      <!-- Pulsante Entra nel gioco -->
-      <button type="submit" class="submit-action-btn" disabled={isSubmitting}>
-        {#if isSubmitting}
-          <span class="spinner spinner-white"></span>
-          <span>Accesso in corso...</span>
-        {:else}
-          <span>Entra nel gioco</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
-        {/if}
-      </button>
-
-      <div class="secure-badge-note">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          <path d="m9 12 2 2 4-4"/>
-        </svg>
-        <span>Stai entrando come {appState.account?.display_name || 'ospite'}</span>
-      </div>
-    </form>
-
-    <!-- Card WhatsApp -->
-    <div class="sub-card whatsapp-card">
-      <div class="sub-card-icon yellow-bubble">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          <path d="M8 9h8M8 13h4"/>
-        </svg>
-      </div>
-      <div class="sub-card-body">
-        <h3 class="sub-card-title">Hai ricevuto il link su WhatsApp?</h3>
-        <p class="sub-card-text">
-          Cliccandolo, il codice del matrimonio sarà già inserito automaticamente! Chiedilo agli sposi o al tuo tavolo.
-        </p>
-      </div>
-    </div>
-
-    <!-- Card Sposi / Account Console -->
-    <div class="sub-card sposi-console-card">
-      <div class="sub-card-icon heart-bubble">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-        </svg>
-      </div>
-      <div class="sub-card-body text-center">
-        <h3 class="sub-card-title">Siete gli sposi?</h3>
-        <p class="sub-card-text">
-          Gestite missioni, foto degli invitati e la classifica in tempo reale dalla vostra dashboard.
-        </p>
-        <button
-          type="button"
-          class="console-btn"
-          onclick={() => appState.openDashboard()}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-          </svg>
-          <span>Vai ai miei matrimoni</span>
-        </button>
-        <p class="create-event-prompt">
-          Non avete ancora un Fanta Matrimonio?
-          <button type="button" class="inline-link" onclick={() => appState.setAuthView('create')}>Crealo ora</button>
-        </p>
-      </div>
-    </div>
-
-    </div>
-
-    <!-- Subtle Footer info -->
-    <footer class="minimal-footer">
-      <div class="footer-divider">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <circle cx="9" cy="12" r="4"/><circle cx="15" cy="12" r="4"/>
-        </svg>
-      </div>
-      <p class="footer-copy">Fanta Matrimonio • Gioca, scatta, vota e celebra l'amore</p>
-    </footer>
-  </div>
-
-  <QrScannerModal
-    isOpen={showQrModal}
-    onScan={handleQrScanResult}
-    onClose={() => showQrModal = false}
-  />
+    <QrScannerModal
+        isOpen={showQrModal}
+        onScan={handleQrScanResult}
+        onClose={() => (showQrModal = false)}
+    />
 </div>
 
 <style>
-  .guest-screen {
-    min-height: 100vh;
-    min-height: 100dvh;
-    background-color: var(--bg-primary);
-    padding-bottom: 48px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  /* Main Container */
-  .guest-container {
-    width: 100%;
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 10px 0 32px;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
-    align-items: center;
-    gap: clamp(32px, 5vw, 64px);
-  }
-
-  .guest-form-column {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  /* Hero */
-  .guest-hero {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: left;
-    margin-top: 4px;
-    margin-bottom: 8px;
-  }
-
-  .badge-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #fae9f0;
-    color: var(--wine);
-    border-radius: 999px;
-    padding: 5px 14px;
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-  }
-
-  .guest-title {
-    font-size: clamp(2.3rem, 5vw, 2.85rem);
-    color: var(--wine);
-    line-height: 1.08;
-    margin-bottom: 10px;
-    font-weight: 700;
-  }
-
-  .guest-title em {
-    font-style: italic;
-    font-weight: 400;
-    border-bottom: 2px solid #ecd189;
-    padding-bottom: 1px;
-  }
-
-  .guest-subtitle {
-    font-size: 0.92rem;
-    color: #6a5e64;
-    line-height: 1.5;
-    max-width: 42ch;
-    margin: 0;
-  }
-
-  /* Clean Card */
-  .clean-card {
-    width: 100%;
-    background: #ffffff;
-    border-radius: 24px;
-    padding: 24px 22px;
-    box-shadow: 0 4px 20px rgba(140, 47, 75, 0.05), 0 1px 4px rgba(0, 0, 0, 0.03);
-    border: 1px solid rgba(220, 205, 195, 0.35);
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-  }
-
-  .minimal-footer {
-    grid-column: 1 / -1;
-  }
-
-  @media (max-width: 900px) {
-    .guest-container {
-      max-width: 560px;
-      padding: 0 0 32px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
+    .guest-screen {
+        min-height: 100vh;
+        min-height: 100dvh;
+        background-color: var(--bg-primary);
+        padding-bottom: 48px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 
+    /* Main Container */
+    .guest-container {
+        width: 100%;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 0 32px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
+        gap: 56px;
+        align-items: start;
+    }
+
+    .guest-form-column {
+        width: 100%;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    /* Hero */
     .guest-hero {
-      align-items: center;
-      text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+        margin-top: 0;
+        margin-bottom: 8px;
+        gap: 12px;
     }
 
-    .guest-subtitle {
-      margin: 0 auto;
+    .badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #fae9f0;
+        color: var(--wine);
+        border-radius: 999px;
+        padding: 5px 14px;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 12px;
     }
-  }
 
-  @media (max-width: 480px) {
-    .guest-container {
-      padding: 0 0 24px;
+    /* Clean Card */
+    .clean-card {
+        width: 100%;
+        min-width: 0;
+        align-self: stretch;
+        background: #ffffff;
+        border-radius: 24px;
+        padding: 24px 22px;
+        box-shadow:
+            0 4px 20px rgba(140, 47, 75, 0.05),
+            0 1px 4px rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(220, 205, 195, 0.35);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
     }
-  }
 
-  .field-block {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+    .minimal-footer {
+        grid-column: 1 / -1;
+    }
 
-  .field-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-  }
+    @media (max-width: 900px) {
+        .guest-container {
+            max-width: 560px;
+            padding: 10px 0 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
 
-  .field-label {
-    display: flex;
-    align-items: center;
-    color: #4a3b42;
-    text-transform: uppercase;
-  }
+        .guest-hero {
+            align-items: center;
+            text-align: center;
+            margin-top: 4px;
+        }
 
-  .field-tag.required {
-    color: #a88438;
-    font-weight: 700;
-  }
+        .guest-hero {
+            display: contents;
+        }
 
-  .field-tag.muted {
-    color: #8c7882;
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: normal;
-  }
+        .guest-intro-slot {
+            order: 1;
+        }
 
-  .field-input-box {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
+        .guest-form-column {
+            order: 2;
+        }
 
-  .clean-input {
-    width: 100%;
-    background: #f4efe9;
-    border: 1.5px solid transparent;
-    border-radius: 14px;
-    padding: 13px 16px;
-    font-family: var(--font-sans);
-    font-size: 16px !important; /* Prevents auto zoom on iOS */
-    color: var(--text-main);
-    transition: all 0.2s ease;
-    outline: none;
-  }
+        .spouse-card-slot {
+            order: 3;
+        }
 
-  .clean-input:focus {
-    background: #ffffff;
-    border-color: var(--wine);
-    box-shadow: 0 0 0 3px rgba(140, 47, 75, 0.12);
-  }
+    }
 
-  .clean-input.code-style {
-    font-size: 16px !important;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    padding-right: 180px;
-    text-transform: uppercase;
-  }
+    @media (max-width: 480px) {
+        .guest-container {
+            padding: 0 0 24px;
+        }
+    }
 
-  .clean-input.pin-input {
-    letter-spacing: 0.3em;
-    font-size: 18px !important;
-    font-weight: 700;
-    padding-right: 48px;
-  }
+    .field-block {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
 
-  .clean-input::placeholder {
-    color: #9c8e94;
-    font-weight: 400;
-    letter-spacing: normal;
-  }
+    .field-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+    }
 
-  .code-action-btns {
-    position: absolute;
-    right: 6px;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-  }
+    .field-label {
+        display: flex;
+        align-items: center;
+        color: #4a3b42;
+        text-transform: uppercase;
+    }
 
-  .scan-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: #ffffff;
-    border: 1px solid rgba(140, 47, 75, 0.2);
-    border-radius: 9px;
-    padding: 6px 9px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--wine);
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    white-space: nowrap;
-    transition: all 0.15s ease;
-  }
+    .field-tag.required {
+        color: #a88438;
+        font-weight: 700;
+    }
 
-  .scan-btn:hover {
-    background: #faedf2;
-    border-color: var(--wine);
-  }
+    .field-tag.muted {
+        color: #8c7882;
+        font-weight: 500;
+        text-transform: none;
+        letter-spacing: normal;
+    }
 
-  .scan-btn:active {
-    transform: scale(0.96);
-  }
+    .field-input-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
 
-  .paste-btn {
-    display: inline-flex;
-    align-items: center;
-    background: #f7f2ed;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 9px;
-    padding: 6px 9px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #55484f;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.15s ease;
-  }
+    .clean-input {
+        width: 100%;
+        background: #f4efe9;
+        border: 1.5px solid transparent;
+        border-radius: 14px;
+        padding: 13px 16px;
+        font-family: var(--font-sans);
+        font-size: 16px !important; /* Prevents auto zoom on iOS */
+        color: var(--text-main);
+        transition: all 0.2s ease;
+        outline: none;
+    }
 
-  .paste-btn:hover {
-    background: #eee8e0;
-  }
+    .clean-input:focus {
+        background: #ffffff;
+        border-color: var(--wine);
+        box-shadow: 0 0 0 3px rgba(140, 47, 75, 0.12);
+    }
 
-  .paste-btn:active {
-    transform: scale(0.96);
-  }
+    .clean-input.code-style {
+        font-size: 16px !important;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        padding-right: 180px;
+        text-transform: uppercase;
+    }
 
-  .eye-btn {
-    position: absolute;
-    right: 12px;
-    background: transparent;
-    border: none;
-    color: #7b6d74;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    padding: 4px;
-  }
+    .clean-input.pin-input {
+        letter-spacing: 0.3em;
+        font-size: 18px !important;
+        font-weight: 700;
+        padding-right: 48px;
+    }
 
-  .field-hint {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 0.74rem;
-    color: #756970;
-    line-height: 1.35;
-    margin-top: 2px;
-  }
+    .clean-input::placeholder {
+        color: #9c8e94;
+        font-weight: 400;
+        letter-spacing: normal;
+    }
 
-  .code-confirmed-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: #eef7f2;
-    border: 1px solid #c2e5d3;
-    color: #246845;
-    padding: 7px 12px;
-    border-radius: 10px;
-    font-size: 0.78rem;
-    margin-top: 4px;
-  }
+    .code-action-btns {
+        position: absolute;
+        right: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
 
-  .code-confirmed-pill .check-icon {
-    font-weight: 800;
-    color: #1e7045;
-  }
+    .scan-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #ffffff;
+        border: 1px solid rgba(140, 47, 75, 0.2);
+        border-radius: 9px;
+        padding: 6px 9px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--wine);
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        white-space: nowrap;
+        transition: all 0.15s ease;
+    }
 
-  .code-error-pill {
-    background: #fdf2f2;
-    border: 1px solid #f8cdcd;
-    color: #a83232;
-    padding: 7px 12px;
-    border-radius: 10px;
-    font-size: 0.76rem;
-    margin-top: 4px;
-  }
+    .scan-btn:hover {
+        background: #faedf2;
+        border-color: var(--wine);
+    }
 
-  .submit-action-btn {
-    width: 100%;
-    min-height: 48px;
-    background: var(--wine);
-    color: #ffffff;
-    border: none;
-    border-radius: 999px;
-    font-family: var(--font-sans);
-    font-size: 0.98rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    box-shadow: 0 6px 18px rgba(74, 14, 46, 0.28);
-    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-    margin-top: 6px;
-  }
+    .scan-btn:active {
+        transform: scale(0.96);
+    }
 
-  .submit-action-btn:hover {
-    background: var(--wine-deep);
-    box-shadow: 0 8px 22px rgba(74, 14, 46, 0.35);
-  }
+    .paste-btn {
+        display: inline-flex;
+        align-items: center;
+        background: #f7f2ed;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 9px;
+        padding: 6px 9px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #55484f;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.15s ease;
+    }
 
-  .submit-action-btn:active {
-    transform: scale(0.98);
-  }
+    .paste-btn:hover {
+        background: #eee8e0;
+    }
 
-  .secure-badge-note {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    font-size: 0.73rem;
-    color: #6a5e64;
-    font-weight: 500;
-    margin-top: -4px;
-  }
+    .paste-btn:active {
+        transform: scale(0.96);
+    }
 
-  .secure-badge-note svg {
-    color: #5b9b7a;
-  }
+    .eye-btn {
+        position: absolute;
+        right: 12px;
+        background: transparent;
+        border: none;
+        color: #7b6d74;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 4px;
+    }
 
-  /* Sub cards */
-  .sub-card {
-    width: 100%;
-    border-radius: 20px;
-    padding: 16px 18px;
-    display: flex;
-    gap: 14px;
-    border: 1px solid rgba(220, 205, 195, 0.35);
-  }
+    .field-hint {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.74rem;
+        color: #756970;
+        line-height: 1.35;
+        margin-top: 2px;
+    }
 
-  .whatsapp-card {
-    background: #fcf9f2;
-    align-items: flex-start;
-  }
+    .code-confirmed-pill {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        max-width: 100%;
+        gap: 6px;
+        background: #eef7f2;
+        border: 1px solid #c2e5d3;
+        color: #246845;
+        padding: 7px 12px;
+        border-radius: 10px;
+        font-size: 0.78rem;
+        margin-top: 4px;
+    }
 
-  .yellow-bubble {
-    background: #f8e596;
-    color: #614d0a;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
+    .code-confirmed-pill .check-icon {
+        font-weight: 800;
+        color: #1e7045;
+    }
 
-  .sub-card-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
+    .code-error-pill {
+        background: #fdf2f2;
+        border: 1px solid #f8cdcd;
+        color: #a83232;
+        padding: 7px 12px;
+        border-radius: 10px;
+        font-size: 0.76rem;
+        margin-top: 4px;
+    }
 
-  .sub-card-title {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: #2b1f24;
-    line-height: 1.3;
-  }
+    .submit-action-btn {
+        width: 100%;
+        min-height: 48px;
+        background: var(--wine);
+        color: #ffffff;
+        border: none;
+        border-radius: 999px;
+        font-family: var(--font-sans);
+        font-size: 0.98rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        box-shadow: 0 6px 18px rgba(74, 14, 46, 0.28);
+        transition:
+            background 0.15s ease,
+            transform 0.15s ease,
+            box-shadow 0.15s ease;
+        margin-top: 6px;
+    }
 
-  .sub-card-text {
-    font-size: 0.78rem;
-    color: #6b5d63;
-    line-height: 1.45;
-  }
+    .submit-action-btn:hover {
+        background: var(--wine-deep);
+        box-shadow: 0 8px 22px rgba(74, 14, 46, 0.35);
+    }
 
-  /* Sposi Card */
-  .sposi-console-card {
-    background: #f5f0ec;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 10px;
-    padding: 20px 18px;
-  }
+    .submit-action-btn:active {
+        transform: scale(0.98);
+    }
 
-  .heart-bubble {
-    background: #fae0ea;
-    color: var(--wine);
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+    .secure-badge-note {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 0.73rem;
+        color: #6a5e64;
+        font-weight: 500;
+        margin-top: -4px;
+    }
 
-  .console-btn {
-    width: 100%;
-    max-width: 320px;
-    background: #ffffff;
-    color: #2b1f24;
-    border: 1px solid rgba(74, 14, 46, 0.12);
-    border-radius: 999px;
-    padding: 11px 20px;
-    font-size: 0.86rem;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    transition: all 0.15s ease;
-    margin-top: 6px;
-  }
+    .secure-badge-note svg {
+        color: #5b9b7a;
+    }
 
-  .console-btn:hover {
-    background: #faf7f2;
-    border-color: var(--wine);
-  }
+    /* Sub cards */
+    .sub-card {
+        width: 100%;
+        border-radius: 20px;
+        padding: 16px 18px;
+        display: flex;
+        gap: 14px;
+        border: 1px solid rgba(220, 205, 195, 0.35);
+    }
 
-  .create-event-prompt {
-    font-size: 0.76rem;
-    color: #6b5d63;
-    margin-top: 4px;
-  }
+    .whatsapp-card {
+        background: #fcf9f2;
+        align-items: flex-start;
+    }
 
-  .inline-link {
-    background: transparent;
-    border: none;
-    color: var(--wine);
-    font-weight: 700;
-    cursor: pointer;
-    text-decoration: underline;
-    padding: 0;
-    font-size: inherit;
-  }
+    .yellow-bubble {
+        background: #f8e596;
+        color: #614d0a;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
 
-  /* Footer */
-  .minimal-footer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    margin-top: 14px;
-    text-align: center;
-  }
+    .sub-card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
 
-  .footer-divider {
-    color: #c59e58;
-    opacity: 0.6;
-  }
+    .sub-card-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #2b1f24;
+        line-height: 1.3;
+    }
 
-  .footer-copy {
-    font-size: 0.74rem;
-    color: #8c7d84;
-  }
+    .sub-card-text {
+        font-size: 0.78rem;
+        color: #6b5d63;
+        line-height: 1.45;
+    }
 
-  .spinner-white {
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.35);
-    border-top-color: #ffffff;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
+    /* Footer */
+    .minimal-footer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        margin-top: 14px;
+        text-align: center;
+    }
 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
+    .footer-divider {
+        color: #c59e58;
+        opacity: 0.6;
+    }
 
-  .conflict-box {
-    background: #fdf5f5;
-    border: 1px solid #f6cfcf;
-    border-radius: 12px;
-    padding: 12px;
-    font-size: 0.82rem;
-    color: #661818;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+    .footer-copy {
+        font-size: 0.74rem;
+        color: #8c7d84;
+    }
 
-  .conflict-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 4px;
-  }
+    .spinner-white {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .conflict-box {
+        background: #fdf5f5;
+        border: 1px solid #f6cfcf;
+        border-radius: 12px;
+        padding: 12px;
+        font-size: 0.82rem;
+        color: #661818;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .conflict-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 4px;
+    }
 </style>

@@ -1,9 +1,18 @@
 <script>
+  import { slide } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import { onMount } from 'svelte';
   import { appState } from '../lib/state.svelte.js';
   import { api } from '../lib/api.js';
   import EmailVerificationField from './EmailVerificationField.svelte';
   import SocialButtons from './SocialButtons.svelte';
+  import PageIntro from './PageIntro.svelte';
+  import SpouseCard from './SpouseCard.svelte';
+
+  const cardTransition = {
+    duration: typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 240,
+    easing: cubicOut
+  };
 
   // `embedded`: usato dentro "entra con codice" / "crea matrimonio": dopo l'accesso si resta nella
   // schermata corrente invece di andare alla dashboard. `intro` sostituisce il titolo di default.
@@ -145,35 +154,20 @@
   }
 </script>
 
-<div class="secure-layout" class:embedded>
-  <div class="secure-intro">
-    <span class="eyebrow">
-      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      {mode === 'login' ? 'Accedi' : 'Nuovo account'}
-    </span>
+<div class="secure-layout" class:embedded class:join-mode={!!intro}>
+  <div class="secure-intro" class:join-mode={!!intro}>
     {#if intro}
-      <h1 class="page-title">{intro.title}</h1>
-      <p class="page-lead">{intro.lead}</p>
+      <div class="page-intro-slot">
+        <PageIntro before="Entra nella" accent="festa" lead="Inserisci il codice del matrimonio per iniziare a giocare, scattare foto e votare con gli sposi." />
+      </div>
+      <div class="spouse-card-slot">
+        <SpouseCard onLogin={() => switchMode('login')} />
+      </div>
     {:else if mode === 'login'}
-      <h1 class="page-title">Bentornato <span class="gold-gradient-text">al Fanta Matrimonio</span></h1>
-      <p class="page-lead">
-        Accedi per partecipare ai matrimoni, vedere le tue foto, i quiz e i tuoi punteggi.
-      </p>
+      <PageIntro before="Bentornato al" accent="Fanta Matrimonio" lead="Accedi per partecipare ai matrimoni, vedere le tue foto, i quiz e i tuoi punteggi." />
     {:else}
-      <h1 class="page-title">Crea il tuo <span class="gold-gradient-text">account</span></h1>
-      <p class="page-lead">
-        Ti serve una volta sola: con lo stesso account entri in tutti i matrimoni, come invitato o come sposo.
-      </p>
+      <PageIntro before="Crea il tuo" accent="account" lead="Ti serve una volta sola: con lo stesso account entri in tutti i matrimoni, come invitato o come sposo." />
     {/if}
-    <p class="switch">
-      {#if mode === 'login'}
-        Non hai ancora un account?
-        <button type="button" class="link-btn" onclick={() => switchMode('register')}>Registrati</button>
-      {:else}
-        Hai già un account?
-        <button type="button" class="link-btn" onclick={() => switchMode('login')}>Accedi</button>
-      {/if}
-    </p>
   </div>
 
   <div class="auth-card secure-form">
@@ -194,11 +188,11 @@
           spellcheck="false"
         />
         {#if eventPreview}
-          <div class="code-ok">✓ Matrimonio di <strong>{eventPreview.spouse1_name} &amp; {eventPreview.spouse2_name}</strong></div>
+          <div class="code-ok" transition:slide|local={cardTransition}>✓ Matrimonio di <strong>{eventPreview.spouse1_name} &amp; {eventPreview.spouse2_name}</strong></div>
         {:else if previewError}
-          <div class="code-ko">{previewError}</div>
+          <div class="code-ko" transition:slide|local={cardTransition}>{previewError}</div>
         {:else}
-          <span class="code-hint">Lo trovi sul segnaposto, sul tableau o nel link degli sposi.</span>
+          <span class="code-hint" transition:slide|local={cardTransition}>Lo trovi sul segnaposto, sul tableau o nel link degli sposi.</span>
         {/if}
       </div>
     {/if}
@@ -206,7 +200,7 @@
     <SocialButtons onToken={handleSocial} busy={socialBusy || isSubmitting} label={mode === 'login' ? 'Accedi con' : 'Registrati con'} />
 
     {#if mode === 'login'}
-      <form class="secure-form" onsubmit={handleLogin}>
+      <form class="secure-form" onsubmit={handleLogin} transition:slide|local={cardTransition}>
         <div class="input-group">
           <label for="secEmail" class="input-label">Email</label>
           <input id="secEmail" type="email" class="input-field" placeholder="es. giulia@email.com" bind:value={email} autocomplete="email" required />
@@ -228,7 +222,7 @@
         </button>
       </form>
     {:else}
-      <form class="secure-form" onsubmit={handleRegister}>
+      <form class="secure-form" onsubmit={handleRegister} transition:slide|local={cardTransition}>
         <EmailVerificationField
           bind:email={regEmail}
           bind:verificationCode={regVerificationCode}
@@ -240,6 +234,7 @@
         />
 
         {#if regEmailVerified}
+          <div class="verified-fields" transition:slide|local={cardTransition}>
           <div class="name-row">
             <div class="input-group">
               <label for="regFirst" class="input-label">Nome</label>
@@ -275,23 +270,32 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             {/if}
           </button>
-        {:else}
-          <div class="verification-required-note" role="status">
-            <strong>Verifica prima la tua email</strong>
-            <span>Dopo la verifica compariranno nome, cognome, password e il pulsante per creare l’account.</span>
           </div>
         {/if}
       </form>
     {/if}
+
+    <p class="switch center">
+      {#if mode === 'login'}
+        Non hai ancora un account?
+        <button type="button" class="link-btn" onclick={() => switchMode('register')}>Registrati</button>
+      {:else}
+        Hai già un account?
+        <button type="button" class="link-btn" onclick={() => switchMode('login')}>Accedi</button>
+      {/if}
+    </p>
   </div>
 </div>
 
 <style>
   .secure-layout {
     display: grid;
-    grid-template-columns: 1fr minmax(0, 480px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
     gap: 56px;
     align-items: start;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
   }
 
   .verification-required-note {
@@ -319,32 +323,6 @@
     top: 96px;
   }
 
-  .secure-intro .page-title {
-    font-size: clamp(2.2rem, 4vw, 3.1rem);
-    line-height: 1.05;
-    color: var(--text-main);
-    margin: 0;
-  }
-
-  .secure-intro .page-title::after {
-    content: '';
-    display: block;
-    width: 40px;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--wine);
-    margin-top: 14px;
-  }
-
-  .secure-intro .page-lead {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: 1.2rem;
-    line-height: 1.5;
-    color: #6b5f64;
-    margin: 0;
-  }
-
   .eyebrow {
     font-size: 0.72rem;
     font-weight: 700;
@@ -366,6 +344,11 @@
     color: var(--text-muted);
     margin-top: 4px;
     line-height: 1.6;
+  }
+
+  .switch.center {
+    text-align: center;
+    margin: 8px 0 0;
   }
 
   .secure-form {
@@ -393,6 +376,34 @@
     .secure-intro {
       position: static;
     }
+    .secure-intro.join-mode {
+      display: contents;
+      align-items: center;
+      text-align: center;
+    }
+    .secure-layout.join-mode {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      min-width: 0;
+      align-items: stretch;
+    }
+    .secure-layout.embedded {
+      padding-top: 8px;
+    }
+    .page-intro-slot {
+      order: 1;
+    }
+    .auth-card {
+      order: 2;
+      width: 100%;
+      min-width: 0;
+      align-self: stretch;
+    }
+    .spouse-card-slot {
+      order: 3;
+      width: 100%;
+    }
   }
 
   @media (max-width: 520px) {
@@ -400,7 +411,7 @@
   }
 
   .secure-layout.embedded {
-    padding: 8px 0 32px;
+    padding: 0 0 32px;
   }
 
   .name-row {
@@ -418,12 +429,21 @@
   .code-group {
     margin-bottom: 14px;
   }
+  .verified-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
   .code-input {
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
   .code-ok {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
     background: #eef7f2;
     border: 1px solid #c2e5d3;
     color: #246845;

@@ -1,4 +1,6 @@
 <script>
+  import { fly, slide } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import { tick } from 'svelte';
   import { appState } from '../lib/state.svelte.js';
   import { copyToClipboard } from '../lib/clipboard.js';
@@ -6,11 +8,30 @@
   import EmailVerificationField from './EmailVerificationField.svelte';
   import SocialButtons from './SocialButtons.svelte';
   import SiteHeader from './SiteHeader.svelte';
+  import PageIntro from './PageIntro.svelte';
+
+  const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const cardTransition = {
+    duration: prefersReducedMotion ? 0 : 240,
+    easing: cubicOut
+  };
+  const progressTransitionDuration = prefersReducedMotion ? 0 : 420;
+  const pageExitDuration = prefersReducedMotion ? 0 : 180;
+  const onboardingEnterTransition = {
+    y: prefersReducedMotion ? 0 : 16,
+    duration: prefersReducedMotion ? 0 : 340,
+    easing: cubicOut
+  };
 
   // Wizard: 1 Nomi & Cerimonia -> 2 Registrazione (solo se non si ha già un account) -> 'setup' -> 'share'.
   let wizardStep = $state(1);
   const totalSteps = $derived(appState.hasAccount ? 2 : 3);
-  const progress = $derived(Math.round((wizardStep / totalSteps) * 100));
+  let completingCreation = $state(false);
+  let isLeavingCreatePage = $state(false);
+  const progress = $derived(completingCreation ? 100 : Math.round((wizardStep / totalSteps) * 100));
+  let step1FormEl = $state(null);
+  let registerFormEl = $state(null);
+  let loginFormEl = $state(null);
 
   // Step 2: registrazione / accesso di chi crea il matrimonio
   let authMode = $state('register'); // 'register' | 'login'
@@ -35,6 +56,27 @@
   let startTime = $state('12:00');
   let endDate = $state(localDateString());
   let endTime = $state('23:30');
+
+  const canAdvance = $derived.by(() => {
+    if (isSubmitting) return false;
+    if (wizardStep === 1) {
+      if (!spouse1.trim() || !spouse2.trim() || !eventDate || eventDate < localDateString()) return false;
+      if (step1FormEl && !step1FormEl.checkValidity()) return false;
+      if (!enableTimer) return true;
+      if (!startDate || !startTime || !endDate || !endTime) return false;
+      const start = new Date(`${startDate}T${startTime}`);
+      const end = new Date(`${endDate}T${endTime}`);
+      return !isNaN(start.getTime()) && !isNaN(end.getTime()) && start > new Date() && end > start;
+    }
+
+    if (authMode === 'register') {
+      return cVerified && !!cEmail.trim() &&
+        !!cFirst.trim() && !!cLast.trim() && cPassword.length >= 6 &&
+        !!registerFormEl?.checkValidity();
+    }
+
+    return !!lEmail.trim() && !!lPassword && !!loginFormEl?.checkValidity();
+  });
 
   function localDateString(date = new Date()) {
     const year = date.getFullYear();
@@ -135,11 +177,24 @@
       scrollToTopInstant();
       return false;
     }
-    const res = await appState.createEvent(payload);
+    completingCreation = true;
+    await tick();
+    const progressFinished = progressTransitionDuration
+      ? new Promise(resolve => setTimeout(resolve, progressTransitionDuration + 30))
+      : Promise.resolve();
+    const res = await appState.createEvent(payload, { deferInvite: true });
     if (!res.success) {
+      completingCreation = false;
       appState.showToast(res.error || 'Impossibile creare il matrimonio.', 'error');
       return false;
     }
+    await progressFinished;
+    isLeavingCreatePage = true;
+    await tick();
+    if (pageExitDuration) {
+      await new Promise(resolve => setTimeout(resolve, pageExitDuration));
+    }
+    appState.pendingInvite = res.inviteCode;
     currentStep = 'setup';
     await tick();
     scrollToTopInstant();
@@ -165,6 +220,20 @@
     wizardStep = 1;
     await tick();
     scrollToTopInstant();
+  }
+
+  function goBack() {
+    if (isSubmitting) return;
+    if (wizardStep > 1) goToStep1();
+    else appState.setAuthView('entry');
+  }
+
+  function goForward() {
+    if (!canAdvance || isSubmitting) return;
+    const form = wizardStep === 1
+      ? step1FormEl
+      : authMode === 'register' ? registerFormEl : loginFormEl;
+    form?.requestSubmit();
   }
 
   async function afterAuth(res) {
@@ -254,10 +323,13 @@
 </script>
 
 {#if currentStep === 'setup'}
-  {#if appState.pendingInvite}<SiteHeader />{/if}
-  <OnboardingSetup onComplete={() => { currentStep = 'share'; scrollToTopInstant(); }} />
-{:else if currentStep === 'share' || appState.pendingInvite}
+  <div class="onboarding-arrival" in:fly|local={onboardingEnterTransition}>
+    {#if appState.pendingInvite}<SiteHeader />{/if}
+    <OnboardingSetup onComplete={() => { currentStep = 'share'; scrollToTopInstant(); }} />
+  </div>
+{:else if currentStep === 'share' || (appState.pendingInvite && !completingCreation)}
   <!-- SCHERMATA CODICE PRONTO -->
+  {#if appState.pendingInvite}<SiteHeader />{/if}
   <div class="wizard-screen">
     <div class="wizard-container">
       <div class="reveal-card">
@@ -307,45 +379,64 @@
   </div>
 {:else}
   <!-- WIZARD: stessa struttura delle altre pagine del sito (intro + auth-card) -->
-  <div class="create-layout">
+  <div class="create-layout" class:leaving={isLeavingCreatePage}>
     <div class="create-intro">
-      <span class="eyebrow">
-        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-        Nuovo matrimonio · Passo {wizardStep} di {totalSteps}
-      </span>
-
       {#if wizardStep === 1}
-        <h1 class="page-title">Chi sono i <span class="create-title-accent">festeggiati?</span></h1>
-        <p class="page-lead">
-          Questi nomi compariranno nell'app degli invitati, nelle classifiche delle sfide e nelle foto condivise.
-        </p>
+        <PageIntro before="Chi sono i" accent="festeggiati?" lead="Questi nomi compariranno nell'app degli invitati, nelle classifiche delle sfide e nelle foto condivise." />
       {:else}
-        <h1 class="page-title">{authMode === 'register' ? 'Create il vostro' : 'Bentornati,'} <span class="gold-gradient-text">{authMode === 'register' ? 'account' : 'sposi'}</span></h1>
-        <p class="page-lead">
-          {authMode === 'register'
+        <PageIntro
+          before={authMode === 'register' ? 'Create il vostro' : 'Bentornati,'}
+          accent={authMode === 'register' ? 'account' : 'sposi'}
+          lead={authMode === 'register'
             ? 'Serve a voi per gestire la festa: console di regia, classifica e foto restano sempre a vostra disposizione. Registrandovi creiamo subito il matrimonio.'
             : 'Accedete con il vostro account: creeremo il matrimonio con quei dati.'}
-        </p>
+        />
       {/if}
 
-      <div class="create-progress" aria-hidden="true">
-        <div class="create-progress-bar" style="width: {progress}%"></div>
-      </div>
-
-      <p class="switch">
-        {#if wizardStep === 2}
-          <button type="button" class="link-btn" onclick={goToStep1}>‹ Torna ai nomi degli sposi</button>
-        {:else}
-          <button type="button" class="link-btn" onclick={() => appState.setAuthView('entry')}>‹ Annulla e torna alla home</button>
-        {/if}
-      </p>
     </div>
 
     <div class="auth-card create-form">
+      <div class="wizard-stepper">
+        <button
+          type="button"
+          class="step-arrow"
+          onclick={goBack}
+          disabled={isSubmitting}
+          aria-label={wizardStep === 1 ? 'Torna alla pagina precedente' : 'Torna ai dati del matrimonio'}
+          title={wizardStep === 1 ? 'Torna alla pagina precedente' : 'Torna ai dati del matrimonio'}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
+          </svg>
+        </button>
+        <div
+          class="create-progress"
+          role="progressbar"
+          aria-label="Avanzamento creazione matrimonio"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow={progress}
+        >
+          <div class="create-progress-bar" style="width: {progress}%"></div>
+        </div>
+        <button
+          type="button"
+          class="step-arrow step-arrow-next"
+          onclick={goForward}
+          disabled={!canAdvance || isSubmitting}
+          aria-label={wizardStep === 1 ? 'Continua al passaggio successivo' : 'Completa la creazione del matrimonio'}
+          title={wizardStep === 1 ? 'Continua al passaggio successivo' : 'Completa la creazione del matrimonio'}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+
       {#if wizardStep === 1}
         <h2 class="form-title font-serif">Il vostro matrimonio</h2>
 
-        <form class="create-fields" onsubmit={handleStep1}>
+        <form bind:this={step1FormEl} class="create-fields" onsubmit={handleStep1} transition:slide|local={cardTransition}>
           <div class="name-row">
             <div class="input-group">
               <label for="spouse1" class="input-label">Sposo/a 1</label>
@@ -413,10 +504,12 @@
       {:else}
         <h2 class="form-title font-serif">{authMode === 'register' ? 'Registrati' : 'Accedi'}</h2>
 
-        <SocialButtons onToken={handleSocial} busy={isSubmitting} label={authMode === 'register' ? 'Registrati con' : 'Accedi con'} />
+        <div class="social-transition" transition:slide|local={cardTransition}>
+          <SocialButtons onToken={handleSocial} busy={isSubmitting} label={authMode === 'register' ? 'Registrati con' : 'Accedi con'} />
+        </div>
 
         {#if authMode === 'register'}
-          <form class="create-fields" onsubmit={handleRegister}>
+          <form bind:this={registerFormEl} class="create-fields" onsubmit={handleRegister} transition:slide|local={cardTransition}>
             <EmailVerificationField
               bind:email={cEmail}
               bind:verificationCode={cCode}
@@ -427,6 +520,7 @@
               disabled={isSubmitting}
             />
             {#if cVerified}
+              <div class="verified-fields" transition:slide|local={cardTransition}>
               <div class="name-row">
                 <div class="input-group">
                   <label for="cFirst" class="input-label">Nome</label>
@@ -453,16 +547,12 @@
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                 {/if}
               </button>
-            {:else}
-              <div class="verification-note" role="status">
-                <strong>Verifica prima la tua email</strong>
-                <span>Dopo la verifica compariranno nome, cognome, password e il pulsante per creare account e matrimonio.</span>
               </div>
             {/if}
           </form>
           <p class="switch center">Hai già un account? <button type="button" class="link-btn" onclick={() => (authMode = 'login')}>Accedi</button></p>
         {:else}
-          <form class="create-fields" onsubmit={handleLogin}>
+          <form bind:this={loginFormEl} class="create-fields" onsubmit={handleLogin} transition:slide|local={cardTransition}>
             <div class="input-group">
               <label for="lEmail" class="input-label">Email</label>
               <input id="lEmail" type="email" class="input-field" placeholder="es. marco.elena@email.it" bind:value={lEmail} autocomplete="email" required />
@@ -1279,12 +1369,27 @@
   /* ── Wizard di creazione: stesso stile delle altre pagine (login/registrazione) ── */
   .create-layout {
     display: grid;
-    grid-template-columns: 1fr minmax(0, 520px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
     gap: 56px;
-    align-items: center;
+    align-items: start;
     width: 100%;
     max-width: 1100px;
     margin: 0 auto;
+    opacity: 1;
+    transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .create-layout.leaving {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .onboarding-arrival {
+    width: 100%;
+  }
+  .social-transition,
+  .verified-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
   .create-intro {
     display: flex;
@@ -1293,34 +1398,6 @@
     gap: 16px;
     position: sticky;
     top: 96px;
-  }
-  .create-intro .page-title {
-    font-size: clamp(2.2rem, 4vw, 3.1rem);
-    line-height: 1.05;
-    color: var(--wine);
-    margin: 0;
-  }
-  .create-intro .page-title::after {
-    content: none;
-  }
-  .create-title-accent {
-    color: var(--wine);
-    font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 400;
-    background: none;
-    -webkit-text-fill-color: currentColor;
-    border-bottom: 2px solid #ecd189;
-    padding-bottom: 1px;
-  }
-  .create-intro .page-lead {
-    font-family: var(--font-sans);
-    font-style: normal;
-    font-size: 1rem;
-    line-height: 1.55;
-    color: #6b5f64;
-    margin: 0;
-    max-width: 48ch;
   }
   .eyebrow {
     font-size: 0.68rem;
@@ -1336,9 +1413,42 @@
     align-items: center;
     gap: 6px;
   }
+  .wizard-stepper {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 4px;
+  }
+  .step-arrow {
+    width: 44px;
+    height: 44px;
+    border: 1px solid rgba(140, 47, 75, 0.18);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--wine);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+  }
+  .step-arrow-next {
+    color: #fff;
+    background: var(--wine);
+    border-color: var(--wine);
+  }
+  .step-arrow:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74, 14, 46, 0.16);
+  }
+  .step-arrow:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+  }
   .create-progress {
     width: 100%;
-    max-width: 260px;
     height: 4px;
     border-radius: 4px;
     background: rgba(201, 169, 110, 0.25);
@@ -1348,7 +1458,7 @@
     height: 100%;
     background: var(--wine);
     border-radius: 4px;
-    transition: width 0.3s ease;
+    transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
   }
   .switch {
     font-size: 0.92rem;
@@ -1491,17 +1601,6 @@
       text-align: center;
       gap: 12px;
     }
-    .create-intro .page-title {
-      font-size: clamp(2.2rem, 8vw, 2.85rem);
-      line-height: 1.08;
-    }
-    .create-intro .page-lead {
-      max-width: 42ch;
-      font-size: 0.95rem;
-    }
-    .create-progress {
-      max-width: 220px;
-    }
   }
   @media (max-width: 520px) {
     .create-form.auth-card {
@@ -1522,6 +1621,13 @@
     .name-row,
     .timer-grid {
       grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .step-arrow,
+    .create-progress-bar,
+    .create-layout {
+      transition: none;
     }
   }
 </style>

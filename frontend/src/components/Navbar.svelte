@@ -27,12 +27,7 @@
     {#if appState.isAuthenticated}
       <div class="user-stats">
         {#if appState.activeTab !== 'dashboard'}
-          {#if appState.isCouple}
-            <button class="chip" onclick={() => appState.setGameTab('manage')} title="Apri console di gestione sposi">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
-              <span class="chip-text">Console Sposi</span>
-            </button>
-          {:else if appState.user}
+          {#if appState.user && !appState.isCouple}
             <div class="chip static">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
               <span class="points-val">{appState.user?.total_points || 0} pt</span>

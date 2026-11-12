@@ -9,6 +9,7 @@
   let eventDetail = $state(null);
   let eventSubmissions = $state(null);
   let detailLoading = $state(false);
+  let isEnteringEvent = $state(false);
   let activeSection = $state('photos'); // 'photos' | 'quiz' | 'participants'
   let copied = $state(false);
 
@@ -50,6 +51,16 @@
     if (ok) {
       copied = true;
       setTimeout(() => { copied = false; }, 2200);
+    }
+  }
+
+  async function enterEvent(event, tab = 'home') {
+    if (isEnteringEvent) return;
+    isEnteringEvent = true;
+    try {
+      await appState.selectEvent(event, tab);
+    } finally {
+      isEnteringEvent = false;
     }
   }
 
@@ -121,17 +132,22 @@
           </button>
         </div>
 
-        <div class="hero-cta-wrap">
-          <button class="btn btn-primary hero-live-btn" onclick={() => appState.selectEvent(eventDetail.event)}>
-            {#if eventDetail.is_couple}
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
-              <span>Apri Console Sposi</span>
-            {:else}
+        <div class="hero-cta-wrap" class:couple-ctas={eventDetail.is_couple}>
+          {#if eventDetail.is_couple}
+            <button class="btn btn-primary hero-live-btn" disabled={isEnteringEvent} onclick={() => enterEvent(eventDetail.event, 'setup')}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>
+              <span>{isEnteringEvent ? 'Caricamento sfide...' : 'Modifica le sfide'}</span>
+            </button>
+            <button class="btn btn-secondary hero-live-btn" disabled={isEnteringEvent} onclick={() => enterEvent(eventDetail.event, 'home')}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Guarda cosa vedono gli invitati</span>
+            </button>
+          {:else}
+            <button class="btn btn-primary hero-live-btn" disabled={isEnteringEvent} onclick={() => enterEvent(eventDetail.event, 'home')}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               <span>Entra nella festa live</span>
-            {/if}
-            <svg class="cta-arrow" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
-          </button>
+            </button>
+          {/if}
         </div>
       </div>
     </div>
@@ -776,6 +792,12 @@
     margin-top: 4px;
   }
 
+  .hero-cta-wrap.couple-ctas {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
   .hero-live-btn {
     width: 100%;
     display: flex;
@@ -788,13 +810,8 @@
     box-shadow: 0 10px 22px -8px rgba(140, 47, 75, 0.5);
   }
 
-  .hero-live-btn .cta-arrow {
-    transition: transform 0.2s ease;
-    margin-left: 4px;
-  }
-
-  .hero-live-btn:hover .cta-arrow {
-    transform: translateX(4px);
+  @media (max-width: 620px) {
+    .hero-cta-wrap.couple-ctas { grid-template-columns: 1fr; }
   }
 
   /* ==========================================================================

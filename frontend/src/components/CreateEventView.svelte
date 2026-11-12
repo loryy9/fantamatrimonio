@@ -297,15 +297,15 @@
         </div>
 
         <div class="reveal-footer">
-          <button type="button" class="submit-action-btn" onclick={() => appState.finishOnboarding('manage')}>
-            <span>Apri Console Sposi</span>
+          <button type="button" class="submit-action-btn" onclick={() => appState.finishOnboarding('dashboard')}>
+            <span>Vai alla tua dashboard</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>
           </button>
 
           <button type="button" class="secondary-plain-btn" onclick={() => appState.finishOnboarding('home')}>
-            Vedi l'anteprima invitati
+            Guarda cosa vedono gli invitati
           </button>
         </div>
       </div>

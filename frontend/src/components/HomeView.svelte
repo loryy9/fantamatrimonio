@@ -83,27 +83,6 @@
 </script>
 
 <div class="home-container">
-  {#if appState.isCouple}
-    <aside class="sposi-preview-banner" aria-label="Console di gestione sposi">
-      <div class="sposi-preview-info">
-        <span class="sposi-crown" aria-hidden="true">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M5 20h14"/></svg>
-        </span>
-        <div class="sposi-text-block">
-          <div class="sposi-preview-header">
-            <span class="sposi-badge">Area Sposi</span>
-            <strong class="sposi-title">Pannello di Controllo</strong>
-          </div>
-          <span class="sposi-preview-sub">Stai visualizzando l'anteprima invitati. Gestisci quiz, sfide e impostazioni dalla console.</span>
-        </div>
-      </div>
-      <button class="btn btn-primary btn-sm sposi-return-btn" onclick={() => appState.setGameTab('manage')}>
-        <span>Console Sposi</span>
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
-      </button>
-    </aside>
-  {/if}
-
   <section class="intro">
     <div class="intro-text">
       <div class="couple font-serif">

@@ -186,9 +186,10 @@ export const api = {
     });
   },
 
-  async getMe(eventId = null) {
+  async getMe(eventId = null, accountToken = null) {
     const query = eventId ? `?event_id=${encodeURIComponent(eventId)}` : '';
-    return await request(`/auth/me${query}`);
+    const headers = accountToken ? { Authorization: `Bearer ${accountToken}` } : undefined;
+    return await request(`/auth/me${query}`, { headers });
   },
 
   // Challenges

@@ -15,7 +15,7 @@
   import HuntView from './components/HuntView.svelte';
   import QuizView from './components/QuizView.svelte';
   import LeaderboardView from './components/LeaderboardView.svelte';
-  import ManageView from './components/ManageView.svelte';
+  import OnboardingSetup from './components/OnboardingSetup.svelte';
   import AdminDashboard from './components/AdminDashboard.svelte';
   import DashboardView from './components/DashboardView.svelte';
   import SiteHeader from './components/SiteHeader.svelte';
@@ -120,6 +120,17 @@
     <div class="splash-title font-serif gold-gradient-text">Fanta Matrimonio</div>
     <div class="spinner"></div>
   </div>
+{:else if appState.activeTab === 'setup' && appState.isCouple}
+  <div class="site">
+    <main class="site-fullscreen-main">
+      <OnboardingSetup
+        editMode={true}
+        initialChallenges={appState.setupChallenges}
+        onComplete={() => appState.openDashboard()}
+        onCancel={() => appState.openDashboard()}
+      />
+    </main>
+  </div>
 {:else if appState.isInGame}
   <!-- NAVBAR FESTA BORDEAUX CON MONOGRAMMA SPOSI SOLO DENTRO AL GIOCO EFFETTIVO -->
   <div class="app-wrapper">
@@ -136,8 +147,6 @@
         <QuizView />
       {:else if appState.activeTab === 'leaderboard'}
         <LeaderboardView />
-      {:else if appState.activeTab === 'manage'}
-        <ManageView />
       {/if}
     </main>
 

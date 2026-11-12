@@ -1,6 +1,7 @@
 import { api } from './api.js';
 import { fireCelebration } from './confetti.js';
 import { formatName } from './formatters.js';
+import { DEFAULT_PHOTO_CHALLENGES, PRESET_QUIZZES, PRESET_HUNTS, PRESET_MOMENTS } from './challengePresets.js';
 
 function readAuthView() {
   if (typeof window !== 'undefined') {
@@ -33,6 +34,7 @@ class AppState {
   refreshTimer = null;
 
   challenges = $state([]);
+  setupChallenges = $state([]);
   mySubmissions = $state([]);
   leaderboard = $state([]);
   galleryPhotos = $state([]);
@@ -51,8 +53,8 @@ class AppState {
   }
 
   setGameTab(tab, replace = false) {
-    const allowed = ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'manage'];
-    if (!allowed.includes(tab)) return;
+    const allowed = ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'setup'];
+    if (!allowed.includes(tab) || (tab === 'setup' && !this.isCouple)) return;
     this.activeTab = tab;
     if (this.event?.invite_code && typeof window !== 'undefined') {
       const method = replace ? 'replaceState' : 'pushState';
@@ -82,7 +84,8 @@ class AppState {
       this.activeTab !== 'join' &&
       this.activeTab !== 'entry' &&
       this.activeTab !== 'login-secure' &&
-      ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'manage'].includes(this.activeTab)
+      (this.activeTab !== 'setup' || this.isCouple) &&
+      ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'setup'].includes(this.activeTab)
     );
   }
 
@@ -261,7 +264,17 @@ class AppState {
     if (gameMatch) {
       const routeCode = decodeURIComponent(gameMatch[1]).toUpperCase();
       const tab = gameMatch[2] || 'home';
-      const allowed = ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'manage'];
+      const allowed = ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'setup'];
+      if (this.event?.invite_code?.toUpperCase() === routeCode && tab === 'setup' && !this.isCouple) {
+        this.activeTab = 'home';
+        history.replaceState(null, '', `/partita/${encodeURIComponent(routeCode)}/home`);
+        return;
+      }
+      if (this.event?.invite_code?.toUpperCase() === routeCode && tab === 'manage') {
+        this.activeTab = 'home';
+        history.replaceState(null, '', `/partita/${encodeURIComponent(routeCode)}/home`);
+        return;
+      }
       if (this.event?.invite_code?.toUpperCase() === routeCode && allowed.includes(tab)) {
         this.authView = 'entry';
         this.activeTab = tab;
@@ -356,8 +369,12 @@ class AppState {
 
   async finishOnboarding(targetTab = null) {
     this.pendingInvite = null;
+    if (targetTab === 'dashboard') {
+      this.openDashboard();
+      return;
+    }
     this.authView = 'entry';
-    this.setGameTab(targetTab || (this.isCouple ? 'manage' : 'home'), true);
+    this.setGameTab(targetTab || 'home', true);
     await this.loadInitialData();
     this.startPolling();
   }
@@ -402,7 +419,7 @@ class AppState {
       if (this.isCouple) {
         const coupleNames = [this.event?.spouse1_name, this.event?.spouse2_name].filter(Boolean).join(' & ');
         this.showToast(coupleNames ? `Bentornati ${coupleNames}!` : 'Bentornati Sposi!', 'success');
-        this.setGameTab('manage', true);
+        this.setGameTab('home', true);
       } else if (res.is_new) {
         this.showToast(`Benvenuto/a ${this.user.first_name}!`, 'success');
         this.setGameTab('home', true);
@@ -510,16 +527,22 @@ class AppState {
     const eventId = eventItem?.event?.id || eventItem?.id;
     if (!eventId) return;
     try {
-      const res = await api.getMe(eventId);
+      const res = await api.getMe(eventId, this.jwtToken);
       if (res.user) {
         if (res.token) {
-          this._saveTokens(res.token, this.jwtToken, this.account);
+          this._saveTokens(res.token, this.jwtToken, this.account, res.refresh_token);
         }
         this.setUser(res.user);
         this.event = res.event;
+        if (targetTab === 'setup') {
+          const existing = await api.getChallenges(true);
+          this.setupChallenges = await this.ensureStarterChallenges(existing);
+          this.challenges = this.setupChallenges.filter(ch => ch.active !== false);
+        } else {
+          await this.loadInitialData();
+        }
         this.authView = 'entry';
-        this.setGameTab(targetTab || ((res.user.role === 'couple') ? 'manage' : 'home'), true);
-        await this.loadInitialData();
+        this.setGameTab(targetTab || 'home', true);
         this.startPolling();
         this.showToast(`Entrato nel matrimonio di ${this.event.spouse1_name} & ${this.event.spouse2_name}`, 'info');
       } else {
@@ -569,12 +592,60 @@ class AppState {
   }
 
   async loadInitialData() {
-    await Promise.allSettled([
-      this.refreshChallenges(),
+    const [challengeResult] = await Promise.allSettled([
+      api.getChallenges(this.isCouple),
       this.refreshMySubmissions(),
       this.refreshLeaderboard(),
       this.refreshGallery()
     ]);
+    if (challengeResult.status === 'fulfilled') {
+      this.setupChallenges = challengeResult.value;
+      this.challenges = challengeResult.value.filter(ch => ch.active !== false);
+      await this.ensureStarterChallenges(this.isCouple ? challengeResult.value : null);
+    }
+  }
+
+  async ensureStarterChallenges(existingChallenges = null) {
+    if (!this.isCouple) return existingChallenges || [];
+    try {
+      const existing = existingChallenges || await api.getChallenges(true);
+      if (existing.some(ch => ch.type === 'quiz' || ch.type === 'hunt' || ch.type === 'vote')) {
+        this.setupChallenges = existing;
+        return existing;
+      }
+
+      const payload = [
+        ...(existing.length ? [] : DEFAULT_PHOTO_CHALLENGES),
+        ...PRESET_QUIZZES,
+        ...PRESET_HUNTS,
+        ...PRESET_MOMENTS
+      ].map(({ title, description, points, type, vote_options, correct_answer }) => ({
+        title,
+        description,
+        points,
+        type,
+        active: true,
+        ...(type === 'quiz' ? { vote_options, correct_answer } : {})
+      }));
+
+      const created = await api.createChallengesBulk(payload);
+      const restored = [...existing, ...created].map(ch => ({
+        ...ch,
+        challenge_type: ch.challenge_type || ch.type,
+        active: ch.active ?? true,
+        config: ch.config || {
+          options: (ch.vote_options || []).map(option => ({ id: option, text: option }))
+        }
+      }));
+      this.setupChallenges = restored;
+      this.challenges = restored.filter(ch => ch.active !== false);
+      this.showToast('Abbiamo ripristinato le sfide iniziali per questo matrimonio.', 'success');
+      return restored;
+    } catch (err) {
+      console.error('Failed to ensure starter challenges', err);
+      this.showToast('Non è stato possibile caricare le sfide del matrimonio.', 'error');
+      return existingChallenges || [];
+    }
   }
 
   async refreshUser(silent = false) {

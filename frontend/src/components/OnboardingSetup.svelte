@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from 'svelte';
   import { appState } from '../lib/state.svelte.js';
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
@@ -10,10 +11,11 @@
     PRESET_MOMENTS
   } from '../lib/challengePresets.js';
 
-  let { onComplete } = $props();
+  let { onComplete, onCancel, editMode = false, initialChallenges = null } = $props();
 
   let activeSection = $state('quiz'); // 'quiz' | 'hunt' | 'moments'
   let isSaving = $state(false);
+  let isLoadingData = $state(false);
   let errorMessage = $state('');
 
   // Cloni locali modificabili dei preset
@@ -38,6 +40,24 @@
       selected: true
     }))
   );
+
+  onMount(async () => {
+    if (!editMode) return;
+    isLoadingData = true;
+    try {
+      const existing = initialChallenges !== null ? initialChallenges : await api.getChallenges(true);
+      quizzes = existing.filter(ch => ch.type === 'quiz').map(ch => ({
+        ...ch, id: ch.id, selected: ch.active !== false,
+        vote_options: Array.isArray(ch.vote_options) ? [...ch.vote_options] : []
+      }));
+      hunts = existing.filter(ch => ch.type === 'hunt').map(ch => ({ ...ch, id: ch.id, selected: ch.active !== false }));
+      moments = existing.filter(ch => ch.type === 'vote').map(ch => ({ ...ch, id: ch.id, selected: ch.active !== false }));
+    } catch (err) {
+      errorMessage = err.message || 'Errore nel caricamento delle sfide.';
+    } finally {
+      isLoadingData = false;
+    }
+  });
 
   // Contatori
   const selectedQuizCount = $derived(quizzes.filter(q => q.selected).length);
@@ -138,8 +158,8 @@
       description: dDesc.trim(),
       points: Number(dPoints) || 0,
       type: drawerType,
-      active: true,
-      selected: true
+      active: drawerEditing ? !!drawerEditing.selected : true,
+      selected: drawerEditing ? !!drawerEditing.selected : true
     };
 
     let updated;
@@ -187,6 +207,37 @@
     isSaving = true;
 
     try {
+      if (editMode) {
+        const newChallenges = [];
+        for (const item of [...quizzes, ...hunts, ...moments]) {
+          const type = item.type || (quizzes.includes(item) ? 'quiz' : hunts.includes(item) ? 'hunt' : 'vote');
+          const options = type === 'quiz' ? (item.vote_options || []).map(o => o.trim()).filter(Boolean) : undefined;
+          if (typeof item.id === 'number') {
+            await api.updateChallenge(item.id, {
+              title: item.title.trim(),
+              description: (item.description || '').trim(),
+              points: Number(item.points) || 0,
+              active: !!item.selected,
+              ...(type === 'quiz' ? { vote_options: options, correct_answer: item.correct_answer || options[0] || '' } : {})
+            });
+          } else if (item.selected) {
+            newChallenges.push({
+              title: item.title.trim(),
+              description: (item.description || '').trim(),
+              points: Number(item.points) || 0,
+              type,
+              active: true,
+              ...(type === 'quiz' ? { vote_options: options, correct_answer: item.correct_answer || options[0] || '' } : {})
+            });
+          }
+        }
+        if (newChallenges.length) await api.createChallengesBulk(newChallenges);
+        await appState.refreshChallenges();
+        appState.showToast('Sfide aggiornate con successo!', 'success');
+        onComplete?.();
+        return;
+      }
+
       const challengesToCreate = [
         // Sfide foto di base (sempre incluse per la galleria)
         ...DEFAULT_PHOTO_CHALLENGES.map(p => ({
@@ -259,6 +310,10 @@
   let isCancelling = $state(false);
 
   async function handleCancelCreation() {
+    if (editMode) {
+      onCancel?.();
+      return;
+    }
     const ok = confirm(
       "Sei sicuro di voler annullare la creazione del matrimonio?\n\n" +
       "L'evento e tutti i record salvati finora verranno eliminati definitivamente dal database."
@@ -282,7 +337,7 @@
     <div class="header-top-row">
       <div class="header-badge">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        Passo 2 di 2 · Configurazione Attività
+        {editMode ? 'Gestione matrimonio · Sfide' : 'Passo 2 di 2 · Configurazione Attività'}
       </div>
 
       <button
@@ -290,10 +345,10 @@
         class="btn-cancel-header"
         disabled={isSaving || isCancelling}
         onclick={handleCancelCreation}
-        title="Annulla ed elimina l'evento dal database"
+        title={editMode ? 'Torna alla dashboard' : "Annulla ed elimina l'evento dal database"}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        <span>{isCancelling ? 'Annullamento...' : 'Annulla creazione'}</span>
+        <span>{editMode ? 'Dashboard' : isCancelling ? 'Annullamento...' : 'Annulla creazione'}</span>
       </button>
     </div>
 
@@ -301,9 +356,15 @@
       Personalizza i giochi di <span class="gold-gradient-text">{appState.event?.spouse1_name || 'Voi'} &amp; {appState.event?.spouse2_name || 'Sposi'}</span>
     </h1>
     <p class="page-lead">
-      Abbiamo già preparato i quiz e le missioni più divertenti. Puoi scegliere quali includere, modificare le opzioni o indicare la risposta corretta. Potrai sempre modificarle anche dopo nelle <strong>Impostazioni Sposi</strong>!
+      {editMode
+        ? 'Gestisci quiz, missioni fotografiche e momenti del matrimonio. Le modifiche saranno visibili agli invitati.'
+        : 'Abbiamo già preparato i quiz e le missioni più divertenti. Puoi scegliere quali includere, modificare le opzioni o indicare la risposta corretta. Potrai sempre modificarle dalla dashboard.'}
     </p>
   </header>
+
+  {#if editMode && isLoadingData}
+    <div class="setup-loading-overlay" role="status"><div class="spinner"></div><span>Caricamento sfide...</span></div>
+  {/if}
 
   {#if errorMessage}
     <div class="form-error" role="alert">
@@ -502,37 +563,39 @@
   <!-- Footer con azioni di salvataggio -->
   <footer class="onboarding-footer glass-card">
     <div class="footer-left">
-      <button
-        type="button"
-        class="btn btn-secondary"
-        disabled={isSaving || isCancelling}
-        onclick={() => handleSave(true)}
-      >
-        Usa preset consigliati &amp; continua
-      </button>
+      {#if !editMode}
+        <button
+          type="button"
+          class="btn btn-secondary"
+          disabled={isSaving || isCancelling || isLoadingData || (editMode && !!errorMessage)}
+          onclick={() => handleSave(true)}
+        >
+          Usa preset consigliati &amp; continua
+        </button>
+      {/if}
       <button
         type="button"
         class="btn-cancel-footer"
         disabled={isSaving || isCancelling}
         onclick={handleCancelCreation}
-        title="Annulla ed elimina l'evento dal database"
+        title={editMode ? 'Torna alla dashboard' : "Annulla ed elimina l'evento dal database"}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        <span>Annulla ed elimina</span>
+        <span>{editMode ? 'Dashboard' : 'Annulla ed elimina'}</span>
       </button>
-      <span class="footer-hint">Tutto potrà essere modificato in seguito nel pannello Sposi</span>
+      <span class="footer-hint">{editMode ? 'Le sfide si possono aggiornare in qualsiasi momento' : 'Tutto potrà essere modificato dalla dashboard'}</span>
     </div>
 
     <button
       type="button"
       class="btn btn-primary btn-lg"
-      disabled={isSaving || isCancelling}
+      disabled={isSaving || isCancelling || isLoadingData || (editMode && !!errorMessage)}
       onclick={() => handleSave(false)}
     >
       {#if isSaving}
         <span class="spinner-sm"></span> Salvataggio in corso...
       {:else}
-        Salva attività e ottieni il codice invito →
+        {editMode ? 'Salva modifiche e torna alla dashboard →' : 'Salva attività e ottieni il codice invito →'}
       {/if}
     </button>
   </footer>
@@ -541,7 +604,7 @@
 <!-- DRAWER NUOVA SFIDA (da destra) -->
 {#if drawerOpen}
   <div class="drawer-backdrop" transition:fade={{ duration: 180 }} onclick={() => drawerOpen = false} role="presentation"></div>
-  <div class="drawer" role="dialog" aria-modal="true" aria-label="Nuova sfida" transition:fly={{ x: 520, duration: 260, easing: cubicOut, opacity: 1 }}>
+  <div class="drawer" role="dialog" aria-modal="true" aria-label={drawerEditing ? 'Modifica sfida' : 'Nuova sfida'} transition:fly={{ x: 520, duration: 260, easing: cubicOut, opacity: 1 }}>
     <div class="drawer-head">
       <h3 class="drawer-title font-serif">
         {drawerEditing ? 'Modifica' : 'Nuova'} {drawerType === 'quiz' ? 'Domanda Quiz' : drawerType === 'hunt' ? 'Missione Fotografica' : 'Momento'}
@@ -1202,6 +1265,20 @@
   .compact-checkbox { gap: 7px; }
   .compact-checkbox .checkbox-custom { width: 19px; height: 19px; }
   .compact-checkbox .checkbox-text { font-size: 0.8rem; }
+  .setup-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: rgba(250, 247, 242, 0.88);
+    color: var(--text-main);
+    font-weight: 700;
+    backdrop-filter: blur(5px);
+  }
 
   .card-head {
     display: flex;

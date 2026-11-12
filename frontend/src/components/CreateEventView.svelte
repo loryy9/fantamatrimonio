@@ -27,7 +27,6 @@
   let spouse1 = $state('');
   let spouse2 = $state('');
   let eventDate = $state(localDateString());
-  let eventLocation = $state('');
   let enableTimer = $state(false);
 
   // Orari inizio e fine sfide: Giorno + Ora separati sia per inizio che per fine (nessun overflow su mobile!)
@@ -369,10 +368,6 @@
               <label for="eventDate" class="input-label">Data dell'evento</label>
               <input id="eventDate" type="date" class="input-field" bind:value={eventDate} required />
               {#if readableDate}<span class="field-hint capital-first">{readableDate}</span>{/if}
-            </div>
-            <div class="input-group">
-              <label for="eventLocation" class="input-label">Luogo <span class="optional">(facoltativo)</span></label>
-              <input id="eventLocation" type="text" class="input-field" placeholder="Villa dei Fiori, Roma" bind:value={eventLocation} />
             </div>
           </div>
 

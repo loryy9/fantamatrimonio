@@ -36,8 +36,14 @@
         {/if}
 
         {#if appState.hasAccount}
-          <button class="icon-btn" onclick={() => appState.openDashboard()} title="I miei matrimoni (Dashboard)" aria-label="Dashboard">
+          <button
+            class={appState.isCouple ? 'chip event-details-btn' : 'icon-btn'}
+            onclick={() => appState.openDashboard(appState.isCouple ? appState.event?.id : null)}
+            title={appState.isCouple ? 'Apri i dettagli di questo matrimonio' : 'I miei matrimoni (Dashboard)'}
+            aria-label={appState.isCouple ? 'Dettagli matrimonio' : 'Dashboard'}
+          >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+            {#if appState.isCouple}<span>Dettagli matrimonio</span>{/if}
           </button>
         {/if}
 
@@ -185,6 +191,12 @@
 
   .chip.static {
     cursor: default;
+  }
+
+  .event-details-btn {
+    min-height: 40px;
+    padding: 6px 12px;
+    gap: 7px;
   }
 
   .chip:not(.static):active {

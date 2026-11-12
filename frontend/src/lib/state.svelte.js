@@ -309,13 +309,12 @@ class AppState {
     }
   }
 
-  openDashboard() {
+  openDashboard(eventId = null) {
     this.activeTab = 'dashboard';
     this.authView = 'dashboard';
     this.stopPolling();
-    history.pushState(null, '', '/dashboard_utente');
-    window.dispatchEvent(new PopStateEvent('popstate'));
-    this.loadDashboardEvents();
+    const eventQuery = eventId ? `?event=${encodeURIComponent(eventId)}` : '';
+    history.pushState(null, '', `/dashboard_utente${eventQuery}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 

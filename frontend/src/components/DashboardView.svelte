@@ -5,25 +5,32 @@
   import { formatName } from '../lib/formatters.js';
   import { copyToClipboard } from '../lib/clipboard.js';
 
+  const requestedEventId = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('event')
+    : null;
   let selectedEvent = $state(null);
   let eventDetail = $state(null);
   let eventSubmissions = $state(null);
-  let detailLoading = $state(false);
+  let detailLoading = $state(!!requestedEventId);
+  let eventLoadError = $state(false);
   let isEnteringEvent = $state(false);
   let activeSection = $state('photos'); // 'photos' | 'quiz' | 'participants'
   let copied = $state(false);
 
-  onMount(async () => {
-    await appState.loadDashboardEvents();
-    const eventId = new URLSearchParams(window.location.search).get('event');
-    const event = eventId ? appState.dashboardEvents.find((item) => item.event?.id === eventId) : null;
-    if (event) await openEvent(event);
+  onMount(() => {
+    if (requestedEventId) {
+      void openEvent({ event: { id: requestedEventId } });
+      void appState.loadDashboardEvents();
+    } else {
+      void appState.loadDashboardEvents();
+    }
   });
 
   async function openEvent(ev) {
     selectedEvent = ev;
     history.replaceState(null, '', `/dashboard_utente?event=${encodeURIComponent(ev.event.id)}`);
     detailLoading = true;
+    eventLoadError = false;
     activeSection = 'photos';
     try {
       const [detail, subs] = await Promise.all([
@@ -33,6 +40,7 @@
       eventDetail = detail;
       eventSubmissions = subs;
     } catch (err) {
+      eventLoadError = true;
       appState.showToast('Errore nel caricamento dell\'evento', 'error');
     } finally {
       detailLoading = false;
@@ -331,6 +339,14 @@
     </div>
   </div>
 
+{:else if requestedEventId && eventLoadError}
+  <div class="dashboard-loading-view">
+    <div class="empty-state-card">
+      <h2 class="font-serif empty-state-title">Dettagli non disponibili</h2>
+      <p class="empty-state-sub">Non è stato possibile caricare questo matrimonio.</p>
+      <button class="btn btn-secondary" onclick={goBack}>Torna ai tuoi matrimoni</button>
+    </div>
+  </div>
 {:else}
   <!-- Events List -->
   <div class="dashboard-container">

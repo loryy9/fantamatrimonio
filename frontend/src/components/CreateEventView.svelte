@@ -1388,11 +1388,39 @@
   .name-row,
   .timer-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
   .input-group {
     min-width: 0;
+  }
+  .create-fields .input-field {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .create-fields input[type="date"],
+  .create-fields input[type="time"] {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: 48px;
+    min-height: 48px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    line-height: normal;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .create-fields input[type="date"]::-webkit-date-and-time-value,
+  .create-fields input[type="time"]::-webkit-date-and-time-value {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    text-align: left;
   }
   .optional {
     font-weight: 400;
@@ -1500,7 +1528,7 @@
   @media (max-width: 420px) {
     .name-row,
     .timer-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>

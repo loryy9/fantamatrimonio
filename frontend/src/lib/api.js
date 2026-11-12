@@ -172,8 +172,10 @@ export const api = {
   },
 
   async createEvent(payload) {
+    const jwt = localStorage.getItem('fm_jwt_token');
     return await request('/events', {
       method: 'POST',
+      headers: jwt ? { 'Authorization': `Bearer ${jwt}` } : {},
       body: JSON.stringify(payload)
     });
   },

@@ -160,12 +160,8 @@
       <main class="site-main">
         <AuthGate />
       </main>
-    {:else if showCreateForm}
-      <main class="site-main">
-        <CreateEventView />
-      </main>
-    {:else if appState.pendingInvite || appState.authView === 'create'}
-      <main class="site-fullscreen-main">
+    {:else if showCreateForm || appState.pendingInvite || appState.authView === 'create'}
+      <main class={showCreateForm ? 'site-main' : 'site-fullscreen-main'}>
         <CreateEventView />
       </main>
     {:else if appState.authView === 'join'}

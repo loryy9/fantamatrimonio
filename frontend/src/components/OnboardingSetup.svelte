@@ -86,6 +86,7 @@
   // --- Drawer laterale per la creazione di nuove sfide ---
   let drawerOpen = $state(false);
   let drawerType = $state('quiz'); // 'quiz' | 'hunt' | 'vote'
+  let drawerEditing = $state(null);
   let dTitle = $state('');
   let dDesc = $state('');
   let dPoints = $state(30);
@@ -104,13 +105,14 @@
     };
   });
 
-  function openDrawer(type) {
+  function openDrawer(type, item = null) {
     drawerType = type;
-    dTitle = '';
-    dDesc = '';
-    dPoints = type === 'quiz' ? 30 : type === 'hunt' ? 25 : 10;
-    dOptions = type === 'quiz' ? ['', '', ''] : [];
-    dCorrect = '';
+    drawerEditing = item;
+    dTitle = item?.title || '';
+    dDesc = item?.description || '';
+    dPoints = item?.points ?? (type === 'quiz' ? 30 : type === 'hunt' ? 25 : 10);
+    dOptions = item?.vote_options ? [...item.vote_options] : type === 'quiz' ? ['', '', ''] : [];
+    dCorrect = item?.correct_answer || '';
     drawerOpen = true;
   }
 
@@ -140,6 +142,7 @@
       selected: true
     };
 
+    let updated;
     if (drawerType === 'quiz') {
       const opts = dOptions.map(o => o.trim()).filter(Boolean);
       if (opts.length < 2) {
@@ -150,11 +153,14 @@
         appState.showToast('Seleziona la risposta corretta.', 'error');
         return;
       }
-      quizzes.unshift({ ...base, id: `custom_q_${Date.now()}`, vote_options: opts, correct_answer: dCorrect.trim() });
+      updated = { ...base, id: drawerEditing?.id || `custom_q_${Date.now()}`, vote_options: opts, correct_answer: dCorrect.trim() };
+      quizzes = drawerEditing ? quizzes.map(item => item.id === drawerEditing.id ? updated : item) : [updated, ...quizzes];
     } else if (drawerType === 'hunt') {
-      hunts.unshift({ ...base, id: `custom_h_${Date.now()}` });
+      updated = { ...base, id: drawerEditing?.id || `custom_h_${Date.now()}` };
+      hunts = drawerEditing ? hunts.map(item => item.id === drawerEditing.id ? updated : item) : [updated, ...hunts];
     } else {
-      moments.unshift({ ...base, id: `custom_m_${Date.now()}` });
+      updated = { ...base, id: drawerEditing?.id || `custom_m_${Date.now()}` };
+      moments = drawerEditing ? moments.map(item => item.id === drawerEditing.id ? updated : item) : [updated, ...moments];
     }
     drawerOpen = false;
   }
@@ -391,93 +397,31 @@
 
       <div class="cards-grid">
         {#each quizzes as quiz, idx (quiz.id)}
-          <div class="setup-card glass-card {quiz.selected ? 'card-selected' : 'card-disabled'}">
-            <div class="card-head">
-              <label class="checkbox-label">
+          <article class="setup-card glass-card compact-quiz {quiz.selected ? 'card-selected' : 'card-disabled'}">
+            <div class="compact-quiz-main">
+              <div class="compact-quiz-meta">
+                <span class="compact-quiz-number">Domanda {idx + 1}</span>
+                <span class="compact-quiz-points">+{quiz.points} PT</span>
+              </div>
+              <h3 class="compact-quiz-title font-serif">{quiz.title || 'Domanda senza titolo'}</h3>
+              <div class="compact-options" aria-label="Opzioni di risposta">
+                {#each quiz.vote_options as opt}
+                  <span class="compact-option" class:option-correct={quiz.correct_answer === opt}>
+                    {#if quiz.correct_answer === opt}<span aria-hidden="true">✓</span>{/if}
+                    {opt}
+                  </span>
+                {/each}
+              </div>
+            </div>
+            <div class="compact-quiz-actions">
+              <label class="checkbox-label compact-checkbox" title="Includi questa domanda nel matrimonio">
                 <input type="checkbox" bind:checked={quiz.selected} />
                 <span class="checkbox-custom"></span>
-                <span class="checkbox-text">Includi nel matrimonio</span>
+                <span class="checkbox-text">Includi</span>
               </label>
-
-              <div class="points-input-wrap">
-                <label for="qp-{idx}" class="points-label">Punti:</label>
-                <input id="qp-{idx}" type="number" class="points-field" bind:value={quiz.points} min="5" max="100" />
-              </div>
+              <button type="button" class="btn btn-secondary btn-sm" onclick={() => openDrawer('quiz', quiz)}>Modifica</button>
             </div>
-
-            <div class="card-body">
-              <div class="input-group">
-                <label for="qt-{idx}" class="input-label">Domanda {idx + 1}</label>
-                <input
-                  id="qt-{idx}"
-                  type="text"
-                  class="input-field question-field"
-                  bind:value={quiz.title}
-                  placeholder="Scrivi la domanda..."
-                  disabled={!quiz.selected}
-                />
-              </div>
-
-              <div class="options-edit-block">
-                <span class="options-header-label">Opzioni di risposta &amp; Risposta Corretta:</span>
-                <div class="options-list">
-                  {#each quiz.vote_options as opt, optIdx}
-                    {@const isCorrect = quiz.correct_answer === opt}
-                    <div class="option-row {isCorrect ? 'is-correct' : ''}">
-                      <button
-                        type="button"
-                        class="correct-radio-btn {isCorrect ? 'active' : ''}"
-                        title={isCorrect ? 'Risposta corretta impostata' : 'Clicca per segnare come risposta corretta'}
-                        onclick={() => quiz.correct_answer = opt}
-                        disabled={!quiz.selected}
-                      >
-                        {#if isCorrect}
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        {/if}
-                      </button>
-
-                      <input
-                        type="text"
-                        class="input-field option-input"
-                        bind:value={quiz.vote_options[optIdx]}
-                        oninput={(e) => {
-                          if (isCorrect) quiz.correct_answer = e.target.value;
-                        }}
-                        placeholder={`Opzione ${optIdx + 1}`}
-                        disabled={!quiz.selected}
-                      />
-
-                      {#if isCorrect}
-                        <span class="correct-badge">Corretta</span>
-                      {/if}
-
-                      <button
-                        type="button"
-                        class="remove-opt-btn"
-                        title="Rimuovi opzione"
-                        disabled={!quiz.selected || quiz.vote_options.length <= 2}
-                        onclick={() => removeOptionFromQuiz(quiz, optIdx)}
-                        aria-label="Rimuovi opzione"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                      </button>
-                    </div>
-                  {/each}
-                </div>
-
-                {#if quiz.vote_options.length < 6}
-                  <button
-                    type="button"
-                    class="add-opt-link"
-                    disabled={!quiz.selected}
-                    onclick={() => addOptionToQuiz(quiz)}
-                  >
-                    + Aggiungi un'altra opzione
-                  </button>
-                {/if}
-              </div>
-            </div>
-          </div>
+          </article>
         {/each}
       </div>
     </div>
@@ -495,47 +439,25 @@
       </div>
 
       <div class="cards-grid">
-        {#each hunts as hunt, idx (hunt.id)}
-          <div class="setup-card glass-card {hunt.selected ? 'card-selected' : 'card-disabled'}">
-            <div class="card-head">
-              <label class="checkbox-label">
+        {#each hunts as hunt (hunt.id)}
+          <article class="setup-card glass-card compact-quiz {hunt.selected ? 'card-selected' : 'card-disabled'}">
+            <div class="compact-quiz-main">
+              <div class="compact-quiz-meta">
+                <span class="compact-quiz-number">Missione fotografica</span>
+                <span class="compact-quiz-points">+{hunt.points} PT</span>
+              </div>
+              <h3 class="compact-quiz-title font-serif">{hunt.title || 'Missione senza titolo'}</h3>
+              {#if hunt.description}<p class="compact-activity-desc">{hunt.description}</p>{/if}
+            </div>
+            <div class="compact-quiz-actions">
+              <label class="checkbox-label compact-checkbox" title="Includi questa missione nel matrimonio">
                 <input type="checkbox" bind:checked={hunt.selected} />
                 <span class="checkbox-custom"></span>
-                <span class="checkbox-text">Includi missione</span>
+                <span class="checkbox-text">Includi</span>
               </label>
-
-              <div class="points-input-wrap">
-                <label for="hp-{idx}" class="points-label">Punti:</label>
-                <input id="hp-{idx}" type="number" class="points-field" bind:value={hunt.points} min="5" max="100" />
-              </div>
+              <button type="button" class="btn btn-secondary btn-sm" onclick={() => openDrawer('hunt', hunt)}>Modifica</button>
             </div>
-
-            <div class="card-body">
-              <div class="input-group">
-                <label for="ht-{idx}" class="input-label">Titolo missione</label>
-                <input
-                  id="ht-{idx}"
-                  type="text"
-                  class="input-field"
-                  bind:value={hunt.title}
-                  placeholder="Es. Selfie con la sposa"
-                  disabled={!hunt.selected}
-                />
-              </div>
-
-              <div class="input-group">
-                <label for="hd-{idx}" class="input-label">Descrizione / Istruzioni</label>
-                <input
-                  id="hd-{idx}"
-                  type="text"
-                  class="input-field"
-                  bind:value={hunt.description}
-                  placeholder="Cosa devono fotografare esattamente gli invitati..."
-                  disabled={!hunt.selected}
-                />
-              </div>
-            </div>
-          </div>
+          </article>
         {/each}
       </div>
     </div>
@@ -553,47 +475,25 @@
       </div>
 
       <div class="cards-grid">
-        {#each moments as moment, idx (moment.id)}
-          <div class="setup-card glass-card {moment.selected ? 'card-selected' : 'card-disabled'}">
-            <div class="card-head">
-              <label class="checkbox-label">
+        {#each moments as moment (moment.id)}
+          <article class="setup-card glass-card compact-quiz {moment.selected ? 'card-selected' : 'card-disabled'}">
+            <div class="compact-quiz-main">
+              <div class="compact-quiz-meta">
+                <span class="compact-quiz-number">Momento migliore</span>
+                <span class="compact-quiz-points">+{moment.points} PT</span>
+              </div>
+              <h3 class="compact-quiz-title font-serif">{moment.title || 'Domanda senza titolo'}</h3>
+              {#if moment.description}<p class="compact-activity-desc">{moment.description}</p>{/if}
+            </div>
+            <div class="compact-quiz-actions">
+              <label class="checkbox-label compact-checkbox" title="Includi questo momento nel matrimonio">
                 <input type="checkbox" bind:checked={moment.selected} />
                 <span class="checkbox-custom"></span>
-                <span class="checkbox-text">Includi domanda</span>
+                <span class="checkbox-text">Includi</span>
               </label>
-
-              <div class="points-input-wrap">
-                <label for="mp-{idx}" class="points-label">Punti:</label>
-                <input id="mp-{idx}" type="number" class="points-field" bind:value={moment.points} min="5" max="100" />
-              </div>
+              <button type="button" class="btn btn-secondary btn-sm" onclick={() => openDrawer('vote', moment)}>Modifica</button>
             </div>
-
-            <div class="card-body">
-              <div class="input-group">
-                <label for="mt-{idx}" class="input-label">Domanda o Titolo</label>
-                <input
-                  id="mt-{idx}"
-                  type="text"
-                  class="input-field"
-                  bind:value={moment.title}
-                  placeholder="Es. Un augurio speciale per gli sposi"
-                  disabled={!moment.selected}
-                />
-              </div>
-
-              <div class="input-group">
-                <label for="md-{idx}" class="input-label">Descrizione (opzionale)</label>
-                <input
-                  id="md-{idx}"
-                  type="text"
-                  class="input-field"
-                  bind:value={moment.description}
-                  placeholder="Suggerimento o spiegazione per gli invitati..."
-                  disabled={!moment.selected}
-                />
-              </div>
-            </div>
-          </div>
+          </article>
         {/each}
       </div>
     </div>
@@ -644,7 +544,7 @@
   <div class="drawer" role="dialog" aria-modal="true" aria-label="Nuova sfida" transition:fly={{ x: 520, duration: 260, easing: cubicOut, opacity: 1 }}>
     <div class="drawer-head">
       <h3 class="drawer-title font-serif">
-        {drawerType === 'quiz' ? 'Nuova Domanda Quiz' : drawerType === 'hunt' ? 'Nuova Missione Fotografica' : 'Nuovo Momento'}
+        {drawerEditing ? 'Modifica' : 'Nuova'} {drawerType === 'quiz' ? 'Domanda Quiz' : drawerType === 'hunt' ? 'Missione Fotografica' : 'Momento'}
       </h3>
       <button type="button" class="drawer-close" onclick={() => drawerOpen = false} aria-label="Chiudi pannello">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -658,7 +558,7 @@
           placeholder={drawerType === 'quiz' ? 'Es. Dove si sono conosciuti gli sposi?' : drawerType === 'hunt' ? 'Es. Selfie con la sposa' : 'Es. Un augurio speciale per gli sposi'} />
       </div>
 
-      {#if drawerType !== 'quiz'}
+      {#if drawerType !== 'quiz' || drawerEditing}
         <div class="input-group">
           <label for="d-desc" class="input-label">Descrizione (opzionale)</label>
           <textarea id="d-desc" class="input-field" rows="3" bind:value={dDesc}
@@ -701,7 +601,7 @@
 
     <div class="drawer-foot">
       <button type="button" class="btn btn-secondary" onclick={() => drawerOpen = false}>Annulla</button>
-      <button type="button" class="btn btn-primary" onclick={saveDrawer}>Aggiungi</button>
+      <button type="button" class="btn btn-primary" onclick={saveDrawer}>{drawerEditing ? 'Salva modifiche' : 'Aggiungi'}</button>
     </div>
   </div>
 {/if}
@@ -1250,6 +1150,59 @@
     background: var(--bg-primary);
   }
 
+  .compact-quiz {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 16px 20px;
+    border-radius: 20px;
+  }
+  .compact-quiz-main { flex: 1; min-width: 0; }
+  .compact-quiz-meta { display: flex; align-items: center; gap: 9px; margin-bottom: 5px; }
+  .compact-quiz-number {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .compact-quiz-points {
+    color: var(--wine);
+    background: rgba(140, 47, 75, 0.08);
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 0.68rem;
+    font-weight: 800;
+  }
+  .compact-quiz-title { margin: 0 0 10px; color: var(--text-main); font-size: 1.12rem; line-height: 1.3; }
+  .compact-activity-desc { margin: -3px 0 0; color: #6b5f64; font-size: 0.86rem; line-height: 1.45; }
+  .compact-options { display: flex; flex-wrap: wrap; gap: 7px; }
+  .compact-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    padding: 5px 10px;
+    border: 1px solid rgba(36, 28, 32, 0.09);
+    border-radius: 999px;
+    background: #fff;
+    color: #6b5f64;
+    font-size: 0.78rem;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .compact-option.option-correct {
+    border-color: rgba(45, 125, 86, 0.28);
+    background: rgba(45, 125, 86, 0.08);
+    color: #246b48;
+    font-weight: 700;
+  }
+  .compact-quiz-actions { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+  .compact-checkbox { gap: 7px; }
+  .compact-checkbox .checkbox-custom { width: 19px; height: 19px; }
+  .compact-checkbox .checkbox-text { font-size: 0.8rem; }
+
   .card-head {
     display: flex;
     align-items: center;
@@ -1548,6 +1501,15 @@
       padding: 18px;
       border-radius: 24px;
     }
+
+    .compact-quiz {
+      align-items: stretch;
+      flex-direction: column;
+      gap: 13px;
+      padding: 15px;
+      border-radius: 20px;
+    }
+    .compact-quiz-actions { justify-content: space-between; }
 
     .onboarding-footer {
       flex-direction: column;

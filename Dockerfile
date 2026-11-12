@@ -15,6 +15,11 @@ RUN cd worker && npm install
 
 COPY worker/ ./worker/
 
+# Certificati di sistema richiesti da workerd
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # 3. Configurazione di rete e avvio
 ENV PORT=8000
 ENV NODE_ENV=production

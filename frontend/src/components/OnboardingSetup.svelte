@@ -1,57 +1,68 @@
 <script>
-  import { onMount } from 'svelte';
-  import { appState } from '../lib/state.svelte.js';
-  import { fly, fade } from 'svelte/transition';
-  import { cubicOut } from 'svelte/easing';
-  import { api } from '../lib/api.js';
+  import { onMount } from "svelte";
+  import { appState } from "../lib/state.svelte.js";
+  import { fly, fade } from "svelte/transition";
+  import { cubicOut } from "svelte/easing";
+  import { api } from "../lib/api.js";
   import {
     DEFAULT_PHOTO_CHALLENGES,
     PRESET_QUIZZES,
     PRESET_HUNTS,
-    PRESET_MOMENTS
-  } from '../lib/challengePresets.js';
+    PRESET_MOMENTS,
+  } from "../lib/challengePresets.js";
 
-  let { onComplete, onCancel, editMode = false, initialChallenges = null } = $props();
+  let {
+    onComplete,
+    onCancel,
+    editMode = false,
+    initialChallenges = null,
+  } = $props();
 
-  let activeSection = $state('quiz'); // 'quiz' | 'hunt' | 'moments'
+  let activeSection = $state("quiz"); // 'quiz' | 'hunt' | 'moments'
   let isSaving = $state(false);
   let isLoadingData = $state(false);
-  let errorMessage = $state('');
+  let errorMessage = $state("");
   let savedChallengeSnapshot = $state(null);
 
   // Cloni locali modificabili dei preset
   let quizzes = $state(
-    PRESET_QUIZZES.map(q => ({
+    PRESET_QUIZZES.map((q) => ({
       ...q,
       selected: true,
-      vote_options: [...q.vote_options]
-    }))
+      vote_options: [...q.vote_options],
+    })),
   );
 
   let hunts = $state(
-    PRESET_HUNTS.map(h => ({
+    PRESET_HUNTS.map((h) => ({
       ...h,
-      selected: true
-    }))
+      selected: true,
+    })),
   );
 
   let moments = $state(
-    PRESET_MOMENTS.map(m => ({
+    PRESET_MOMENTS.map((m) => ({
       ...m,
-      selected: true
-    }))
+      selected: true,
+    })),
   );
 
   function getChallengeSnapshot() {
     return {
-      quizzes: quizzes.map(item => ({ ...item, vote_options: [...item.vote_options] })),
-      hunts: hunts.map(item => ({ ...item })),
-      moments: moments.map(item => ({ ...item }))
+      quizzes: quizzes.map((item) => ({
+        ...item,
+        vote_options: [...item.vote_options],
+      })),
+      hunts: hunts.map((item) => ({ ...item })),
+      moments: moments.map((item) => ({ ...item })),
     };
   }
 
-  const hasChallengeChanges = $derived.by(() =>
-    savedChallengeSnapshot !== null && JSON.stringify(getChallengeSnapshot()) !== JSON.stringify(savedChallengeSnapshot)
+  const hasChallengeChanges = $derived.by(
+    () =>
+      savedChallengeSnapshot !== null &&
+      JSON.stringify(getChallengeSnapshot()) !==
+        JSON.stringify(savedChallengeSnapshot),
   );
 
   onMount(async () => {
@@ -61,93 +72,127 @@
     }
     isLoadingData = true;
     try {
-      const existing = initialChallenges !== null ? initialChallenges : await api.getChallenges(true);
-      quizzes = existing.filter(ch => ch.type === 'quiz').map(ch => ({
-        ...ch, id: ch.id, selected: ch.active !== false,
-        vote_options: Array.isArray(ch.vote_options) ? [...ch.vote_options] : []
-      }));
-      hunts = existing.filter(ch => ch.type === 'hunt').map(ch => ({ ...ch, id: ch.id, selected: ch.active !== false }));
-      moments = existing.filter(ch => ch.type === 'vote').map(ch => ({ ...ch, id: ch.id, selected: ch.active !== false }));
+      const existing =
+        initialChallenges !== null
+          ? initialChallenges
+          : await api.getChallenges(true);
+      quizzes = existing
+        .filter((ch) => ch.type === "quiz")
+        .map((ch) => ({
+          ...ch,
+          id: ch.id,
+          selected: ch.active !== false,
+          vote_options: Array.isArray(ch.vote_options)
+            ? [...ch.vote_options]
+            : [],
+        }));
+      hunts = existing
+        .filter((ch) => ch.type === "hunt")
+        .map((ch) => ({ ...ch, id: ch.id, selected: ch.active !== false }));
+      moments = existing
+        .filter((ch) => ch.type === "vote")
+        .map((ch) => ({ ...ch, id: ch.id, selected: ch.active !== false }));
       savedChallengeSnapshot = getChallengeSnapshot();
     } catch (err) {
-      errorMessage = err.message || 'Errore nel caricamento delle sfide.';
+      errorMessage = err.message || "Errore nel caricamento delle sfide.";
     } finally {
       isLoadingData = false;
     }
   });
 
   // Contatori
-  const selectedQuizCount = $derived(quizzes.filter(q => q.selected).length);
-  const selectedHuntCount = $derived(hunts.filter(h => h.selected).length);
-  const selectedMomentsCount = $derived(moments.filter(m => m.selected).length);
+  const selectedQuizCount = $derived(quizzes.filter((q) => q.selected).length);
+  const selectedHuntCount = $derived(hunts.filter((h) => h.selected).length);
+  const selectedMomentsCount = $derived(
+    moments.filter((m) => m.selected).length,
+  );
 
   function selectSection(sec, event) {
     activeSection = sec;
     if (event?.currentTarget) {
-      event.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      event.currentTarget.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
     }
   }
 
   function resetChallenges() {
     if (!hasChallengeChanges || !savedChallengeSnapshot) return;
-    if (!confirm('Confermi di voler ripristinare le opzioni alla versione precedente?')) return;
+    if (
+      !confirm(
+        "Confermi di voler ripristinare le opzioni alla versione precedente?",
+      )
+    )
+      return;
 
     if (savedChallengeSnapshot) {
-      quizzes = savedChallengeSnapshot.quizzes.map(item => ({ ...item, vote_options: [...item.vote_options] }));
-      hunts = savedChallengeSnapshot.hunts.map(item => ({ ...item }));
-      moments = savedChallengeSnapshot.moments.map(item => ({ ...item }));
+      quizzes = savedChallengeSnapshot.quizzes.map((item) => ({
+        ...item,
+        vote_options: [...item.vote_options],
+      }));
+      hunts = savedChallengeSnapshot.hunts.map((item) => ({ ...item }));
+      moments = savedChallengeSnapshot.moments.map((item) => ({ ...item }));
     }
-    appState.showToast('Impostazioni ripristinate.', 'success');
+    appState.showToast("Impostazioni ripristinate.", "success");
   }
 
   // --- Drawer laterale per la creazione di nuove sfide ---
   let drawerOpen = $state(false);
-  let drawerType = $state('quiz'); // 'quiz' | 'hunt' | 'vote'
+  let drawerType = $state("quiz"); // 'quiz' | 'hunt' | 'vote'
   let drawerEditing = $state(null);
-  let dTitle = $state('');
-  let dDesc = $state('');
+  let dTitle = $state("");
+  let dDesc = $state("");
   let dPoints = $state(30);
-  let dOptions = $state(['', '', '']);
-  let dCorrect = $state('');
+  let dOptions = $state(["", "", ""]);
+  let dCorrect = $state("");
 
   $effect(() => {
     if (!drawerOpen) return;
     const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const onKey = (e) => { if (e.key === 'Escape') drawerOpen = false; };
-    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => {
+      if (e.key === "Escape") drawerOpen = false;
+    };
+    window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener("keydown", onKey);
     };
   });
 
   function openDrawer(type, item = null) {
     drawerType = type;
     drawerEditing = item;
-    dTitle = item?.title || '';
-    dDesc = item?.description || '';
-    dPoints = item?.points ?? (type === 'quiz' ? 30 : type === 'hunt' ? 25 : 10);
-    dOptions = item?.vote_options ? [...item.vote_options] : type === 'quiz' ? ['', '', ''] : [];
-    dCorrect = item?.correct_answer || '';
+    dTitle = item?.title || "";
+    dDesc = item?.description || "";
+    dPoints =
+      item?.points ?? (type === "quiz" ? 30 : type === "hunt" ? 25 : 10);
+    dOptions = item?.vote_options
+      ? [...item.vote_options]
+      : type === "quiz"
+        ? ["", "", ""]
+        : [];
+    dCorrect = item?.correct_answer || "";
     drawerOpen = true;
   }
 
   function addDrawerOption() {
-    if (dOptions.length < 6) dOptions.push('');
+    if (dOptions.length < 6) dOptions.push("");
   }
 
   function removeDrawerOption(i) {
     if (dOptions.length <= 2) return;
     const removed = dOptions[i];
     dOptions.splice(i, 1);
-    if (dCorrect === removed) dCorrect = '';
+    if (dCorrect === removed) dCorrect = "";
   }
 
   function saveDrawer() {
     const title = dTitle.trim();
     if (!title) {
-      appState.showToast('Inserisci il titolo o la domanda.', 'error');
+      appState.showToast("Inserisci il titolo o la domanda.", "error");
       return;
     }
     const base = {
@@ -156,28 +201,42 @@
       points: Number(dPoints) || 0,
       type: drawerType,
       active: drawerEditing ? !!drawerEditing.selected : true,
-      selected: drawerEditing ? !!drawerEditing.selected : true
+      selected: drawerEditing ? !!drawerEditing.selected : true,
     };
 
     let updated;
-    if (drawerType === 'quiz') {
-      const opts = dOptions.map(o => o.trim()).filter(Boolean);
+    if (drawerType === "quiz") {
+      const opts = dOptions.map((o) => o.trim()).filter(Boolean);
       if (opts.length < 2) {
-        appState.showToast('Inserisci almeno due opzioni di risposta.', 'error');
+        appState.showToast(
+          "Inserisci almeno due opzioni di risposta.",
+          "error",
+        );
         return;
       }
       if (!dCorrect || !opts.includes(dCorrect.trim())) {
-        appState.showToast('Seleziona la risposta corretta.', 'error');
+        appState.showToast("Seleziona la risposta corretta.", "error");
         return;
       }
-      updated = { ...base, id: drawerEditing?.id || `custom_q_${Date.now()}`, vote_options: opts, correct_answer: dCorrect.trim() };
-      quizzes = drawerEditing ? quizzes.map(item => item.id === drawerEditing.id ? updated : item) : [updated, ...quizzes];
-    } else if (drawerType === 'hunt') {
+      updated = {
+        ...base,
+        id: drawerEditing?.id || `custom_q_${Date.now()}`,
+        vote_options: opts,
+        correct_answer: dCorrect.trim(),
+      };
+      quizzes = drawerEditing
+        ? quizzes.map((item) => (item.id === drawerEditing.id ? updated : item))
+        : [updated, ...quizzes];
+    } else if (drawerType === "hunt") {
       updated = { ...base, id: drawerEditing?.id || `custom_h_${Date.now()}` };
-      hunts = drawerEditing ? hunts.map(item => item.id === drawerEditing.id ? updated : item) : [updated, ...hunts];
+      hunts = drawerEditing
+        ? hunts.map((item) => (item.id === drawerEditing.id ? updated : item))
+        : [updated, ...hunts];
     } else {
       updated = { ...base, id: drawerEditing?.id || `custom_m_${Date.now()}` };
-      moments = drawerEditing ? moments.map(item => item.id === drawerEditing.id ? updated : item) : [updated, ...moments];
+      moments = drawerEditing
+        ? moments.map((item) => (item.id === drawerEditing.id ? updated : item))
+        : [updated, ...moments];
     }
     drawerOpen = false;
   }
@@ -195,7 +254,7 @@
     const removed = quiz.vote_options[index];
     quiz.vote_options.splice(index, 1);
     if (quiz.correct_answer === removed) {
-      quiz.correct_answer = quiz.vote_options[0] || '';
+      quiz.correct_answer = quiz.vote_options[0] || "";
     }
   }
 
@@ -207,85 +266,113 @@
       if (editMode) {
         const newChallenges = [];
         for (const item of [...quizzes, ...hunts, ...moments]) {
-          const type = item.type || (quizzes.includes(item) ? 'quiz' : hunts.includes(item) ? 'hunt' : 'vote');
-          const options = type === 'quiz' ? (item.vote_options || []).map(o => o.trim()).filter(Boolean) : undefined;
-          if (typeof item.id === 'number') {
+          const type =
+            item.type ||
+            (quizzes.includes(item)
+              ? "quiz"
+              : hunts.includes(item)
+                ? "hunt"
+                : "vote");
+          const options =
+            type === "quiz"
+              ? (item.vote_options || []).map((o) => o.trim()).filter(Boolean)
+              : undefined;
+          if (typeof item.id === "number") {
             await api.updateChallenge(item.id, {
               title: item.title.trim(),
-              description: (item.description || '').trim(),
+              description: (item.description || "").trim(),
               points: Number(item.points) || 0,
               active: !!item.selected,
-              ...(type === 'quiz' ? { vote_options: options, correct_answer: item.correct_answer || options[0] || '' } : {})
+              ...(type === "quiz"
+                ? {
+                    vote_options: options,
+                    correct_answer: item.correct_answer || options[0] || "",
+                  }
+                : {}),
             });
           } else if (item.selected) {
             newChallenges.push({
               title: item.title.trim(),
-              description: (item.description || '').trim(),
+              description: (item.description || "").trim(),
               points: Number(item.points) || 0,
               type,
               active: true,
-              ...(type === 'quiz' ? { vote_options: options, correct_answer: item.correct_answer || options[0] || '' } : {})
+              ...(type === "quiz"
+                ? {
+                    vote_options: options,
+                    correct_answer: item.correct_answer || options[0] || "",
+                  }
+                : {}),
             });
           }
         }
         if (newChallenges.length) await api.createChallengesBulk(newChallenges);
         await appState.refreshChallenges();
-        appState.showToast('Sfide aggiornate con successo!', 'success');
+        appState.showToast("Sfide aggiornate con successo!", "success");
         onComplete?.();
         return;
       }
 
       const challengesToCreate = [
         // Sfide foto di base (sempre incluse per la galleria)
-        ...DEFAULT_PHOTO_CHALLENGES.map(p => ({
+        ...DEFAULT_PHOTO_CHALLENGES.map((p) => ({
           title: p.title,
           description: p.description,
           points: p.points,
-          type: 'photo',
-          active: true
-        }))
+          type: "photo",
+          active: true,
+        })),
       ];
 
-      const activeQuizzes = useAllDefaults ? PRESET_QUIZZES : quizzes.filter(q => q.selected);
+      const activeQuizzes = useAllDefaults
+        ? PRESET_QUIZZES
+        : quizzes.filter((q) => q.selected);
       for (const q of activeQuizzes) {
         if (!q.title.trim()) continue;
-        const validOptions = (q.vote_options || []).map(o => o.trim()).filter(Boolean);
-        const correct = q.correct_answer && validOptions.includes(q.correct_answer)
-          ? q.correct_answer
-          : validOptions[0] || '';
+        const validOptions = (q.vote_options || [])
+          .map((o) => o.trim())
+          .filter(Boolean);
+        const correct =
+          q.correct_answer && validOptions.includes(q.correct_answer)
+            ? q.correct_answer
+            : validOptions[0] || "";
 
         challengesToCreate.push({
           title: q.title.trim(),
-          description: (q.description || '').trim(),
+          description: (q.description || "").trim(),
           points: Number(q.points) || 30,
-          type: 'quiz',
+          type: "quiz",
           active: true,
           vote_options: validOptions,
-          correct_answer: correct
+          correct_answer: correct,
         });
       }
 
-      const activeHunts = useAllDefaults ? PRESET_HUNTS : hunts.filter(h => h.selected);
+      const activeHunts = useAllDefaults
+        ? PRESET_HUNTS
+        : hunts.filter((h) => h.selected);
       for (const h of activeHunts) {
         if (!h.title.trim()) continue;
         challengesToCreate.push({
           title: h.title.trim(),
-          description: (h.description || '').trim(),
+          description: (h.description || "").trim(),
           points: Number(h.points) || 25,
-          type: 'hunt',
-          active: true
+          type: "hunt",
+          active: true,
         });
       }
 
-      const activeMoments = useAllDefaults ? PRESET_MOMENTS : moments.filter(m => m.selected);
+      const activeMoments = useAllDefaults
+        ? PRESET_MOMENTS
+        : moments.filter((m) => m.selected);
       for (const m of activeMoments) {
         if (!m.title.trim()) continue;
         challengesToCreate.push({
           title: m.title.trim(),
-          description: (m.description || '').trim(),
+          description: (m.description || "").trim(),
           points: Number(m.points) || 10,
-          type: 'vote',
-          active: true
+          type: "vote",
+          active: true,
         });
       }
 
@@ -293,12 +380,18 @@
       await api.createChallengesBulk(challengesToCreate);
       await appState.refreshChallenges();
 
-      appState.showToast('Attività del matrimonio configurate con successo!', 'success');
+      appState.showToast(
+        "Attività del matrimonio configurate con successo!",
+        "success",
+      );
       if (onComplete) {
         onComplete();
       }
     } catch (err) {
-      appState.showToast(err.message || 'Errore durante il salvataggio delle attività.', 'error');
+      appState.showToast(
+        err.message || "Errore durante il salvataggio delle attività.",
+        "error",
+      );
     } finally {
       isSaving = false;
     }
@@ -313,7 +406,7 @@
     }
     const ok = confirm(
       "Sei sicuro di voler annullare la creazione del matrimonio?\n\n" +
-      "L'evento e tutti i record salvati finora verranno eliminati definitivamente dal database."
+        "L'evento e tutti i record salvati finora verranno eliminati definitivamente dal database.",
     );
     if (!ok) return;
 
@@ -331,22 +424,38 @@
 <div class="onboarding-wrapper">
   <header class="onboarding-header">
     <h1 class="page-title font-serif">
-      Personalizzate i giochi del vostro <span class="setup-title-accent">matrimonio</span>
+      Personalizzate i giochi del vostro <span class="setup-title-accent"
+        >matrimonio</span
+      >
     </h1>
     <p class="page-lead">
       {editMode
-        ? 'Gestisci quiz, missioni fotografiche e momenti del matrimonio. Le modifiche saranno visibili agli invitati.'
-        : 'Abbiamo già preparato i quiz e le missioni più divertenti. Puoi scegliere quali includere, modificare le opzioni o indicare la risposta corretta. Potrai sempre modificarle dalla dashboard.'}
+        ? "Gestisci quiz, missioni fotografiche e momenti del matrimonio. Le modifiche saranno visibili agli invitati."
+        : "Abbiamo già preparato i quiz e le missioni più divertenti. Puoi scegliere quali includere, modificare le opzioni o indicare la risposta corretta. Potrai sempre modificarle dalla dashboard."}
     </p>
   </header>
 
   {#if editMode && isLoadingData}
-    <div class="setup-loading-overlay" role="status"><div class="spinner"></div><span>Caricamento sfide...</span></div>
+    <div class="setup-loading-overlay" role="status">
+      <div class="spinner"></div>
+      <span>Caricamento sfide...</span>
+    </div>
   {/if}
 
   {#if errorMessage}
     <div class="form-error" role="alert">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        ><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path
+          d="M12 16h.01"
+        /></svg
+      >
       <span>{errorMessage}</span>
     </div>
   {/if}
@@ -357,148 +466,250 @@
       <div class="section-tabs" aria-label="Sezioni dei giochi">
         <button
           class="tab-btn {activeSection === 'quiz' ? 'active' : ''}"
-          onclick={(e) => selectSection('quiz', e)}
+          onclick={(e) => selectSection("quiz", e)}
         >
           <span class="tab-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><circle cx="12" cy="12" r="10" /><path
+                d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+              /><line x1="12" y1="17" x2="12.01" y2="17" /></svg
+            >
           </span>
           <span class="tab-title">Quiz Sposi ({selectedQuizCount})</span>
         </button>
 
         <button
           class="tab-btn {activeSection === 'hunt' ? 'active' : ''}"
-          onclick={(e) => selectSection('hunt', e)}
+          onclick={(e) => selectSection("hunt", e)}
         >
           <span class="tab-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><path
+                d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+              /><circle cx="12" cy="13" r="4" /></svg
+            >
           </span>
           <span class="tab-title">Caccia al Tesoro ({selectedHuntCount})</span>
         </button>
 
         <button
           class="tab-btn {activeSection === 'moments' ? 'active' : ''}"
-          onclick={(e) => selectSection('moments', e)}
+          onclick={(e) => selectSection("moments", e)}
         >
           <span class="tab-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><path
+                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+              /></svg
+            >
           </span>
-          <span class="tab-title">Momenti Migliori ({selectedMomentsCount})</span>
+          <span class="tab-title"
+            >Momenti Migliori ({selectedMomentsCount})</span
+          >
         </button>
       </div>
-
     </div>
   </div>
 
   <!-- CONTENUTO SEZIONE: QUIZ -->
-  {#if activeSection === 'quiz'}
+  {#if activeSection === "quiz"}
     <div class="section-content">
       <div class="section-helper">
         <div class="helper-info">
-          <strong>Quiz a risposta multipla:</strong> gli invitati accumulano punti indovinando la risposta corretta.
-          Clicca sul pallino verde per impostare la risposta esatta!
+          <strong>Quiz a risposta multipla:</strong> <br />gli invitati
+          accumulano punti indovinando la risposta corretta. Clicca sul pallino
+          verde per impostare la risposta esatta!
         </div>
-        <button class="btn btn-secondary btn-sm" onclick={() => openDrawer('quiz')}>
-          + Aggiungi Domanda Quiz
+        <button
+          class="btn btn-secondary btn-sm"
+          onclick={() => openDrawer("quiz")}
+        >
+          Aggiungi
         </button>
       </div>
 
       <div class="cards-grid">
         {#each quizzes as quiz, idx (quiz.id)}
-          <article class="setup-card glass-card compact-quiz {quiz.selected ? 'card-selected' : 'card-disabled'}">
+          <article
+            class="setup-card glass-card compact-quiz {quiz.selected
+              ? 'card-selected'
+              : 'card-disabled'}"
+          >
             <div class="compact-quiz-main">
               <div class="compact-quiz-meta">
                 <span class="compact-quiz-number">Domanda {idx + 1}</span>
                 <span class="compact-quiz-points">+{quiz.points} PT</span>
               </div>
-              <h3 class="compact-quiz-title font-serif">{quiz.title || 'Domanda senza titolo'}</h3>
+              <h3 class="compact-quiz-title font-serif">
+                {quiz.title || "Domanda senza titolo"}
+              </h3>
               <div class="compact-options" aria-label="Opzioni di risposta">
                 {#each quiz.vote_options as opt}
-                  <span class="compact-option" class:option-correct={quiz.correct_answer === opt}>
-                    {#if quiz.correct_answer === opt}<span aria-hidden="true">✓</span>{/if}
+                  <span
+                    class="compact-option"
+                    class:option-correct={quiz.correct_answer === opt}
+                  >
+                    {#if quiz.correct_answer === opt}<span aria-hidden="true"
+                        >✓</span
+                      >{/if}
                     {opt}
                   </span>
                 {/each}
               </div>
             </div>
             <div class="compact-quiz-actions">
-              <label class="checkbox-label compact-checkbox" title="Includi questa domanda nel matrimonio">
+              <label
+                class="checkbox-label compact-checkbox"
+                title="Includi questa domanda nel matrimonio"
+              >
                 <input type="checkbox" bind:checked={quiz.selected} />
                 <span class="checkbox-custom"></span>
                 <span class="checkbox-text">Includi</span>
               </label>
-              <button type="button" class="btn btn-secondary btn-sm" onclick={() => openDrawer('quiz', quiz)}>Modifica</button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                onclick={() => openDrawer("quiz", quiz)}>Modifica</button
+              >
             </div>
           </article>
         {/each}
       </div>
     </div>
 
-  <!-- CONTENUTO SEZIONE: CACCIA AL TESORO -->
-  {:else if activeSection === 'hunt'}
+    <!-- CONTENUTO SEZIONE: CACCIA AL TESORO -->
+  {:else if activeSection === "hunt"}
     <div class="section-content">
       <div class="section-helper">
         <div class="helper-info">
-          <strong>Caccia al tesoro fotografica:</strong> missioni che gli invitati completano scattando o caricando una foto a tema durante il ricevimento.
+          <strong>Caccia al tesoro fotografica:</strong><br />missioni che gli
+          invitati completano scattando o caricando una foto a tema durante il
+          ricevimento.
         </div>
-        <button class="btn btn-secondary btn-sm" onclick={() => openDrawer('hunt')}>
-          + Aggiungi Missione Fotografica
+        <button
+          class="btn btn-secondary btn-sm"
+          onclick={() => openDrawer("hunt")}
+        >
+          Aggiungi
         </button>
       </div>
 
       <div class="cards-grid">
         {#each hunts as hunt (hunt.id)}
-          <article class="setup-card glass-card compact-quiz {hunt.selected ? 'card-selected' : 'card-disabled'}">
+          <article
+            class="setup-card glass-card compact-quiz {hunt.selected
+              ? 'card-selected'
+              : 'card-disabled'}"
+          >
             <div class="compact-quiz-main">
               <div class="compact-quiz-meta">
                 <span class="compact-quiz-number">Missione fotografica</span>
                 <span class="compact-quiz-points">+{hunt.points} PT</span>
               </div>
-              <h3 class="compact-quiz-title font-serif">{hunt.title || 'Missione senza titolo'}</h3>
-              {#if hunt.description}<p class="compact-activity-desc">{hunt.description}</p>{/if}
+              <h3 class="compact-quiz-title font-serif">
+                {hunt.title || "Missione senza titolo"}
+              </h3>
+              {#if hunt.description}<p class="compact-activity-desc">
+                  {hunt.description}
+                </p>{/if}
             </div>
             <div class="compact-quiz-actions">
-              <label class="checkbox-label compact-checkbox" title="Includi questa missione nel matrimonio">
+              <label
+                class="checkbox-label compact-checkbox"
+                title="Includi questa missione nel matrimonio"
+              >
                 <input type="checkbox" bind:checked={hunt.selected} />
                 <span class="checkbox-custom"></span>
                 <span class="checkbox-text">Includi</span>
               </label>
-              <button type="button" class="btn btn-secondary btn-sm" onclick={() => openDrawer('hunt', hunt)}>Modifica</button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                onclick={() => openDrawer("hunt", hunt)}>Modifica</button
+              >
             </div>
           </article>
         {/each}
       </div>
     </div>
 
-  <!-- CONTENUTO SEZIONE: MOMENTI MIGLIORI -->
-  {:else if activeSection === 'moments'}
+    <!-- CONTENUTO SEZIONE: MOMENTI MIGLIORI -->
+  {:else if activeSection === "moments"}
     <div class="section-content">
       <div class="section-helper">
         <div class="helper-info">
-          <strong>Momenti migliori &amp; dediche:</strong> domande aperte o pronostici in cui gli invitati lasciano pensieri speciali, aneddoti o auguri per gli sposi.
+          <strong>Momenti migliori &amp; dediche:</strong><br /> aperte o pronostici
+          in cui gli invitati lasciano pensieri speciali, aneddoti o auguri per gli
+          sposi.
         </div>
-        <button class="btn btn-secondary btn-sm" onclick={() => openDrawer('vote')}>
-          + Aggiungi Nuovo Momento
+        <button
+          class="btn btn-secondary btn-sm"
+          onclick={() => openDrawer("vote")}
+        >
+          Aggiungi
         </button>
       </div>
 
       <div class="cards-grid">
         {#each moments as moment (moment.id)}
-          <article class="setup-card glass-card compact-quiz {moment.selected ? 'card-selected' : 'card-disabled'}">
+          <article
+            class="setup-card glass-card compact-quiz {moment.selected
+              ? 'card-selected'
+              : 'card-disabled'}"
+          >
             <div class="compact-quiz-main">
               <div class="compact-quiz-meta">
                 <span class="compact-quiz-number">Momento migliore</span>
                 <span class="compact-quiz-points">+{moment.points} PT</span>
               </div>
-              <h3 class="compact-quiz-title font-serif">{moment.title || 'Domanda senza titolo'}</h3>
-              {#if moment.description}<p class="compact-activity-desc">{moment.description}</p>{/if}
+              <h3 class="compact-quiz-title font-serif">
+                {moment.title || "Domanda senza titolo"}
+              </h3>
+              {#if moment.description}<p class="compact-activity-desc">
+                  {moment.description}
+                </p>{/if}
             </div>
             <div class="compact-quiz-actions">
-              <label class="checkbox-label compact-checkbox" title="Includi questo momento nel matrimonio">
+              <label
+                class="checkbox-label compact-checkbox"
+                title="Includi questo momento nel matrimonio"
+              >
                 <input type="checkbox" bind:checked={moment.selected} />
                 <span class="checkbox-custom"></span>
                 <span class="checkbox-text">Includi</span>
               </label>
-              <button type="button" class="btn btn-secondary btn-sm" onclick={() => openDrawer('vote', moment)}>Modifica</button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                onclick={() => openDrawer("vote", moment)}>Modifica</button
+              >
             </div>
           </article>
         {/each}
@@ -508,11 +719,29 @@
 
   <!-- Footer con azioni di salvataggio -->
   <footer class="onboarding-footer glass-card">
-    <button type="button" class="setup-action-cancel" disabled={isSaving || isCancelling} onclick={handleCancelCreation}>
-      {isCancelling ? 'Annullamento…' : 'Annulla'}
+    <button
+      type="button"
+      class="setup-action-cancel"
+      disabled={isSaving || isCancelling}
+      onclick={handleCancelCreation}
+    >
+      {isCancelling ? "Annullamento…" : "Annulla"}
     </button>
-    <button type="button" class="setup-action-reset" disabled={isSaving || isCancelling || isLoadingData || !hasChallengeChanges} onclick={resetChallenges}>Ripristina</button>
-    <button type="button" class="btn btn-primary btn-lg setup-action-save" disabled={isSaving || isCancelling || isLoadingData || !!errorMessage} onclick={() => handleSave(false)}>
+    <button
+      type="button"
+      class="setup-action-reset"
+      disabled={isSaving ||
+        isCancelling ||
+        isLoadingData ||
+        !hasChallengeChanges}
+      onclick={resetChallenges}>Ripristina</button
+    >
+    <button
+      type="button"
+      class="btn btn-primary btn-lg setup-action-save"
+      disabled={isSaving || isCancelling || isLoadingData || !!errorMessage}
+      onclick={() => handleSave(false)}
+    >
       {#if isSaving}
         <span class="spinner-sm"></span> Salvataggio…
       {:else}
@@ -524,68 +753,179 @@
 
 <!-- DRAWER NUOVA SFIDA (da destra) -->
 {#if drawerOpen}
-  <div class="drawer-backdrop" transition:fade={{ duration: 180 }} onclick={() => drawerOpen = false} role="presentation"></div>
-  <div class="drawer" role="dialog" aria-modal="true" aria-label={drawerEditing ? 'Modifica sfida' : 'Nuova sfida'} transition:fly={{ x: 520, duration: 260, easing: cubicOut, opacity: 1 }}>
+  <div
+    class="drawer-backdrop"
+    transition:fade={{ duration: 180 }}
+    onclick={() => (drawerOpen = false)}
+    role="presentation"
+  ></div>
+  <div
+    class="drawer"
+    role="dialog"
+    aria-modal="true"
+    aria-label={drawerEditing ? "Modifica sfida" : "Nuova sfida"}
+    transition:fly={{ x: 520, duration: 260, easing: cubicOut, opacity: 1 }}
+  >
     <div class="drawer-head">
       <h3 class="drawer-title font-serif">
-        {drawerEditing ? 'Modifica' : 'Nuova'} {drawerType === 'quiz' ? 'Domanda Quiz' : drawerType === 'hunt' ? 'Missione Fotografica' : 'Momento'}
+        {drawerEditing ? "Modifica" : drawerType != "hunt" ? "Nuovo" : "Nuova"}
+        {drawerType === "quiz"
+          ? "Domanda Quiz"
+          : drawerType === "hunt"
+            ? "Missione Fotografica"
+            : "Momento"}
       </h3>
-      <button type="button" class="drawer-close" onclick={() => drawerOpen = false} aria-label="Chiudi pannello">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      <button
+        type="button"
+        class="drawer-close"
+        onclick={() => (drawerOpen = false)}
+        aria-label="Chiudi pannello"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          ><line x1="18" y1="6" x2="6" y2="18"></line><line
+            x1="6"
+            y1="6"
+            x2="18"
+            y2="18"
+          ></line></svg
+        >
       </button>
     </div>
 
     <div class="drawer-body">
       <div class="input-group">
-        <label for="d-title" class="input-label">{drawerType === 'quiz' ? 'Domanda' : 'Titolo'}</label>
-        <input id="d-title" type="text" class="input-field" bind:value={dTitle}
-          placeholder={drawerType === 'quiz' ? 'Es. Dove si sono conosciuti gli sposi?' : drawerType === 'hunt' ? 'Es. Selfie con la sposa' : 'Es. Un augurio speciale per gli sposi'} />
+        <label for="d-title" class="input-label"
+          >{drawerType === "quiz" ? "Domanda" : "Titolo"}</label
+        >
+        <input
+          id="d-title"
+          type="text"
+          class="input-field"
+          bind:value={dTitle}
+          placeholder={drawerType === "quiz"
+            ? "Es. Dove si sono conosciuti gli sposi?"
+            : drawerType === "hunt"
+              ? "Es. Selfie con la sposa"
+              : "Es. Un augurio speciale per gli sposi"}
+        />
       </div>
 
-      {#if drawerType !== 'quiz' || drawerEditing}
+      {#if drawerType !== "quiz" || drawerEditing}
         <div class="input-group">
-          <label for="d-desc" class="input-label">Descrizione (opzionale)</label>
-          <textarea id="d-desc" class="input-field" rows="3" bind:value={dDesc}
-            placeholder="Suggerimento o istruzioni per gli invitati..."></textarea>
+          <label for="d-desc" class="input-label">Descrizione (opzionale)</label
+          >
+          <textarea
+            id="d-desc"
+            class="input-field"
+            rows="3"
+            bind:value={dDesc}
+            placeholder="Suggerimento o istruzioni per gli invitati..."
+          ></textarea>
         </div>
       {/if}
 
       <div class="input-group drawer-points">
         <label for="d-points" class="input-label">Punti assegnati</label>
-        <input id="d-points" type="number" class="input-field" bind:value={dPoints} min="0" max="200" />
+        <input
+          id="d-points"
+          type="number"
+          class="input-field"
+          bind:value={dPoints}
+          min="0"
+          max="200"
+        />
       </div>
 
-      {#if drawerType === 'quiz'}
+      {#if drawerType === "quiz"}
         <div class="drawer-options">
-          <span class="input-label">Opzioni (tocca il cerchio per la risposta corretta)</span>
+          <span class="input-label"
+            >Opzioni (tocca il cerchio per la risposta corretta)</span
+          >
           {#each dOptions as opt, i}
-            {@const isCorrect = dCorrect === opt && opt.trim() !== ''}
+            {@const isCorrect = dCorrect === opt && opt.trim() !== ""}
             <div class="drawer-opt-row">
-              <button type="button" class="drawer-radio {isCorrect ? 'active' : ''}"
-                onclick={() => dCorrect = opt} aria-label="Imposta come corretta">
+              <button
+                type="button"
+                class="drawer-radio {isCorrect ? 'active' : ''}"
+                onclick={() => (dCorrect = opt)}
+                aria-label="Imposta come corretta"
+              >
                 {#if isCorrect}
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    ><polyline points="20 6 9 17 4 12" /></svg
+                  >
                 {/if}
               </button>
-              <input type="text" class="input-field" bind:value={dOptions[i]}
-                oninput={(e) => { if (isCorrect) dCorrect = e.target.value; }}
-                placeholder={`Opzione ${i + 1}`} />
-              <button type="button" class="drawer-remove" disabled={dOptions.length <= 2}
-                onclick={() => removeDrawerOption(i)} aria-label="Rimuovi opzione">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              <input
+                type="text"
+                class="input-field"
+                bind:value={dOptions[i]}
+                oninput={(e) => {
+                  if (isCorrect) dCorrect = e.target.value;
+                }}
+                placeholder={`Opzione ${i + 1}`}
+              />
+              <button
+                type="button"
+                class="drawer-remove"
+                disabled={dOptions.length <= 2}
+                onclick={() => removeDrawerOption(i)}
+                aria-label="Rimuovi opzione"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  ><line x1="18" y1="6" x2="6" y2="18"></line><line
+                    x1="6"
+                    y1="6"
+                    x2="18"
+                    y2="18"
+                  ></line></svg
+                >
               </button>
             </div>
           {/each}
           {#if dOptions.length < 6}
-            <button type="button" class="add-opt-link" onclick={addDrawerOption}>+ Aggiungi un'altra opzione</button>
+            <button type="button" class="add-opt-link" onclick={addDrawerOption}
+              >+ Aggiungi opzione</button
+            >
           {/if}
         </div>
       {/if}
     </div>
 
     <div class="drawer-foot">
-      <button type="button" class="btn btn-secondary" onclick={() => drawerOpen = false}>Annulla</button>
-      <button type="button" class="btn btn-primary" onclick={saveDrawer}>{drawerEditing ? 'Salva modifiche' : 'Aggiungi'}</button>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        onclick={() => (drawerOpen = false)}>Annulla</button
+      >
+      <button type="button" class="btn btn-primary" onclick={saveDrawer}
+        >{drawerEditing ? "Salva modifiche" : "Aggiungi"}</button
+      >
     </div>
   </div>
 {/if}
@@ -781,7 +1121,9 @@
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
+    transition:
+      background 0.2s,
+      border-color 0.2s;
   }
 
   @media (hover: hover) {
@@ -809,7 +1151,9 @@
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
+    transition:
+      background 0.2s,
+      border-color 0.2s;
   }
 
   @media (hover: hover) {
@@ -899,13 +1243,19 @@
     align-items: center;
     background: transparent;
     padding: 0;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition:
+      opacity 0.2s ease,
+      transform 0.2s ease;
   }
 
   .scroll-fade-edge.left {
     left: 2px;
     width: 44px;
-    background: linear-gradient(to right, rgba(255, 255, 255, 0.98) 60%, transparent);
+    background: linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.98) 60%,
+      transparent
+    );
     border-radius: 9999px 0 0 9999px;
     justify-content: flex-start;
     padding-left: 4px;
@@ -914,7 +1264,11 @@
   .scroll-fade-edge.right {
     right: 2px;
     width: 76px;
-    background: linear-gradient(to left, rgba(255, 255, 255, 0.98) 60%, transparent);
+    background: linear-gradient(
+      to left,
+      rgba(255, 255, 255, 0.98) 60%,
+      transparent
+    );
     border-radius: 0 9999px 9999px 0;
     justify-content: flex-end;
     padding-right: 4px;
@@ -954,8 +1308,13 @@
   }
 
   @keyframes bounce-subtle {
-    0%, 100% { transform: translateX(0); }
-    50% { transform: translateX(3px); }
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    50% {
+      transform: translateX(3px);
+    }
   }
 
   .tabs-swipe-indicator {
@@ -987,8 +1346,13 @@
       scrollbar-width: thin;
       scrollbar-color: rgba(140, 47, 75, 0.28) transparent;
     }
-    .section-tabs::-webkit-scrollbar { height: 3px; }
-    .section-tabs::-webkit-scrollbar-thumb { background: rgba(140, 47, 75, 0.28); border-radius: 99px; }
+    .section-tabs::-webkit-scrollbar {
+      height: 3px;
+    }
+    .section-tabs::-webkit-scrollbar-thumb {
+      background: rgba(140, 47, 75, 0.28);
+      border-radius: 99px;
+    }
   }
 
   .tab-btn {
@@ -1005,7 +1369,10 @@
     font-weight: 600;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: background 0.22s, color 0.22s, box-shadow 0.22s;
+    transition:
+      background 0.22s,
+      color 0.22s,
+      box-shadow 0.22s;
     white-space: nowrap;
   }
 
@@ -1072,7 +1439,10 @@
     border-radius: 28px;
     border: 1px solid rgba(36, 28, 32, 0.07);
     background: #fff;
-    transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s;
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s,
+      opacity 0.2s;
   }
 
   .setup-card.card-selected {
@@ -1093,8 +1463,16 @@
     padding: 16px 20px;
     border-radius: 20px;
   }
-  .compact-quiz-main { flex: 1; min-width: 0; }
-  .compact-quiz-meta { display: flex; align-items: center; gap: 9px; margin-bottom: 5px; }
+  .compact-quiz-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .compact-quiz-meta {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 5px;
+  }
   .compact-quiz-number {
     color: var(--text-muted);
     font-size: 0.72rem;
@@ -1110,9 +1488,23 @@
     font-size: 0.68rem;
     font-weight: 800;
   }
-  .compact-quiz-title { margin: 0 0 10px; color: var(--text-main); font-size: 1.12rem; line-height: 1.3; }
-  .compact-activity-desc { margin: -3px 0 0; color: #6b5f64; font-size: 0.86rem; line-height: 1.45; }
-  .compact-options { display: flex; flex-wrap: wrap; gap: 7px; }
+  .compact-quiz-title {
+    margin: 0 0 10px;
+    color: var(--text-main);
+    font-size: 1.12rem;
+    line-height: 1.3;
+  }
+  .compact-activity-desc {
+    margin: -3px 0 0;
+    color: #6b5f64;
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+  .compact-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
   .compact-option {
     display: inline-flex;
     align-items: center;
@@ -1133,10 +1525,22 @@
     color: #246b48;
     font-weight: 700;
   }
-  .compact-quiz-actions { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
-  .compact-checkbox { gap: 7px; }
-  .compact-checkbox .checkbox-custom { width: 19px; height: 19px; }
-  .compact-checkbox .checkbox-text { font-size: 0.8rem; }
+  .compact-quiz-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+  }
+  .compact-checkbox {
+    gap: 7px;
+  }
+  .compact-checkbox .checkbox-custom {
+    width: 19px;
+    height: 19px;
+  }
+  .compact-checkbox .checkbox-text {
+    font-size: 0.8rem;
+  }
   .setup-loading-overlay {
     position: fixed;
     inset: 0;
@@ -1198,7 +1602,7 @@
   }
 
   .checkbox-label input:checked + .checkbox-custom::after {
-    content: '';
+    content: "";
     width: 5px;
     height: 9px;
     border: solid #fff;
@@ -1285,7 +1689,9 @@
     border-radius: 9999px;
     background: #fff;
     border: 1px solid rgba(36, 28, 32, 0.08);
-    transition: border-color 0.15s, background 0.15s;
+    transition:
+      border-color 0.15s,
+      background 0.15s;
   }
 
   .option-row.is-correct {
@@ -1304,7 +1710,9 @@
     align-items: center;
     justify-content: center;
     color: #fff;
-    transition: background 0.15s, border-color 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
     flex-shrink: 0;
     padding: 0;
   }
@@ -1411,14 +1819,27 @@
     cursor: pointer;
   }
 
-  .setup-action-reset { background: #fff; }
-  .setup-action-save { min-height: 48px; justify-content: center; border-radius: 14px; padding: 10px 12px; }
+  .setup-action-reset {
+    background: #fff;
+  }
+  .setup-action-save {
+    min-height: 48px;
+    justify-content: center;
+    border-radius: 14px;
+    padding: 10px 12px;
+  }
   .setup-action-cancel:disabled,
-  .setup-action-reset:disabled { opacity: 0.5; cursor: not-allowed; }
+  .setup-action-reset:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
   @media (hover: hover) {
     .setup-action-cancel:hover:not(:disabled),
-    .setup-action-reset:hover:not(:disabled) { border-color: rgba(140, 47, 75, 0.28); color: var(--wine); }
+    .setup-action-reset:hover:not(:disabled) {
+      border-color: rgba(140, 47, 75, 0.28);
+      color: var(--wine);
+    }
   }
 
   .spinner-sm {
@@ -1432,7 +1853,9 @@
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1473,7 +1896,9 @@
       padding: 15px;
       border-radius: 20px;
     }
-    .compact-quiz-actions { justify-content: space-between; }
+    .compact-quiz-actions {
+      justify-content: space-between;
+    }
 
     .onboarding-footer {
       grid-template-columns: 0.85fr 0.85fr 1.2fr;
@@ -1484,7 +1909,11 @@
 
     .setup-action-cancel,
     .setup-action-reset,
-    .setup-action-save { min-height: 46px; padding: 9px 6px; font-size: 0.84rem; }
+    .setup-action-save {
+      min-height: 46px;
+      padding: 9px 6px;
+      font-size: 0.84rem;
+    }
 
     .section-helper {
       flex-direction: column;
@@ -1493,8 +1922,13 @@
   }
 
   @media (max-width: 380px) {
-    .onboarding-wrapper { padding-left: 14px; padding-right: 14px; }
-    .tab-btn { padding: 10px 12px; font-size: 0.82rem; }
+    .onboarding-wrapper {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+    .tab-btn {
+      padding: 10px 12px;
+      font-size: 0.82rem;
+    }
   }
-
 </style>

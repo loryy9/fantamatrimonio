@@ -24,3 +24,6 @@
 [] testare bene tutti i vari login 
 [] logout consentito durante il gioco?
 [P] anche la pagina in cui viene mostrato il codice non ha la topbar
+[] usare sveltekit per routing
+[] implementare popup di conferma al posto di alert predefinito del browser
+[] se sto creando un matrimonio e faccio partecipa non cambia niente e mi compaiono due topbar, se faccio crea matrimonio mentre creo un matrimonio non succede niente probabilmente togliere tasto

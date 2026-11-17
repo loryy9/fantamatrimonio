@@ -74,7 +74,7 @@
 
       {#if appState.account}
         <div class="user-menu">
-          <button class="user-chip" class:open={showUserMenu} onclick={() => showUserMenu = !showUserMenu} aria-expanded={showUserMenu} aria-haspopup="true" title="Apri menu account">
+          <button class="btn btn-secondary nav-action-btn user-chip" class:open={showUserMenu} onclick={() => showUserMenu = !showUserMenu} aria-expanded={showUserMenu} aria-haspopup="true" title="Apri menu account">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{@html ICONS.user}</svg>
             <span class="user-name">{appState.account.display_name}</span>
             <svg class="dropdown-chevron" class:rotated={showUserMenu} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
@@ -233,26 +233,14 @@
     color: var(--gold-dark);
   }
 
+  /* menu account: stesso pulsante delle voci accanto, con la freccia della tendina */
   .user-chip {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
     gap: 6px;
-    background: #f8f6f2;
-    border: 1px solid rgba(201, 169, 110, 0.25);
-    padding: 6px 12px;
-    border-radius: var(--radius-full);
-    font-size: 0.84rem;
-    font-weight: 600;
-    color: var(--text-main);
-    cursor: pointer;
-    font-family: inherit;
   }
 
-  .user-chip.open,
-  .user-chip:hover {
-    background: rgba(201, 169, 110, 0.18);
-    border-color: rgba(201, 169, 110, 0.5);
+  .user-chip.open {
+    background: var(--bg-surface-elevated);
+    border-color: rgba(140, 47, 75, 0.45);
   }
 
   .dropdown-chevron {

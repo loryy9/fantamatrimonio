@@ -489,7 +489,7 @@
 
   .quiz-question {
     font-family: var(--font-display);
-    font-size: 1.35rem;
+    font-size: var(--fs-lg);
     font-weight: 600;
     color: var(--text-main);
     line-height: 1.2;

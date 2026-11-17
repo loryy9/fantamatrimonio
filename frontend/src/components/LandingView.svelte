@@ -382,7 +382,7 @@
   }
 
   .landing-title {
-    font-size: clamp(2.3rem, 4.5vw, 3.4rem);
+    font-size: clamp(var(--fs-3xl), 4.5vw, 3.4rem);
     color: var(--wine);
     line-height: 1.1;
     font-weight: 700;
@@ -595,8 +595,9 @@
     background: #ffffff;
     border: 1px solid rgba(140, 47, 75, 0.2);
     border-radius: 999px;
-    padding: 8px 16px;
-    font-size: 0.8rem;
+    min-height: var(--control-sm);
+    padding: 0 16px;
+    font-size: var(--fs-sm);
     font-weight: 700;
     color: var(--wine);
     cursor: pointer;
@@ -841,7 +842,7 @@
   }
 
   .section-heading {
-    font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+    font-size: clamp(var(--fs-xl), 3.5vw, 2.4rem);
     color: var(--wine);
     line-height: 1.15;
     margin-bottom: 6px;
@@ -994,7 +995,7 @@
   }
 
   .cta-title {
-    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-size: clamp(var(--fs-xl), 4vw, 2.5rem);
     line-height: 1.15;
     color: #ffffff;
   }

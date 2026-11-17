@@ -16,7 +16,7 @@
   }
 
   .page-intro-title {
-    font-size: clamp(2.2rem, 4vw, 3.1rem);
+    font-size: clamp(var(--fs-2xl), 4vw, 3.1rem);
     color: var(--wine);
     line-height: 1.08;
     margin: 0 0 10px;

@@ -475,7 +475,7 @@
   }
 
   .page-title {
-    font-size: clamp(2.2rem, 6vw, 3.2rem);
+    font-size: clamp(var(--fs-2xl), 6vw, 3.2rem);
     line-height: 1.05;
     color: var(--text-main, #241c20);
     margin-bottom: 6px;
@@ -665,12 +665,13 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 14px;
+    min-height: var(--control-sm);
+    padding: 0 14px;
     border-radius: 999px;
     background: #ffffff;
     border: 1px solid rgba(36, 28, 32, 0.1);
     color: var(--text-muted, #6e6167);
-    font-size: 0.82rem;
+    font-size: var(--fs-sm);
     font-weight: 600;
     cursor: pointer;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
@@ -750,7 +751,7 @@
   }
 
   .hero-spouses {
-    font-size: clamp(2rem, 7vw, 2.9rem);
+    font-size: clamp(var(--fs-2xl), 7vw, 2.9rem);
     font-weight: 600;
     line-height: 1.05;
     color: var(--text-main, #241c20);
@@ -823,9 +824,11 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 13px 20px;
-    font-size: 0.95rem;
+    min-height: var(--control-md);
+    padding: 0 16px;
+    font-size: var(--fs-base);
     font-weight: 700;
+    white-space: nowrap;
     box-shadow: 0 10px 22px -8px rgba(140, 47, 75, 0.5);
   }
 

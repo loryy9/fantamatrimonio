@@ -63,7 +63,11 @@
     gap: 10px;
     padding: 10px 10px 10px 16px;
     border-radius: 9999px;
-    background: var(--wine);
+    /* iOS 26 Safari colora le barre di sistema con il background-color dell'elemento fisso visibile:
+       lì resta il crema della pagina, il colore del toast è disegnato come immagine a tinta unita. */
+    --toast-color: var(--wine);
+    background-color: var(--bg-primary);
+    background-image: linear-gradient(var(--toast-color), var(--toast-color));
     color: #fff;
     border: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow: 0 12px 28px rgba(74, 31, 51, 0.28), 0 2px 6px rgba(36, 28, 32, 0.12);
@@ -71,12 +75,12 @@
   }
 
   .toast-success {
-    background: #3f7a5f;
+    --toast-color: #3f7a5f;
     box-shadow: 0 12px 28px rgba(63, 122, 95, 0.3), 0 2px 6px rgba(36, 28, 32, 0.12);
   }
 
   .toast-error {
-    background: #a63552;
+    --toast-color: #a63552;
     box-shadow: 0 12px 28px rgba(166, 53, 82, 0.32), 0 2px 6px rgba(36, 28, 32, 0.12);
   }
 

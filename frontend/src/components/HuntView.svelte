@@ -171,7 +171,7 @@
   .hunt-card-header { display: flex; justify-content: flex-end; align-items: center; }
   .done-check { display: flex; align-items: center; gap: 5px; font-size: .8rem; font-weight: 700; color: #3f6d58; }
   .done-icon { color: #7fa994; }
-  .hunt-title { font-size: 1.45rem; font-weight: 600; line-height: 1.15; color: var(--text-main); }
+  .hunt-title { font-size: var(--fs-lg); font-weight: 600; line-height: 1.15; color: var(--text-main); }
   .hunt-desc { font-size: .9rem; color: #6b5f64; line-height: 1.5; }
   .action-row { display: flex; align-items: center; gap: 10px; margin-top: 3px; }
   .hunt-points { position: absolute; top: -9px; right: 16px; z-index: 2; transform: rotate(4deg); background: #fff8e9; box-shadow: 0 4px 10px -6px rgba(106,32,55,.45); }

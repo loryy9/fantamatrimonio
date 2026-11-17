@@ -318,7 +318,7 @@
   }
 
   .form-title {
-    font-size: 1.55rem;
+    font-size: var(--fs-xl);
     font-weight: 700;
     margin-bottom: 4px;
   }

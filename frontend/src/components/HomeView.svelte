@@ -334,13 +334,14 @@
     justify-content: space-between;
     gap: 8px;
     flex: 1 1 100%;
-    padding: 13px 18px;
+    min-height: var(--control-md);
+    padding: 0 18px;
     border: none;
     border-radius: 999px;
     background: var(--grad-gold-rose);
     color: #fff;
     font-family: var(--font-sans);
-    font-size: 0.9rem;
+    font-size: var(--fs-base);
     font-weight: 700;
     cursor: pointer;
     box-shadow: 0 10px 20px -8px rgba(140, 47, 75, 0.55);
@@ -428,8 +429,8 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: 22px;
-    min-height: 160px;
+    gap: 14px;
+    min-height: 128px;
     padding: 14px;
     overflow: hidden;
     text-align: left;
@@ -438,7 +439,7 @@
     color: var(--ink);
     background: linear-gradient(160deg, var(--tint), #fff 80%);
     border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-    border-radius: 28px;
+    border-radius: 22px;
     box-shadow: 0 16px 28px -20px color-mix(in srgb, var(--accent) 80%, #3a1a28);
     transition: transform 0.18s ease, box-shadow 0.25s ease;
   }
@@ -454,14 +455,14 @@
 
   /* the single bold element: the featured tile is solid wine */
   .tile-hunt {
-    min-height: 200px;
-    padding: 18px;
+    min-height: 150px;
+    padding: 16px;
     color: #fff;
     background:
       radial-gradient(90% 90% at 100% 0%, rgba(233, 201, 143, 0.28), transparent 62%),
       linear-gradient(150deg, var(--wine-deep), var(--wine) 70%, #a33a58);
     border-color: transparent;
-    border-radius: 34px 34px 10px 34px;
+    border-radius: 26px 26px 8px 26px;
     box-shadow: 0 26px 40px -22px rgba(106, 32, 55, 0.8);
   }
 
@@ -479,8 +480,8 @@
   .tile-hunt .watermark {
     right: -20px;
     bottom: -26px;
-    width: 220px;
-    height: 220px;
+    width: 170px;
+    height: 170px;
     opacity: 0.16;
   }
 
@@ -493,8 +494,8 @@
   .icon-badge {
     display: grid;
     place-items: center;
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     color: #fff;
     background: var(--accent);
@@ -508,8 +509,8 @@
   .tile-arrow {
     display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     color: var(--ink-soft);
     background: rgba(255, 255, 255, 0.75);
@@ -531,14 +532,14 @@
   }
 
   .tile-title {
-    font-size: 1.45rem;
+    font-size: var(--fs-lg);
     font-weight: 600;
     line-height: 1.05;
     letter-spacing: -0.01em;
   }
 
   .tile-hunt .tile-title {
-    font-size: 2.1rem;
+    font-size: var(--fs-2xl);
     max-width: 12ch;
   }
 
@@ -555,7 +556,7 @@
   }
 
   .tile-chip {
-    margin-top: 12px;
+    margin-top: 8px;
     padding: 5px 11px;
     border-radius: 999px;
     color: var(--ink);
@@ -575,7 +576,7 @@
     display: block;
     width: 100%;
     height: 4px;
-    margin-top: 12px;
+    margin-top: 10px;
     border-radius: 4px;
     background: color-mix(in srgb, var(--accent) 22%, transparent);
     overflow: hidden;

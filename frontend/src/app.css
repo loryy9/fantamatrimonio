@@ -58,6 +58,22 @@
   --wine-card: #6a2037;
   --grad-gold-rose: linear-gradient(135deg, #8c2f4b 0%, #b94b68 100%);
 
+  /* Scala tipografica (12 · 13 · 14 · 15 · 16 · 18 · 22 · 28 · 32) */
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-base: 0.875rem;
+  --fs-btn-lg: 0.9375rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: 1.75rem;
+  --fs-3xl: 2rem;
+
+  /* Altezze dei controlli: 44px è il minimo comodo per il tocco */
+  --control-sm: 36px;
+  --control-md: 44px;
+  --control-lg: 48px;
+
   --site-header-height: 72px;
   --main-content-top-padding: 16px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -84,11 +100,6 @@ html {
     radial-gradient(ellipse at 80% 100%, rgba(201, 169, 110, 0.07) 0%, transparent 50%);
   background-attachment: fixed;
   overflow-x: clip;
-}
-
-html.in-game-active {
-  background-color: #6a2037 !important;
-  background-image: none !important;
 }
 
 body {
@@ -230,19 +241,14 @@ body {
   padding: calc(var(--main-content-top-padding) + 8px) 4px 8px !important;
 }
 
-/* page-header + sticky-head: header con padding interno confortevole attaccato alla topbar */
+/* page-header + sticky-head: titolo staccato dalla topbar, vicino al contenuto che introduce */
 .main-content .page-header.sticky-head {
   position: sticky;
   top: calc(var(--main-content-top-padding) * -1 - 12px) !important;
   margin-top: calc(var(--main-content-top-padding) * -1 - 12px) !important;
-  padding: 18px 4px 16px !important;
+  padding: 34px 4px 6px !important;
   background: var(--bg-primary) !important;
   z-index: 20 !important;
-}
-
-/* Spazio tra sticky header e il primo contenuto della pagina */
-.main-content .page-header.sticky-head + * {
-  margin-top: 20px;
 }
 
 .main-content .page-header.gallery-page-header {
@@ -261,7 +267,7 @@ body {
 .main-content .page-header .page-title,
 .main-content .page-header .feed-title {
   font-family: var(--font-display);
-  font-size: clamp(1.8rem, 5vw, 2.1rem) !important;
+  font-size: clamp(var(--fs-xl), 6vw, 2.1rem) !important;
   font-weight: 500 !important;
   line-height: 1.05 !important;
   letter-spacing: -0.01em !important;
@@ -298,7 +304,7 @@ body {
   }
 
   .sticky-head .page-title {
-    font-size: 1.6rem;
+    font-size: var(--fs-xl);
   }
 
   .sticky-head .page-desc {
@@ -464,9 +470,10 @@ h1, h2, h3, .font-serif {
   gap: 8px;
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 0.92rem;
-  min-height: 44px;
-  padding: 11px 22px;
+  font-size: var(--fs-base);
+  line-height: 1.2;
+  min-height: var(--control-md);
+  padding: 0 20px;
   border-radius: 999px;
   border: none;
   cursor: pointer;
@@ -481,22 +488,9 @@ h1, h2, h3, .font-serif {
 }
 
 .btn-sm {
-  min-height: 38px;
-  padding: 7px 14px;
-  font-size: 0.82rem;
-}
-
-@media (max-width: 500px) {
-  .btn {
-    padding: 10px 16px;
-    font-size: 0.86rem;
-    min-height: 40px;
-  }
-  .btn-sm {
-    padding: 6px 12px;
-    font-size: 0.78rem;
-    min-height: 34px;
-  }
+  min-height: var(--control-sm);
+  padding: 0 14px;
+  font-size: var(--fs-sm);
 }
 
 .btn:focus-visible,
@@ -734,7 +728,7 @@ textarea,
 .page-title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-size: clamp(var(--fs-2xl), 4vw, 2.75rem);
   line-height: 1.1;
   letter-spacing: -0.005em;
 }
@@ -780,8 +774,9 @@ textarea,
 }
 
 .btn-lg {
-  padding: 15px 28px;
-  font-size: 1rem;
+  min-height: var(--control-lg);
+  padding: 0 24px;
+  font-size: var(--fs-btn-lg);
 }
 
 @media (min-width: 641px) {

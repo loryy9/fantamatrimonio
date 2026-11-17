@@ -74,22 +74,10 @@
     position: relative;
     overflow: hidden;
     padding: 0 0 var(--cut);
-    background:
-      radial-gradient(60% 140% at 100% 0%, rgba(233, 201, 143, 0.28), transparent 60%),
-      radial-gradient(40% 120% at 0% 100%, rgba(201, 98, 127, 0.4), transparent 70%),
-      linear-gradient(115deg, #4a1226 0%, var(--wine) 55%, #a33a58 100%);
+    /* Tinta unita, identica alla safe-area in alto: iOS 26 Safari tinge la barra di stato
+       con questo background-color, gli altri browser col theme-color impostato dal layout. */
+    background: var(--wine);
     clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), 0 100%);
-  }
-
-  /* White system-status safe area above the game header on iPhone. */
-  .navbar.game-mode .band {
-    padding-top: var(--safe-top);
-  }
-
-  @media (display-mode: standalone) {
-    .band {
-      padding-top: env(safe-area-inset-top, 0px);
-    }
   }
 
   /* champagne line that follows the cut */
@@ -101,23 +89,6 @@
     height: var(--cut);
     pointer-events: none;
     background: linear-gradient(to top right, transparent calc(50% - 1px), #f0d8a8 50%, transparent calc(50% + 1px));
-  }
-
-  /* concentric-ring ornament */
-  .band::before {
-    content: '';
-    position: absolute;
-    right: -50px;
-    top: -70px;
-    width: 180px;
-    height: 180px;
-    border-radius: 50%;
-    pointer-events: none;
-    border: 1px solid rgba(240, 216, 168, 0.28);
-    box-shadow:
-      0 0 0 18px rgba(240, 216, 168, 0.05),
-      0 0 0 19px rgba(240, 216, 168, 0.18),
-      0 0 0 40px rgba(240, 216, 168, 0.04);
   }
 
   .bar {
@@ -271,12 +242,6 @@
   @media (min-width: 900px) {
     .band {
       --cut: 26px;
-    }
-
-    .band::before {
-      right: 6%;
-      width: 220px;
-      height: 220px;
     }
 
     .bar {

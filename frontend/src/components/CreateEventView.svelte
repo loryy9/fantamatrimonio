@@ -693,9 +693,10 @@
     background: #ffffff;
     border: 1px solid rgba(140, 47, 75, 0.18);
     color: var(--wine);
-    padding: 10px 18px;
+    min-height: var(--control-sm);
+    padding: 0 16px;
     border-radius: 999px;
-    font-size: 0.84rem;
+    font-size: var(--fs-sm);
     font-weight: 700;
     cursor: pointer;
   }
@@ -718,10 +719,11 @@
     background: transparent;
     border: none;
     color: #6a5e64;
-    font-size: 0.84rem;
+    font-size: var(--fs-sm);
     font-weight: 600;
     cursor: pointer;
-    padding: 8px;
+    min-height: var(--control-md);
+    padding: 0 8px;
   }
 
   @keyframes spin {
@@ -819,7 +821,7 @@
     text-align: center;
   }
   .form-title {
-    font-size: 1.45rem;
+    font-size: var(--fs-xl);
     font-weight: 700;
     margin: 0 0 4px;
     color: var(--wine);

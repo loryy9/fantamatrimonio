@@ -218,7 +218,7 @@
   .leaderboard-container {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 18px;
   }
 
   /* Editorial header */

@@ -1206,13 +1206,14 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 11px 16px;
+    min-height: var(--control-sm);
+    padding: 0 16px;
     border: none;
     border-radius: 13px;
     background: transparent;
     color: var(--text-muted);
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: var(--fs-base);
     cursor: pointer;
     transition:
       background 0.22s,

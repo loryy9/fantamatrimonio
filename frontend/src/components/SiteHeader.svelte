@@ -538,15 +538,15 @@
     .nav-link,
     .user-chip {
       width: 100%;
-      min-height: 64px;
+      min-height: 52px;
       justify-content: flex-start;
-      gap: 14px;
-      padding: 0 14px;
+      gap: 12px;
+      padding: 0 12px;
       border: 1px solid rgba(240, 216, 168, 0.2);
-      border-radius: 18px;
+      border-radius: 16px;
       background: rgba(255, 255, 255, 0.08);
       color: #fff;
-      font-size: 1.05rem;
+      font-size: var(--fs-md);
       font-weight: 700;
       box-shadow: none;
       backdrop-filter: blur(6px);
@@ -568,10 +568,10 @@
     .row-icon {
       flex: 0 0 auto;
       box-sizing: content-box;
-      width: 20px;
-      height: 20px;
-      padding: 10px;
-      border-radius: 13px;
+      width: 18px;
+      height: 18px;
+      padding: 7px;
+      border-radius: 10px;
       color: var(--wine-deep);
       background: linear-gradient(145deg, #fbefcf, #e3c07e);
     }
@@ -586,15 +586,15 @@
       display: inline-flex;
     }
 
-    /* primary action pinned to the bottom */
-    .nav-cta {
+    /* primary action pinned to the bottom (più specifico della regola generica .top-nav .btn) */
+    .top-nav .nav-cta {
       justify-content: center;
       margin-top: auto;
-      min-height: 62px;
+      min-height: 52px;
       border: 0;
       color: var(--wine-deep);
       background: linear-gradient(145deg, #fbefcf, #e3c07e);
-      font-size: 1.1rem;
+      font-size: var(--fs-md);
       box-shadow: 0 14px 28px -10px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.7);
     }
 

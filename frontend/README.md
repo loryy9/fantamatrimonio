@@ -1,43 +1,44 @@
-# Svelte + Vite
+# Fanta Matrimonio — frontend
 
-This template should help get you started developing with Svelte in Vite.
+SvelteKit 3 (Svelte 5) in modalità SPA: tutto gira nel browser. La build (`dist/`) è servita
+dal Worker Cloudflare insieme alle API (`../worker`), che rimanda ogni URL sconosciuto a `index.html`.
 
-## Recommended IDE Setup
+## Comandi
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
-
-## Need an official Svelte framework?
-
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
-
-## Technical considerations
-
-**Why use this over SvelteKit?**
-
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
-
-This template contains as little as possible to get started with Vite + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
-
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `checkJs` in the JS template?**
-
-It is likely that most cases of changing variable types in runtime are likely to be accidental, rather than deliberate. This provides advanced typechecking out of the box. Should you like to take advantage of the dynamically-typed nature of JavaScript, it is trivial to change the configuration.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/sveltejs/svelte-hmr/tree/master/packages/svelte-hmr#preservation-of-local-state).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```js
-// store.js
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+```sh
+npm run dev      # http://localhost:5173 — le chiamate /api vanno al Worker (wrangler dev, porta 8000)
+npm run build    # genera dist/
 ```
+
+## Pagine
+
+Ogni pagina è una cartella in `src/routes`. Gli URL sono definiti in `src/lib/routes.js`.
+
+| URL | Pagina | Accesso |
+| --- | --- | --- |
+| `/` | Landing | con un account e nessun matrimonio aperto → `/dashboard_utente`; `/?code=X` → `/entra?code=X` |
+| `/entra` | Entra nella festa (codice invito) | registrazione se non si ha un account |
+| `/crea` | Creazione matrimonio → configurazione sfide → codice | chiede conferma prima di uscire durante la configurazione |
+| `/login` | Accedi | con un account → dashboard (o `/entra?code=X` se arrivati da un invito) |
+| `/dashboard_utente` | I miei matrimoni (`?event=<id>` per il dettaglio) | serve un account |
+| `/partita/<codice>/<tab>` | Gioco: `home`, `gallery`, `hunt`, `quiz`, `leaderboard` | serve il matrimonio di quel codice aperto, altrimenti → `/entra?code=<codice>` |
+| `/partita/<codice>/setup` | Modifica sfide | solo sposi |
+| `/admin` | Console admin | login admin |
+
+## Struttura
+
+```
+src/
+  app.html                 template HTML (con lo splash mostrato al caricamento)
+  routes/
+    +layout.js             SPA (ssr = false); attende il recupero della sessione prima di ogni pagina
+    +layout.svelte         stili globali, toast, dialoghi di conferma
+    (site)/                pagine del sito: topbar bianca + footer
+    (game)/partita/[code]/ pagine del gioco: navbar bordeaux + tab in basso
+    admin/
+  components/              componenti delle pagine (import: #components/...)
+  lib/                     stato globale, API, URL (import: #lib/...)
+```
+
+I controlli di accesso stanno nei `load` di `+page.js` / `+layout.js`: la pagina non viene
+nemmeno mostrata se l'utente va reindirizzato.

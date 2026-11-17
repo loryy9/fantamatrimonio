@@ -1,6 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import { appState } from '../lib/state.svelte.js';
+  import { goto } from '$app/navigation';
+  import { ROUTES, joinUrl } from '../lib/routes.js';
   import QrScannerModal from './QrScannerModal.svelte';
 
   let inviteCodeInput = $state('');
@@ -51,15 +53,7 @@
   });
 
   function handleJoinWithCode() {
-    const code = inviteCodeInput.trim().toUpperCase();
-    if (code) {
-      if (typeof window !== 'undefined') {
-        const url = new URL(window.location.href);
-        url.searchParams.set('code', code);
-        window.history.replaceState({}, '', url);
-      }
-    }
-    appState.setAuthView('join');
+    goto(joinUrl(inviteCodeInput));
   }
 
   function handleQrScan(scanned) {
@@ -156,7 +150,7 @@
             <strong>Siete i futuri sposi?</strong>
             <span>Crea il fantamatrimonio in 2 min</span>
           </div>
-          <button type="button" class="sposi-cta-btn" onclick={() => appState.setAuthView('create')}>
+          <button type="button" class="sposi-cta-btn" onclick={() => goto(ROUTES.create)}>
             Crea evento
           </button>
         </div>
@@ -326,7 +320,7 @@
           Configura le missioni in 2 minuti: i primi 20 invitati sono sempre gratuiti, nessun account richiesto per partecipare.
         </p>
 
-        <button type="button" class="cta-gold-btn" onclick={() => appState.setAuthView('create')}>
+        <button type="button" class="cta-gold-btn" onclick={() => goto(ROUTES.create)}>
           <span>Crea l'evento gratuito</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>

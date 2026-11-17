@@ -1,6 +1,9 @@
 <script>
   import { api } from '../lib/api.js';
   import { appState } from '../lib/state.svelte.js';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
+  import { loginUrl } from '../lib/routes.js';
 
   let {
     email = $bindable(''),
@@ -160,7 +163,7 @@
       </button>
     </div>
   {:else if existingAccount}
-    <button type="button" class="link-btn existing-account-login" onclick={() => appState.setAuthView('login-secure')}>
+    <button type="button" class="link-btn existing-account-login" onclick={() => goto(loginUrl(page.url.searchParams.get('code')))}>
       Vai al login con email e password →
     </button>
   {/if}

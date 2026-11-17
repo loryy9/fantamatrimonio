@@ -1,13 +1,16 @@
 <script>
   import { onMount } from 'svelte';
   import { appState } from '../lib/state.svelte.js';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
+  import { ROUTES, dashboardUrl } from '../lib/routes.js';
   import { api } from '../lib/api.js';
   import { formatName } from '../lib/formatters.js';
   import { copyToClipboard } from '../lib/clipboard.js';
 
-  const requestedEventId = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search).get('event')
-    : null;
+  const requestedEventId = page.url.searchParams.get('event');
+  // Cambia solo il ?event= nell'URL, senza scroll né nuova voce nella cronologia
+  const setEventInUrl = (id) => goto(dashboardUrl(id), { replace: true, shallow: true });
   let selectedEvent = $state(null);
   let eventDetail = $state(null);
   let eventSubmissions = $state(null);
@@ -28,7 +31,7 @@
 
   async function openEvent(ev) {
     selectedEvent = ev;
-    history.replaceState(null, '', `/dashboard_utente?event=${encodeURIComponent(ev.event.id)}`);
+    setEventInUrl(ev.event.id);
     detailLoading = true;
     eventLoadError = false;
     activeSection = 'photos';
@@ -51,7 +54,7 @@
     selectedEvent = null;
     eventDetail = null;
     eventSubmissions = null;
-    history.replaceState(null, '', '/dashboard_utente');
+    setEventInUrl(null);
   }
 
   async function copyInviteCode(code) {
@@ -374,8 +377,8 @@
         <h3 class="font-serif">Nessun matrimonio ancora</h3>
         <p>Crea un nuovo matrimonio o partecipa con un codice invito per iniziare subito a giocare e collezionare ricordi.</p>
         <div class="empty-actions">
-          <button class="btn btn-primary" onclick={() => appState.setAuthView('create')}>Crea matrimonio</button>
-          <button class="btn btn-secondary" onclick={() => appState.setAuthView('join')}>Ho un codice invito</button>
+          <button class="btn btn-primary" onclick={() => goto(ROUTES.create)}>Crea matrimonio</button>
+          <button class="btn btn-secondary" onclick={() => goto(ROUTES.join)}>Ho un codice invito</button>
         </div>
       </div>
     {:else}
@@ -388,8 +391,8 @@
           </div>
           <span class="event-actions-hint">Crea una nuova festa oppure partecipa inserendo un codice invito.</span>
           <div class="event-actions-buttons">
-            <button class="btn btn-primary btn-sm" onclick={() => appState.setAuthView('create')}>Crea nuovo</button>
-            <button class="btn btn-secondary btn-sm" onclick={() => appState.setAuthView('join')}>Unisciti</button>
+            <button class="btn btn-primary btn-sm" onclick={() => goto(ROUTES.create)}>Crea nuovo</button>
+            <button class="btn btn-secondary btn-sm" onclick={() => goto(ROUTES.join)}>Unisciti</button>
           </div>
         </div>
 

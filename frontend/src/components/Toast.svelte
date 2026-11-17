@@ -1,5 +1,6 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
+  import { page } from '$app/state';
 
   function formatPoints(pts) {
     if (typeof pts === 'string') {
@@ -13,7 +14,7 @@
   }
 </script>
 
-<div class="toast-container" class:has-bottom-nav={appState.isInGame && !!appState.event}>
+<div class="toast-container" class:has-bottom-nav={page.route.id?.startsWith('/(game)')}>
   {#each appState.toasts as toast (toast.id)}
     <div class="toast toast-{toast.type}" role="alert">
       <div class="toast-icon">

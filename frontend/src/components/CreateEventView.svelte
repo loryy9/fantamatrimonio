@@ -1,8 +1,10 @@
 <script>
   import { fly, slide } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import { tick } from 'svelte';
+  import { tick, onDestroy } from 'svelte';
+  import { beforeNavigate, goto } from '$app/navigation';
   import { appState } from '../lib/state.svelte.js';
+  import { ROUTES, joinUrl } from '../lib/routes.js';
   import { copyToClipboard } from '../lib/clipboard.js';
   import OnboardingSetup from './OnboardingSetup.svelte';
   import EmailVerificationField from './EmailVerificationField.svelte';
@@ -108,8 +110,27 @@
   );
 
   const inviteLink = $derived(
-    appState.pendingInvite ? `${location.origin}/?code=${appState.pendingInvite}` : ''
+    appState.pendingInvite ? `${location.origin}${joinUrl(appState.pendingInvite)}` : ''
   );
+
+  // Il matrimonio esiste già dalla fine del passo 1: prima di lasciare la configurazione
+  // (topbar, link o tasto indietro) avvisa che lo si ritrova in "I miei matrimoni".
+  beforeNavigate((navigation) => {
+    if (!appState.pendingInvite || navigation.type === 'leave' || !navigation.to) return;
+    navigation.cancel();
+    appState.confirm(
+      'Il matrimonio è già stato creato: lo ritrovi in «I miei matrimoni», dove potrai completare le sfide e recuperare il codice invito.',
+      { title: 'Lasciare la creazione?', confirmText: 'Esci', cancelText: 'Resta qui' }
+    ).then((ok) => {
+      if (!ok) return;
+      appState.pendingInvite = null;
+      goto(navigation.to.url);
+    });
+  });
+
+  onDestroy(() => {
+    appState.pendingInvite = null;
+  });
 
   async function scrollToTop() {
     await tick();
@@ -184,7 +205,7 @@
       wizardStep = 1;
       scrollToTop();
     } else {
-      appState.setAuthView('entry');
+      goto(ROUTES.home);
     }
   }
 

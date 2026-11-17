@@ -2,10 +2,10 @@
   import { onMount } from 'svelte';
   import { api } from '../lib/api.js';
   import { appState } from '../lib/state.svelte.js';
+  import { goto } from '$app/navigation';
+  import { ROUTES } from '../lib/routes.js';
   import { formatName } from '../lib/formatters.js';
   import { copyToClipboard } from '../lib/clipboard.js';
-
-  let { onExit } = $props();
 
   // Auth State
   let adminToken = $state(sessionStorage.getItem('fm_admin_token') || '');
@@ -288,7 +288,7 @@
         </form>
 
         <div class="login-footer">
-          <button class="btn-text-link" onclick={() => onExit ? onExit() : (window.location.href = '/')}>
+          <button class="btn-text-link" onclick={() => goto(ROUTES.home)}>
             ← Torna al sito principale
           </button>
         </div>
@@ -318,7 +318,7 @@
             <span>Aggiorna</span>
           </button>
 
-          <button class="btn btn-secondary btn-sm" onclick={() => onExit ? onExit() : (window.location.href = '/')}>
+          <button class="btn btn-secondary btn-sm" onclick={() => goto(ROUTES.home)}>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <span>Torna al Gioco</span>
           </button>

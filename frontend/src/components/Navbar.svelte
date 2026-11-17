@@ -1,5 +1,7 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
+  import { goto } from '$app/navigation';
+  import { dashboardUrl } from '../lib/routes.js';
 
   const s1 = $derived(appState.event?.spouse1_name || '');
   const s2 = $derived(appState.event?.spouse2_name || '');
@@ -36,7 +38,7 @@
         {#if appState.hasAccount}
           <button
             class={appState.isCouple ? 'chip event-details-btn' : 'icon-btn'}
-            onclick={() => appState.openDashboard(appState.isCouple ? appState.event?.id : null)}
+            onclick={() => goto(dashboardUrl(appState.isCouple ? appState.event?.id : null))}
             title={appState.isCouple ? 'Apri i dettagli di questo matrimonio' : 'I miei matrimoni (Dashboard)'}
             aria-label={appState.isCouple ? 'Dettagli matrimonio' : 'Dashboard'}
           >

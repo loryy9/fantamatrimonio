@@ -1,20 +1,9 @@
+import { goto } from '$app/navigation';
 import { api } from './api.js';
 import { fireCelebration } from './confetti.js';
 import { formatName } from './formatters.js';
+import { ROUTES, gameUrl, joinUrl, dashboardUrl } from './routes.js';
 import { DEFAULT_PHOTO_CHALLENGES, PRESET_QUIZZES, PRESET_HUNTS, PRESET_MOMENTS } from './challengePresets.js';
-
-/** Tab del gioco (dentro un matrimonio). 'setup' è riservata agli sposi. */
-const GAME_TABS = ['home', 'gallery', 'hunt', 'quiz', 'leaderboard', 'setup'];
-
-/** URL delle pagine del sito (fuori dal gioco). */
-const VIEW_PATHS = {
-  entry: '/',
-  join: '/entra',
-  create: '/crea',
-  'login-secure': '/dashboard_utente',
-  dashboard: '/dashboard_utente',
-};
-const DASHBOARD_PATHS = ['/dashboard_utente', '/login', '/dashboard'];
 
 const withFormattedNames = (item) => ({
   ...item,
@@ -22,24 +11,22 @@ const withFormattedNames = (item) => ({
   last_name: formatName(item.last_name),
 });
 
+// Il modulo viene importato anche durante la build (in Node), dove localStorage non esiste.
+const stored = (key) => globalThis.localStorage?.getItem(key) || null;
+
 class AppState {
-  /**
-   * Schermata corrente: una pagina del sito ('entry' | 'join' | 'create' | 'login-secure' | 'dashboard')
-   * oppure una tab del gioco (GAME_TABS).
-   */
-  view = $state('entry');
   pendingInvite = $state(null); // codice invito mentre gli sposi configurano il matrimonio appena creato
-  pendingJoinCode = null; // codice invito di un link, ricordato se l'ospite passa dal login classico
+  pendingJoinCode = null; // codice di un link d'invito, ricordato se l'ospite passa dal login
   user = $state(null);
   event = $state(null);
   account = $state(null); // account dell'utente (email/password o social)
-  token = $state(localStorage.getItem('fm_auth_token') || null);
-  refreshToken = $state(localStorage.getItem('fm_refresh_token') || null);
-  jwtToken = $state(localStorage.getItem('fm_jwt_token') || null);
-  isLoadingAuth = $state(true);
+  token = $state(stored('fm_auth_token'));
+  refreshToken = $state(stored('fm_refresh_token'));
+  jwtToken = $state(stored('fm_jwt_token'));
   quizSubTab = $state('quiz'); // 'quiz' | 'vote'
   showInstructionsModal = $state(false);
   refreshTimer = null;
+  _initPromise = null;
 
   challenges = $state([]);
   setupChallenges = $state([]);
@@ -54,11 +41,6 @@ class AppState {
   pollingTimer = null;
 
   // ── Getter ────────────────────────────────────────────────────────────────
-
-  get gameRoute() {
-    const code = this.event?.invite_code?.trim().toUpperCase();
-    return code ? `/partita/${encodeURIComponent(code)}/${this.view}` : '/';
-  }
 
   get hasSession() {
     return !!this.token || !!this.jwtToken;
@@ -76,14 +58,14 @@ class AppState {
     return !!this.account || !!this.jwtToken;
   }
 
-  get isInGame() {
-    return Boolean(
-      this.event &&
-      this.user &&
-      !this.pendingInvite &&
-      GAME_TABS.includes(this.view) &&
-      (this.view !== 'setup' || this.isCouple)
-    );
+  /** Il matrimonio caricato è quello con questo codice (e c'è un profilo di gioco)? */
+  isInEvent(code) {
+    return !!this.user && !!code && this.event?.invite_code?.toUpperCase() === code.toUpperCase();
+  }
+
+  /** URL di una tab del gioco del matrimonio corrente. */
+  gameUrl(tab = 'home') {
+    return gameUrl(this.event?.invite_code, tab);
   }
 
   get mySubmissionsByChallenge() {
@@ -215,129 +197,33 @@ class AppState {
     this.stopPolling();
   }
 
-  async init() {
-    this.isLoadingAuth = true;
+  /** Recupera la sessione salvata (una sola volta): lo attende il layout radice prima di ogni pagina. */
+  ready() {
+    this._initPromise ??= this._init();
+    return this._initPromise;
+  }
+
+  async _init() {
+    if (!this.hasSession) return;
     try {
-      // Link d'invito: se c'e' gia' un account lo recuperiamo, cosi' si salta il login.
-      if (new URLSearchParams(location.search).get('code')?.trim()) {
-        this.view = 'join';
-        if (this.jwtToken) {
-          try {
-            const res = await api.getMe();
-            if (res.account) this.account = res.account;
-          } catch (_) {
-            this.logout();
-            this.view = 'join';
-          }
-        }
-        return;
-      }
+      const res = await api.getMe();
+      this._saveTokens(null, null, res.account, res.refresh_token);
+      // Senza token di un matrimonio si è solo "account": i dati di gioco non servono.
+      if (!this.token || !res.user) return;
 
-      if (this.hasSession) {
+      this.setUser(res.user);
+      this.event = res.event || null;
+      if (this.event && !this.event.invite_code) {
         try {
-          const res = await api.getMe();
-          this._saveTokens(null, null, res.account, res.refresh_token);
-
-          if (this.jwtToken && !this.token) {
-            this.user = null;
-            this.event = null;
-            this.view = 'dashboard';
-            await this.loadDashboardEvents();
-          } else if (res.user) {
-            this.setUser(res.user);
-            this.event = res.event || null;
-            if (this.event && !this.event.invite_code) {
-              try {
-                const inv = await api.getEventInvite();
-                if (inv?.invite_code) this.event.invite_code = inv.invite_code;
-              } catch (_) {}
-            }
-            await this.loadInitialData();
-            this.startPolling();
-          }
-        } catch (err) {
-          console.warn('Session restoration failed:', err);
-          this.logout();
-        }
+          const inv = await api.getEventInvite();
+          if (inv?.invite_code) this.event.invite_code = inv.invite_code;
+        } catch (_) {}
       }
-      this.syncRouteFromUrl();
+      await this.loadInitialData();
     } catch (err) {
-      console.error('Fatal init error:', err);
-    } finally {
-      this.isLoadingAuth = false;
+      console.warn('Session restoration failed:', err);
+      this._clearAll();
     }
-  }
-
-  // ── Navigazione ───────────────────────────────────────────────────────────
-
-  /** Allinea la schermata all'URL corrente (avvio e tasto indietro del browser). */
-  syncRouteFromUrl() {
-    if (this.pendingInvite) return;
-    const path = location.pathname.toLowerCase();
-
-    if (new URLSearchParams(location.search).get('code')?.trim()) {
-      this.view = 'join';
-      return;
-    }
-
-    const game = path.match(/^\/partita\/([^/]+)(?:\/([^/]+))?\/?$/);
-    const routeCode = game && decodeURIComponent(game[1]).toUpperCase();
-    if (routeCode && routeCode === this.event?.invite_code?.toUpperCase()) {
-      const tab = game[2] || 'home';
-      if (GAME_TABS.includes(tab) && (tab !== 'setup' || this.isCouple)) {
-        this.view = tab;
-      } else {
-        // tab sconosciuta o riservata agli sposi: si torna alla home della partita
-        this.view = 'home';
-        history.replaceState(null, '', `/partita/${encodeURIComponent(routeCode)}/home`);
-      }
-      return;
-    }
-
-    if (path === '/crea') {
-      this.view = 'create';
-    } else if (path === '/entra') {
-      this.view = 'join';
-    } else if (DASHBOARD_PATHS.includes(path)) {
-      this.view = this.hasAccount ? 'dashboard' : 'login-secure';
-    } else if (path === '/' && !this.isInGame) {
-      this.view = this.hasAccount && !this.event ? 'dashboard' : 'entry';
-    } else {
-      return;
-    }
-    if (this.view === 'dashboard') this.loadDashboardEvents();
-  }
-
-  setGameTab(tab, replace = false) {
-    if (!GAME_TABS.includes(tab) || (tab === 'setup' && !this.isCouple)) return;
-    this.view = tab;
-    if (this.event?.invite_code) {
-      history[replace ? 'replaceState' : 'pushState'](null, '', this.gameRoute);
-    }
-  }
-
-  /** Va a una pagina del sito (fuori dal gioco). */
-  setAuthView(view) {
-    const urlCode = new URLSearchParams(location.search).get('code');
-    if (view === 'login-secure' && urlCode) this.pendingJoinCode = urlCode.trim().toUpperCase();
-    else if (view === 'entry' || view === 'create') this.pendingJoinCode = null;
-    // pendingInvite tiene "agganciato" il wizard di creazione: va chiuso quando si naviga altrove.
-    if (view !== 'create') this.pendingInvite = null;
-    this.view = view;
-    const search = view === 'join' ? location.search : '';
-    history.pushState(null, '', (VIEW_PATHS[view] || '/') + search);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  openDashboard(eventId = null) {
-    // Uscendo dal wizard di creazione l'evento resta salvato: si chiude solo il flusso.
-    this.pendingInvite = null;
-    this.view = 'dashboard';
-    this.stopPolling();
-    const eventQuery = eventId ? `?event=${encodeURIComponent(eventId)}` : '';
-    history.pushState(null, '', `/dashboard_utente${eventQuery}`);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // ── Matrimonio: creazione, ingresso, selezione ────────────────────────────
@@ -355,15 +241,11 @@ class AppState {
     }
   }
 
-  async finishOnboarding(targetTab = null) {
+  async finishOnboarding(target = 'home') {
     this.pendingInvite = null;
-    if (targetTab === 'dashboard') {
-      this.openDashboard(this.event?.id);
-      return;
-    }
-    this.setGameTab(targetTab || 'home', true);
+    if (target === 'dashboard') return goto(dashboardUrl(this.event?.id));
     await this.loadInitialData();
-    this.startPolling();
+    return goto(this.gameUrl('home'), { replace: true });
   }
 
   async cancelEventCreation() {
@@ -375,13 +257,9 @@ class AppState {
       this.pendingInvite = null;
       this._clearEventSession();
       this._clearGame();
-      if (this.jwtToken && this.account) {
-        this.openDashboard();
-        this.showToast('Creazione annullata. L’account è ancora attivo.', 'info');
-      } else {
-        this.setAuthView('entry');
-        this.showToast('Creazione annullata.', 'info');
-      }
+      const keepAccount = this.jwtToken && this.account;
+      this.showToast(keepAccount ? 'Creazione annullata. L’account è ancora attivo.' : 'Creazione annullata.', 'info');
+      goto(keepAccount ? ROUTES.dashboard : ROUTES.home);
     }
   }
 
@@ -404,11 +282,8 @@ class AppState {
       this.showToast(greeting, 'success');
 
       this.pendingJoinCode = null;
-      this.setGameTab('home', true);
-      window.dispatchEvent(new PopStateEvent('popstate'));
-
       await this.loadInitialData();
-      this.startPolling();
+      await goto(this.gameUrl('home'), { replace: true });
       return { success: true };
     } catch (err) {
       if (err.code !== 'NICKNAME_TAKEN') {
@@ -423,7 +298,8 @@ class AppState {
     }
   }
 
-  async selectEvent(eventItem, targetTab = null) {
+  /** Dalla dashboard: apre un matrimonio dell'account (tab di gioco o 'setup' per gli sposi). */
+  async selectEvent(eventItem, targetTab = 'home') {
     const eventId = eventItem?.event?.id || eventItem?.id;
     if (!eventId) return;
     try {
@@ -442,8 +318,7 @@ class AppState {
       } else {
         await this.loadInitialData();
       }
-      this.setGameTab(targetTab || 'home', true);
-      this.startPolling();
+      await goto(this.gameUrl(targetTab));
       this.showToast(`Entrato nel matrimonio di ${this.event.spouse1_name} & ${this.event.spouse2_name}`, 'info');
     } catch (err) {
       console.error('Errore selezione evento:', err);
@@ -454,26 +329,23 @@ class AppState {
   // ── Account ───────────────────────────────────────────────────────────────
 
   /**
-   * Dopo un login/registrazione riuscito. Con `redirect` (default) porta alla dashboard utente;
-   * senza resta nella schermata corrente (es. "entra con codice" o "crea matrimonio").
+   * Dopo un login/registrazione riuscito. Con `redirect` (default) porta alla dashboard utente
+   * (o al matrimonio del link d'invito); senza resta nella pagina corrente.
    */
   async _completeAccountAuth(res, { redirect = true, toast = '' } = {}) {
     this._saveTokens(null, res.jwt, res.account);
+    if (toast) this.showToast(toast, 'success');
+    if (!redirect) return;
 
-    if (redirect && this.pendingJoinCode) {
-      // L'ospite era arrivato da un link d'invito: lo riportiamo al form con il codice gia' inserito.
+    if (this.pendingJoinCode) {
+      // L'ospite era arrivato da un link d'invito: torna al form con il codice gia' inserito.
       const code = this.pendingJoinCode;
       this.pendingJoinCode = null;
-      this.view = 'join';
-      history.pushState(null, '', `/entra?code=${encodeURIComponent(code)}`);
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    } else if (redirect) {
-      // Scollega lo stato di gioco del singolo matrimonio
-      this._clearGame();
-      this.openDashboard();
-      await this.loadDashboardEvents();
+      return goto(joinUrl(code));
     }
-    if (toast) this.showToast(toast, 'success');
+    // Scollega lo stato di gioco del singolo matrimonio
+    this._clearGame();
+    return goto(ROUTES.dashboard);
   }
 
   async loginSecure(email, password, opts = {}) {
@@ -525,14 +397,19 @@ class AppState {
     }
   }
 
-  logout() {
+  _clearAll() {
+    this.pendingInvite = null;
     this._clearEventSession();
     this._clearGame();
     this.jwtToken = null;
     this.account = null;
     this.dashboardEvents = [];
     localStorage.removeItem('fm_jwt_token');
-    this.setAuthView('entry');
+  }
+
+  logout() {
+    this._clearAll();
+    return goto(ROUTES.home);
   }
 
   // ── Dati di gioco ─────────────────────────────────────────────────────────
@@ -651,9 +528,9 @@ class AppState {
     }
   }
 
+  /** Punteggio e classifica live mentre si è dentro il gioco (lo avvia il layout del gioco). */
   startPolling() {
     if (this.pollingTimer) return;
-    // Polling ogni 20 secondi per punteggio e classifica live
     this.pollingTimer = setInterval(async () => {
       if (this.isAuthenticated) {
         await Promise.allSettled([this.refreshUser(true), this.refreshLeaderboard()]);

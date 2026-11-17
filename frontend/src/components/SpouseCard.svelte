@@ -1,5 +1,7 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
+  import { goto } from '$app/navigation';
+  import { ROUTES } from '../lib/routes.js';
 
   let { loggedIn = false, onLogin = () => {} } = $props();
 </script>
@@ -13,12 +15,12 @@
   <div class="spouse-card-body">
     <h2>Siete gli sposi?</h2>
     <p>Gestite missioni, foto degli invitati e la classifica in tempo reale dalla vostra dashboard.</p>
-    <button type="button" onclick={() => loggedIn ? appState.openDashboard() : onLogin()}>
+    <button type="button" onclick={() => loggedIn ? goto(ROUTES.dashboard) : onLogin()}>
       {loggedIn ? 'Vai ai miei matrimoni' : 'Accedi alla dashboard'}
     </button>
     <p class="create-prompt">
       Non avete ancora un Fanta Matrimonio?
-      <button type="button" class="inline-link" onclick={() => appState.setAuthView('create')}>Crealo ora</button>
+      <button type="button" class="inline-link" onclick={() => goto(ROUTES.create)}>Crealo ora</button>
     </p>
   </div>
 </div>

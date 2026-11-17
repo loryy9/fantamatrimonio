@@ -2,7 +2,9 @@
   import { slide } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { onMount } from 'svelte';
+  import { page } from '$app/state';
   import { appState } from '../lib/state.svelte.js';
+  import { normalizeCode } from '../lib/routes.js';
   import { api } from '../lib/api.js';
   import EmailVerificationField from './EmailVerificationField.svelte';
   import SocialButtons from './SocialButtons.svelte';
@@ -35,7 +37,7 @@
 
   // Codice matrimonio: richiesto solo dalla registrazione dentro "entra con codice".
   const needsCode = $derived(embedded && joinMode);
-  let inviteCode = $state((new URLSearchParams(location.search).get('code') || '').trim().toUpperCase());
+  let inviteCode = $state(normalizeCode(page.url.searchParams.get('code')));
   let eventPreview = $state(null);
   let previewError = $state('');
   let socialBusy = $state(false);

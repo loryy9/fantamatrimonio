@@ -2,25 +2,26 @@
     import { slide } from "svelte/transition";
     import { cubicOut } from "svelte/easing";
     import { onMount } from "svelte";
+    import { page } from "$app/state";
     import { appState } from "../lib/state.svelte.js";
+    import { normalizeCode } from "../lib/routes.js";
     import { api } from "../lib/api.js";
     import QrScannerModal from "./QrScannerModal.svelte";
     import PageIntro from "./PageIntro.svelte";
     import SpouseCard from "./SpouseCard.svelte";
 
     const cardTransition = {
-        duration: typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240,
+        duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240,
         easing: cubicOut,
     };
 
-    function getCodeFromUrl() {
-        if (typeof window === "undefined") return "";
-        return (new URLSearchParams(window.location.search).get("code") || "")
-            .trim()
-            .toUpperCase();
-    }
+    const urlCode = $derived(normalizeCode(page.url.searchParams.get("code")));
+    let inviteCode = $state("");
 
-    let inviteCode = $state(getCodeFromUrl());
+    // Il codice nel link (?code=...) riempie il campo, anche se cambia restando sulla pagina
+    $effect(() => {
+        if (urlCode) inviteCode = urlCode;
+    });
     let nickname = $state("");
     let isSubmitting = $state(false);
     let showQrModal = $state(false);
@@ -66,23 +67,7 @@
         }
     }
 
-    onMount(() => {
-        function onLocation() {
-            const c = getCodeFromUrl();
-            if (c) inviteCode = c;
-        }
-        window.addEventListener("popstate", onLocation);
-        window.addEventListener("hashchange", onLocation);
-
-        const urlCode = getCodeFromUrl();
-        if (urlCode) inviteCode = urlCode;
-
-        return () => {
-            window.removeEventListener("popstate", onLocation);
-            window.removeEventListener("hashchange", onLocation);
-            clearTimeout(checkTimer);
-        };
-    });
+    onMount(() => () => clearTimeout(checkTimer));
 
     $effect(() => {
         const code = inviteCode.trim().toUpperCase();

@@ -1,5 +1,7 @@
 <script>
   import { appState } from '../lib/state.svelte.js';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
 
   // Contenuto delle icone (stessa cornice svg per tutte)
   const navItems = [
@@ -16,8 +18,8 @@
     {#each navItems as item (item.id)}
       <button
         class="nav-btn"
-        class:active={appState.view === item.id}
-        onclick={() => appState.setGameTab(item.id)}
+        class:active={page.url.pathname.endsWith(`/${item.id}`)}
+        onclick={() => goto(appState.gameUrl(item.id))}
         aria-label={item.label}
       >
         <span class="nav-icon">

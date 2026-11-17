@@ -1,9 +1,13 @@
 <script>
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { appState } from '../lib/state.svelte.js';
+  import { ROUTES, loginUrl } from '../lib/routes.js';
 
   let showUserMenu = $state(false);
   let menuOpen = $state(false);
+  const path = $derived(page.url.pathname);
 
   onMount(() => {
     const closeMenu = (event) => {
@@ -14,26 +18,9 @@
     return () => document.removeEventListener('click', closeMenu);
   });
 
-  // Durante la configurazione del matrimonio appena creato (pendingInvite) l'evento
-  // esiste già: prima di uscire avvisa che lo si ritrova in "I miei matrimoni".
-  async function navigate(action) {
-    const ok = !appState.pendingInvite || await appState.confirm(
-      'Il matrimonio è già stato creato: lo ritrovi in «I miei matrimoni», dove potrai completare le sfide e recuperare il codice invito.',
-      { title: 'Lasciare la creazione?', confirmText: 'Esci', cancelText: 'Resta qui' }
-    );
-    if (ok) action();
-  }
-
-  function goHome() {
-    if (appState.hasAccount) appState.openDashboard();
-    else appState.setAuthView('entry');
-  }
-
-  function scrollToSection(id) {
-    const scroll = () => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    if (appState.view === 'entry') return scroll();
-    appState.setAuthView('entry');
-    setTimeout(scroll, 70);
+  async function scrollToSection(id) {
+    if (path !== ROUTES.home) await goto(ROUTES.home);
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   async function handleLogout() {
@@ -54,7 +41,7 @@
 <header class="site-header">
   <div class="site-header-inner">
     <!-- Brand a sinistra: Logo anelli + Scritta Fanta Matrimonio -->
-    <button class="brand" onclick={() => navigate(goHome)} aria-label="Fanta Matrimonio Home">
+    <button class="brand" onclick={() => goto(appState.hasAccount ? ROUTES.dashboard : ROUTES.home)} aria-label="Fanta Matrimonio Home">
       <div class="brand-icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="9" cy="12" r="5"></circle>
@@ -95,8 +82,8 @@
       {#if appState.hasAccount}
         <button
           class="btn btn-secondary nav-action-btn"
-          class:active={appState.view === 'join'}
-          onclick={() => navigate(() => appState.setAuthView('join'))}
+          class:active={path === ROUTES.join}
+          onclick={() => goto(ROUTES.join)}
           title="Partecipa a un matrimonio"
         >
           {@render rowIcon('<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>')}
@@ -116,8 +103,8 @@
         </button>
         <button
           class="btn btn-secondary nav-action-btn nav-guest-btn"
-          class:active={appState.view === 'login-secure'}
-          onclick={() => appState.setAuthView('login-secure')}
+          class:active={path === ROUTES.login}
+          onclick={() => goto(loginUrl(page.url.searchParams.get('code')))}
           title="Accedi al tuo account"
         >
           {@render rowIcon('<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>')}
@@ -127,8 +114,8 @@
       {/if}
 
       <!-- Azione principale, uguale per tutti; nascosta mentre si sta già creando un matrimonio -->
-      {#if appState.view !== 'create'}
-        <button class="btn btn-primary nav-cta" onclick={() => appState.setAuthView('create')} title="Crea il vostro matrimonio">
+      {#if path !== ROUTES.create}
+        <button class="btn btn-primary nav-cta" onclick={() => goto(ROUTES.create)} title="Crea il vostro matrimonio">
           <span class="desktop-only">Crea matrimonio</span>
           <span class="mobile-only">Crea il tuo matrimonio</span>
         </button>
@@ -144,7 +131,7 @@
           {#if showUserMenu}
             <div class="user-dropdown">
               <span class="dropdown-email">{appState.account.email}</span>
-              <button class="dropdown-item" onclick={() => { showUserMenu = false; navigate(() => appState.openDashboard()); }}>I miei matrimoni</button>
+              <button class="dropdown-item" onclick={() => { showUserMenu = false; goto(ROUTES.dashboard); }}>I miei matrimoni</button>
               <button class="dropdown-item dropdown-logout" onclick={() => { showUserMenu = false; handleLogout(); }}>Esci</button>
             </div>
           {/if}

@@ -1,21 +1,24 @@
-import { defineConfig } from 'vite'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { defineConfig } from 'vite';
+import { sveltekit } from '@sveltejs/kit/vite';
+import adapter from '@sveltejs/adapter-static';
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [
+    sveltekit({
+      // SPA: tutte le pagine sono renderizzate nel browser. La build finisce in dist/, servita dal
+      // Worker Cloudflare che rimanda ogni URL sconosciuto a index.html (vedi worker/wrangler.jsonc).
+      adapter: adapter({ pages: 'dist', assets: 'dist', fallback: 'index.html' })
+    })
+  ],
   server: {
     host: true,
     port: 5173,
     proxy: {
+      // Le API girano sul Worker (wrangler dev, porta 8000)
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true
       }
     }
-  },
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true
   }
-})
+});

@@ -23,6 +23,10 @@ RUN apt-get update \
 # 3. Configurazione di rete e avvio
 ENV PORT=8000
 ENV NODE_ENV=production
+# .dev.vars non entra nell'immagine (.dockerignore): segreti e configurazione
+# (DATABASE_URL, JWT_SECRET, GOOGLE_CLIENT_ID, ...) arrivano dalle variabili d'ambiente
+# del container (tab "Environment" di Dokploy). Senza questa opzione wrangler dev le ignora.
+ENV CLOUDFLARE_INCLUDE_PROCESS_ENV=true
 EXPOSE 8000
 
 # Volume per persistere le foto simulate localmente e lo stato

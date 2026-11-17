@@ -39,7 +39,8 @@ export async function renderGoogleButton(container, clientId, onCredential) {
     text: 'continue_with',
     shape: 'pill',
     logo_alignment: 'left',
-    width: Math.min(360, Math.max(240, container.clientWidth || 320))
+    // larghezza piena del contenitore (Google accetta al massimo 400px)
+    width: Math.min(400, Math.max(200, container.clientWidth || 320))
   });
 }
 

@@ -30,6 +30,7 @@
     "JWT_EXPIRE_HOURS": "720",
     "REGISTRATION_REMINDER_DAYS": "7",
     "FRONTEND_URL": "https://fantamatrimonio.<TUO-SUBDOMINIO>.workers.dev"
+    // GOOGLE_CLIENT_ID: in locale in .dev.vars, online con `npx wrangler secret put GOOGLE_CLIENT_ID`
   }
 
   // ── OPZIONALE ────────────────────────────────────────────────────────────

@@ -3,10 +3,9 @@
   import { eventTimer } from '../lib/timer.svelte.js';
   import { formatName } from '../lib/formatters.js';
 
-  const rawSpouse1 = import.meta.env.VITE_SPOUSE_1 || import.meta.env.VITE_NOME_1 || 'Mattia';
-  const rawSpouse2 = import.meta.env.VITE_SPOUSE_2 || import.meta.env.VITE_NOME_2 || 'Giulia';
-  const spouse1 = formatName(rawSpouse1);
-  const spouse2 = formatName(rawSpouse2);
+  // Nomi degli sposi della partita in corso (prima erano fissi da variabili d'ambiente)
+  const spouse1 = $derived(formatName(appState.event?.spouse1_name || ''));
+  const spouse2 = $derived(formatName(appState.event?.spouse2_name || ''));
 
   // Check on mount or when user changes if this user has already seen the instructions
   $effect(() => {
@@ -55,7 +54,7 @@
         </div>
         <h2 id="instructions-modal-title" class="modal-title font-serif">Benvenuti al FantaMatrimonio!</h2>
         <div class="modal-subtitle">
-          Festa di <strong class="gold-gradient-text">{spouse1} & {spouse2}</strong>
+          {#if spouse1 && spouse2}Festa di <strong class="gold-gradient-text">{spouse1} & {spouse2}</strong>{:else}Il gioco del matrimonio{/if}
         </div>
       </div>
 

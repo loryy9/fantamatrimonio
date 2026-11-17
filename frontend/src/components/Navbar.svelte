@@ -2,6 +2,11 @@
   import { appState } from '../lib/state.svelte.js';
   import { goto } from '$app/navigation';
   import { dashboardUrl } from '../lib/routes.js';
+  import { ICONS } from '../lib/icons.js';
+  import SideDrawer from './SideDrawer.svelte';
+  import DrawerItem from './DrawerItem.svelte';
+
+  let menuOpen = $state(false);
 
   const s1 = $derived(appState.event?.spouse1_name || '');
   const s2 = $derived(appState.event?.spouse2_name || '');
@@ -12,6 +17,10 @@
   );
 
   const title = $derived(hasCouple ? `${s1} & ${s2}` : 'Fanta Matrimonio');
+
+  const subtitle = $derived(
+    appState.isCouple ? 'Gli sposi' : `${appState.user?.nickname || 'Ospite'} · ${appState.user?.total_points || 0} pt`
+  );
 
   async function handleLogout() {
     if (await appState.confirm('Vuoi davvero uscire?', { title: 'Esci', confirmText: 'Esci' })) {
@@ -26,36 +35,35 @@
     <span class="monogram font-serif" aria-hidden="true">{initials[0]}<i>&amp;</i>{initials[1]}</span>
     <span class="navbar-title font-serif">{title}</span>
 
-    {#if appState.isAuthenticated}
-      <div class="user-stats">
-        {#if !appState.isCouple}
-          <div class="chip static">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-            <span class="points-val">{appState.user?.total_points || 0} pt</span>
-          </div>
-        {/if}
+    <div class="user-stats">
+      {#if appState.isAuthenticated && !appState.isCouple}
+        <div class="chip">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+          <span class="points-val">{appState.user?.total_points || 0} pt</span>
+        </div>
+      {/if}
 
-        {#if appState.hasAccount}
-          <button
-            class={appState.isCouple ? 'chip event-details-btn' : 'icon-btn'}
-            onclick={() => goto(dashboardUrl(appState.isCouple ? appState.event?.id : null))}
-            title={appState.isCouple ? 'Apri i dettagli di questo matrimonio' : 'I miei matrimoni (Dashboard)'}
-            aria-label={appState.isCouple ? 'Dettagli matrimonio' : 'Dashboard'}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-            {#if appState.isCouple}<span>Dettagli matrimonio</span>{/if}
-          </button>
-        {/if}
-
-        <button class="icon-btn" onclick={handleLogout} title="Esci" aria-label="Esci">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-        </button>
-      </div>
-    {/if}
+      <button class="icon-btn menu-btn" onclick={() => menuOpen = true} aria-label="Apri menu" aria-expanded={menuOpen}>
+        <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>
+      </button>
+    </div>
   </div>
   <span class="edge" aria-hidden="true"></span>
   </div>
 </header>
+
+<!-- Fuori dall'header: il suo filter farebbe da riferimento per il position: fixed del menu -->
+<SideDrawer bind:open={menuOpen} {title} {subtitle}>
+  <DrawerItem label="Come si gioca" icon={ICONS.book} onclick={() => appState.showInstructionsModal = true} />
+  {#if appState.hasAccount}
+    <DrawerItem
+      label={appState.isCouple ? 'Dettagli matrimonio' : 'I miei matrimoni'}
+      icon={ICONS.dashboard}
+      onclick={() => goto(dashboardUrl(appState.isCouple ? appState.event?.id : null))}
+    />
+  {/if}
+  <DrawerItem label="Esci" icon={ICONS.logout} variant="danger" onclick={handleLogout} />
+</SideDrawer>
 
 <style>
   /* solid wine band with champagne details: the app's signature */
@@ -161,22 +169,6 @@
     font-size: 0.8rem;
     font-weight: 800;
     white-space: nowrap;
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.2s ease;
-  }
-
-  .chip.static {
-    cursor: default;
-  }
-
-  .event-details-btn {
-    min-height: 40px;
-    padding: 6px 12px;
-    gap: 7px;
-  }
-
-  .chip:not(.static):active {
-    transform: scale(0.95);
   }
 
   .points-val {
@@ -209,34 +201,32 @@
     background: rgba(255, 255, 255, 0.22);
   }
 
+  .bars {
+    position: relative;
+    width: 18px;
+    height: 14px;
+  }
+
+  .bars i {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+  }
+
+  .bars i:nth-child(1) { top: 0; }
+  .bars i:nth-child(2) { top: 6px; }
+  .bars i:nth-child(3) { top: 12px; }
+
   .icon-btn:active {
     transform: scale(0.92);
   }
 
-  .icon-btn:focus-visible,
-  .chip:focus-visible {
+  .icon-btn:focus-visible {
     outline: 2px solid var(--gold-bright);
     outline-offset: 2px;
-  }
-
-  @keyframes attention-wave {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(240, 216, 168, 0.7); }
-    50% { transform: scale(1.12); box-shadow: 0 0 0 8px rgba(240, 216, 168, 0.25); }
-    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(240, 216, 168, 0); }
-  }
-
-  @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(240, 216, 168, 0); }
-    50% { box-shadow: 0 0 0 4px rgba(240, 216, 168, 0.3); }
-  }
-
-  @media (max-width: 500px) {
-    .chip:not(.static) {
-      padding: 8px;
-      min-width: 38px;
-      min-height: 38px;
-      justify-content: center;
-    }
   }
 
   @media (min-width: 900px) {

@@ -16,14 +16,14 @@
 [P] Fare drawer da destra per creazione sfide matrimonio
 [P] unificare stile della creazione evento con la modifica da console sposo
 [P] console sposi "fuori" dal gioco, gestire le modifiche dalla dashboard dei matrimoni
-[] mettere sidebar in tutte le pagine, in modo da buttare dentro logout ed eventuali altri tasti
+[P] mettere sidebar in tutte le pagine, in modo da buttare dentro logout ed eventuali altri tasti
 [P] Togliere nome sposi in home e spostare piu su nome giocatore
 [P] Visualizzazione dettagliata delle foto deve permettermi di scorrere tra le foto
-[] Se carico una foto dalla al tesoro va in galleria ed è corretto. se dalla galleria cancello, deve riattivare quella sfida
 [] Connessione cloudflares bucket per caricare immagini
 [] testare bene tutti i vari login 
 [] logout consentito durante il gioco?
 [P] anche la pagina in cui viene mostrato il codice non ha la topbar
-[] usare sveltekit per routing
+[P] usare sveltekit per routing
 [P] implementare popup di conferma al posto di alert predefinito del browser
 [P] se sto creando un matrimonio e faccio partecipa non cambia niente e mi compaiono due topbar, se faccio crea matrimonio mentre creo un matrimonio non succede niente probabilmente togliere tasto
+[] Far funzionare accedi con google

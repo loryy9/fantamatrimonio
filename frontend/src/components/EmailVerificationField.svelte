@@ -220,7 +220,7 @@
   }
 
   .req {
-    color: #e05252;
+    color: #b3261e;
   }
 
   .input-action-row {

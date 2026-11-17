@@ -28,7 +28,7 @@
 
   --text-main: #2b1f24;
   --text-muted: #6b5d63;
-  --text-dim: #998b92;
+  --text-dim: #766970; /* contrasto ≥ 4.5:1 su crema e bianco */
 
   --border-subtle: rgba(140, 47, 75, 0.08);
   --border-card: rgba(200, 185, 175, 0.25);
@@ -88,6 +88,15 @@
   padding: 0;
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* i controlli dei form non ereditano il font per default: senza questa regola
+   i pulsanti senza stile proprio usano il carattere di sistema */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 html {

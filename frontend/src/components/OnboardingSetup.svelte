@@ -1487,6 +1487,39 @@
     z-index: 50;
   }
 
+  /* Il contenuto che scorre sotto la barra sfuma nello sfondo invece di comparire tagliato
+     intorno a lei. ::before = fascia color sfondo a tutta larghezza (sfumata in alto),
+     ::after = la superficie bianca della barra, disegnata sopra la fascia. */
+  .onboarding-footer {
+    background: none;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .onboarding-footer::before,
+  .onboarding-footer::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .onboarding-footer::before {
+    left: calc(50% - 50vw);
+    width: 100vw;
+    top: -28px;
+    bottom: calc(-1 * max(10px, env(safe-area-inset-bottom, 0px)) - 2px);
+    background: linear-gradient(to bottom, transparent, var(--bg-primary) 28px);
+  }
+
+  .onboarding-footer::after {
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(36, 28, 32, 0.08);
+    box-shadow: 0 8px 28px rgba(74, 31, 51, 0.14);
+  }
+
   .setup-action-cancel,
   .setup-action-reset {
     min-height: 48px;

@@ -1009,6 +1009,27 @@
     margin-top: 20px;
   }
 
+  .btn-text-link {
+    min-height: var(--control-sm);
+    padding: 0 8px;
+    border: 0;
+    background: none;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-text-link:hover {
+    color: var(--wine);
+  }
+
+  .btn-text-link:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
   /* Dashboard Screen */
   .dashboard-wrapper {
     max-width: 1100px;

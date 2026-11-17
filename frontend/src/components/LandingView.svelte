@@ -429,7 +429,7 @@
     margin-left: auto;
     font-size: 0.7rem;
     font-weight: 700;
-    color: #8c7840;
+    color: var(--gold-dark);
     background: #fbf5e6;
     padding: 2px 8px;
     border-radius: 6px;
@@ -837,7 +837,7 @@
     font-size: 0.68rem;
     font-weight: 800;
     letter-spacing: 0.12em;
-    color: #8c7840;
+    color: var(--gold-dark);
     text-transform: uppercase;
     display: block;
     margin-bottom: 4px;
@@ -960,7 +960,7 @@
     gap: 6px;
     font-size: 0.74rem;
     font-weight: 600;
-    color: #8c7840;
+    color: var(--gold-dark);
     margin-top: 4px;
   }
 

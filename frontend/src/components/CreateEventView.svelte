@@ -665,7 +665,7 @@
     font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.1em;
-    color: #8c7840;
+    color: var(--gold-dark);
   }
 
   .code-big-display {

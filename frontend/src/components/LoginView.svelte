@@ -501,12 +501,12 @@
     }
 
     .field-tag.required {
-        color: #a88438;
+        color: var(--gold-dark);
         font-weight: 700;
     }
 
     .field-tag.muted {
-        color: #8c7882;
+        color: var(--text-muted);
         font-weight: 500;
         text-transform: none;
         letter-spacing: normal;

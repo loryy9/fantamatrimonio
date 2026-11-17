@@ -363,7 +363,7 @@
     font-family: var(--font-display);
     font-size: 1.15rem;
     font-weight: 700;
-    color: #a07a35;
+    color: var(--gold-dark);
     margin: 2px 0 10px 0;
   }
 
@@ -397,7 +397,7 @@
 
   .step-3 {
     background: rgba(233, 201, 143, 0.28);
-    color: #8a6a2c;
+    color: #7a5c22;
     height: 38px;
   }
 
@@ -750,7 +750,7 @@
   .sub-points {
     font-family: var(--font-display);
     font-weight: 700;
-    color: #a07a35;
+    color: var(--gold-dark);
     font-size: 1.1rem;
     white-space: nowrap;
   }

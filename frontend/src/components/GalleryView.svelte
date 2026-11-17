@@ -551,10 +551,6 @@
 {/if}
 
 <style>
-  .header-box { padding: 0 4px; }
-  .header-box::after { content: none; display: none; }
-  .page-title { font-family: var(--font-display); font-size: clamp(2rem, 6vw, 2.8rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; color: var(--text-main); }
-  .page-desc { font-size: 0.92rem; font-style: italic; color: #6b5f64; margin-top: 8px; line-height: 1.5; max-width: 560px; }
 
   .gallery-container { display: flex; flex-direction: column; gap: 20px; width: 100%; min-width: 0; box-sizing: border-box; }
   .gallery-container.gallery-empty { min-height: 100%; }
@@ -563,12 +559,6 @@
   .gallery-fab:active { transform: scale(.94); }
   .gallery-fab:focus-visible { outline: 3px solid var(--gold-dark); outline-offset: 3px; }
   @media (min-width: 900px) { .gallery-fab { right: max(24px, calc((100vw - 480px) / 2 + 20px)); bottom: calc(96px + var(--safe-bottom)); } }
-  .upload-placeholder { border: 1.5px dashed rgba(140,47,75,.3); border-radius: 20px; padding: 34px 16px; text-align: center; cursor: pointer; background: var(--wine-tint); transition: background .2s ease, border-color .2s ease; }
-  .upload-placeholder:active { border-color: var(--wine); }
-  @media (hover: hover) { .upload-placeholder:hover { border-color: var(--wine); background: #f1dae1; } }
-  .upload-icon { width: 60px; height: 60px; margin: 0 auto 10px; border-radius: 50%; background: #fff; color: var(--wine); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px -12px rgba(106,32,55,.5); }
-  .upload-cta { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; color: var(--wine-deep); }
-  .upload-subtext { font-size: .76rem; color: #6b5f64; margin-top: 4px; }
   .hidden-file-input { display: none; }
   .preview-area { position: relative; width: 100%; border-radius: 20px; overflow: hidden; margin-bottom: 12px; max-height: 280px; background: var(--bg-surface-elevated); display: flex; justify-content: center; align-items: center; }
   .preview-image { width: 100%; max-height: 280px; object-fit: contain; }
@@ -593,7 +583,6 @@
   .optimization-pill { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 600; color: #3f6d58; background: rgba(127,169,148,.16); border: 1px solid rgba(127,169,148,.4); padding: 4px 12px; border-radius: 999px; align-self: flex-start; }
   .optimization-pill.preparing { color: var(--wine); background: var(--wine-tint); border-color: rgba(140,47,75,.2); }
   .spinner-tiny { width: 12px; height: 12px; border: 2px solid rgba(140,47,75,.2); border-top-color: var(--wine); border-radius: 50%; animation: spin .8s linear infinite; }
-  .feed-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .feed-title { font-family: var(--font-display); font-weight: 600; color: var(--text-main); }
   .gallery-empty .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 280px; padding: 28px 20px; border-radius: 26px; }
   .empty-icon { width: 68px; height: 68px; margin: 0 auto 12px; border-radius: 50%; background: var(--wine-tint); color: var(--wine); display: flex; align-items: center; justify-content: center; }
@@ -636,7 +625,7 @@
   .load-more-sentinel { display: flex; justify-content: center; padding: 20px 0 10px; width: 100%; }
   .load-more-btn { background: #fff; border: 1px solid rgba(140,47,75,.25); color: var(--wine); font-weight: 700; font-size: .85rem; padding: 11px 24px; border-radius: 999px; cursor: pointer; transition: background .2s, border-color .2s; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 10px 20px -16px rgba(106,32,55,.5); }
   @media (hover: hover) { .load-more-btn:hover { background: var(--wine-tint); border-color: var(--wine); } }
-  .upload-placeholder:focus-visible, .remove-btn:focus-visible, .multi-remove-btn:focus-visible, .clear-all-btn:focus-visible, .add-more-thumb:focus-visible, .photo-card:focus-visible, .photo-card-delete-btn:focus-visible, .lightbox-close:focus-visible, .btn-delete-photo:focus-visible, .load-more-btn:focus-visible { outline: 2px solid var(--wine); outline-offset: 2px; }
+  .remove-btn:focus-visible, .multi-remove-btn:focus-visible, .clear-all-btn:focus-visible, .add-more-thumb:focus-visible, .photo-card:focus-visible, .photo-card-delete-btn:focus-visible, .lightbox-close:focus-visible, .btn-delete-photo:focus-visible, .load-more-btn:focus-visible { outline: 2px solid var(--wine); outline-offset: 2px; }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .lightbox-overlay { animation: none; } .grid-img { transition: none; } .spinner-tiny { animation-duration: 2s; } }
 </style>

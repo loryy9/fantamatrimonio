@@ -1692,11 +1692,6 @@
     border-color: rgba(201, 169, 110, 0.3);
   }
 
-  .pill-names {
-    font-weight: 600;
-    color: var(--ink);
-  }
-
   .pill-code {
     font-family: var(--font-mono);
     font-size: 0.72rem;

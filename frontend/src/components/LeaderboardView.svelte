@@ -222,9 +222,6 @@
   }
 
   /* Editorial header */
-  .header-box {
-    padding: 4px 4px 0;
-  }
 
   .header-top {
     display: flex;
@@ -617,20 +614,6 @@
   .pts-label {
     font-size: 0.74rem;
     color: var(--text-dim);
-  }
-
-  .empty-table-banner {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 14px 20px;
-    background: var(--wine-tint);
-    border-top: 1px dashed rgba(140, 47, 75, 0.3);
-    color: var(--wine-deep);
-    font-size: 0.82rem;
-    font-weight: 500;
-    text-align: center;
   }
 
   /* Modal */

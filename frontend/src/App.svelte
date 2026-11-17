@@ -10,7 +10,6 @@
   import LoginView from './components/LoginView.svelte';
   import CreateEventView from './components/CreateEventView.svelte';
   import SecureLoginView from './components/SecureLoginView.svelte';
-  import AuthGate from './components/AuthGate.svelte';
   import HomeView from './components/HomeView.svelte';
   import GalleryView from './components/GalleryView.svelte';
   import HuntView from './components/HuntView.svelte';
@@ -21,23 +20,21 @@
   import DashboardView from './components/DashboardView.svelte';
   import SiteHeader from './components/SiteHeader.svelte';
 
-  let mainContentEl = $state(null);
+  const GAME_VIEWS = {
+    home: HomeView,
+    gallery: GalleryView,
+    hunt: HuntView,
+    quiz: QuizView,
+    leaderboard: LeaderboardView,
+  };
 
-  // "Entra" senza account: Registrati (col codice) / Accedi dentro il normale layout del sito.
-  // "Crea" gestisce la registrazione da solo, nel suo wizard.
-  const showGate = $derived(appState.authView === 'join' && !appState.pendingInvite && !appState.hasAccount);
-  // "Crea" (form e registrazione) usa la topbar del sito; setup e condivisione restano a tutto schermo.
-  const showCreateForm = $derived(appState.authView === 'create' && !appState.pendingInvite);
-  const showSiteChrome = $derived(
-    showGate || showCreateForm || appState.authView === 'join' || (appState.authView !== 'create' && !appState.pendingInvite)
-  );
+  // Gli sposi modificano le sfide dentro il layout del sito, non in quello del gioco.
+  const isCoupleSetup = $derived(appState.view === 'setup' && appState.isCouple);
+  const GameView = $derived(GAME_VIEWS[appState.view]);
 
   function checkIsAdminRoute() {
-    if (typeof window === 'undefined') return false;
-    const p = window.location.pathname.toLowerCase();
-    const h = window.location.hash.toLowerCase();
-    const s = window.location.search.toLowerCase();
-    return p === '/admin' || p.startsWith('/admin/') || h === '#admin' || s.includes('admin');
+    const p = location.pathname.toLowerCase();
+    return p === '/admin' || p.startsWith('/admin/') || location.hash.toLowerCase() === '#admin' || location.search.toLowerCase().includes('admin');
   }
 
   let isAdminRoute = $state(checkIsAdminRoute());
@@ -47,51 +44,33 @@
     history.pushState(null, '', '/');
   }
 
-  let previousHasAccount = appState.hasAccount;
+  function openAdmin(e) {
+    e.preventDefault();
+    history.pushState(null, '', '/admin');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }
 
   // Nell'accesso con codice, dopo il login dell'account si resta su "entra" e si passa
-  // alla fase successiva: riporta in cima la vista mobile solo in questo passaggio.
+  // alla fase successiva: riporta in cima la pagina solo in questo passaggio.
+  let previousHasAccount = appState.hasAccount;
   $effect(() => {
     const hasAccount = appState.hasAccount;
-    const authView = appState.authView;
-    const becameLoggedInDuringJoin = authView === 'join' && !previousHasAccount && hasAccount;
-    previousHasAccount = hasAccount;
-
-    if (!becameLoggedInDuringJoin) return;
-
-    if (mainContentEl) {
-      mainContentEl.scrollTop = 0;
+    if (appState.view === 'join' && hasAccount && !previousHasAccount) {
+      const toTop = () => window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      toTop();
+      tick().then(toTop);
     }
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-
-    tick().then(() => {
-      if (mainContentEl) {
-        mainContentEl.scrollTop = 0;
-      }
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    });
+    previousHasAccount = hasAccount;
   });
 
-  // Aggiorna dinamicamente la barra di stato su iPhone/Safari per combaciare perfettamente con la topbar
+  // Barra di stato iPhone/Safari e sfondo pagina coordinati con la topbar
   $effect(() => {
     const inGame = appState.isInGame;
-    if (typeof document !== 'undefined') {
-      const targetColor = inGame ? '#ffffff' : '#faf7f2';
-      const pageBackground = inGame ? '#6a2037' : '#faf7f2';
-      const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) {
-        meta.setAttribute('content', targetColor);
-      }
-      document.documentElement.style.backgroundColor = pageBackground;
-      document.body.style.backgroundColor = pageBackground;
-      if (inGame) {
-        document.documentElement.classList.add('in-game-active');
-      } else {
-        document.documentElement.classList.remove('in-game-active');
-      }
-    }
+    const background = inGame ? '#6a2037' : '#faf7f2';
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', inGame ? '#ffffff' : '#faf7f2');
+    document.documentElement.style.backgroundColor = background;
+    document.body.style.backgroundColor = background;
+    document.documentElement.classList.toggle('in-game-active', inGame);
   });
 
   onMount(() => {
@@ -133,90 +112,61 @@
     <div class="splash-title font-serif gold-gradient-text">Fanta Matrimonio</div>
     <div class="spinner"></div>
   </div>
-{:else if appState.activeTab === 'setup' && appState.isCouple}
-  <div class="site">
-    <SiteHeader />
-    <main class="site-fullscreen-main">
-      <OnboardingSetup
-        editMode={true}
-        initialChallenges={appState.setupChallenges}
-        onComplete={() => appState.openDashboard(appState.event?.id)}
-        onCancel={() => appState.openDashboard(appState.event?.id)}
-      />
-    </main>
-  </div>
-{:else if appState.isInGame}
-  <!-- NAVBAR FESTA BORDEAUX CON MONOGRAMMA SPOSI SOLO DENTRO AL GIOCO EFFETTIVO -->
+{:else if appState.isInGame && !isCoupleSetup}
+  <!-- Layout del gioco: navbar bordeaux con monogramma degli sposi e tab in basso -->
   <div class="app-wrapper">
     <Navbar />
-
-    <main class="main-content" bind:this={mainContentEl}>
-      {#if appState.activeTab === 'home'}
-        <HomeView />
-      {:else if appState.activeTab === 'gallery'}
-        <GalleryView />
-      {:else if appState.activeTab === 'hunt'}
-        <HuntView />
-      {:else if appState.activeTab === 'quiz'}
-        <QuizView />
-      {:else if appState.activeTab === 'leaderboard'}
-        <LeaderboardView />
-      {/if}
+    <main class="main-content">
+      <GameView />
     </main>
-
-    {#if appState.event}
-      <BottomNav />
-    {/if}
+    <BottomNav />
   </div>
 {:else}
-  <!-- NAVBAR BIANCA CLASSICA CON LOGO E SCRITTA A SINISTRA, NAVMENU A DESTRA PER LE VIEW GENERALI -->
+  <!-- Layout del sito: topbar bianca con logo a sinistra e menu a destra -->
   <div class="site">
-    {#if showSiteChrome}
-      <SiteHeader />
-    {/if}
+    <SiteHeader />
 
-    {#if appState.authView === 'entry' && !appState.pendingInvite}
+    {#if isCoupleSetup}
+      <main class="site-fullscreen-main">
+        <OnboardingSetup
+          editMode={true}
+          initialChallenges={appState.setupChallenges}
+          onComplete={() => appState.openDashboard(appState.event?.id)}
+          onCancel={() => appState.openDashboard(appState.event?.id)}
+        />
+      </main>
+    {:else if appState.view === 'create'}
+      <!-- Il form usa il layout normale; configurazione sfide e condivisione codice sono a tutto schermo -->
+      <main class={appState.pendingInvite ? 'site-fullscreen-main' : 'site-main'}>
+        <CreateEventView />
+      </main>
+    {:else if appState.view === 'join'}
+      <main class="site-main">
+        {#if appState.hasAccount}
+          <LoginView />
+        {:else}
+          <!-- Senza account: Registrati (chiede il codice) oppure Accedi -->
+          <SecureLoginView embedded joinMode initialMode="register" intro />
+        {/if}
+      </main>
+    {:else if appState.view === 'dashboard'}
+      <main class="site-main site-dashboard-page">
+        <DashboardView />
+      </main>
+    {:else if appState.view === 'login-secure'}
+      <main class="site-main">
+        <SecureLoginView />
+      </main>
+    {:else}
       <main class="site-landing">
         <LandingView />
       </main>
-    {:else if showGate}
-      <main class="site-main">
-        <AuthGate />
-      </main>
-    {:else if showCreateForm || appState.pendingInvite || appState.authView === 'create'}
-      <main class={showCreateForm ? 'site-main' : 'site-fullscreen-main'}>
-        <CreateEventView />
-      </main>
-    {:else if appState.authView === 'join'}
-      <main class="site-main">
-        <LoginView />
-      </main>
-    {:else}
-      <main class="site-main" class:site-dashboard-page={appState.authView === 'dashboard' || appState.activeTab === 'dashboard'}>
-        {#if appState.authView === 'dashboard' || appState.activeTab === 'dashboard'}
-          <DashboardView />
-        {:else if appState.authView === 'login-secure'}
-          <SecureLoginView />
-        {:else}
-          <LandingView />
-        {/if}
-      </main>
     {/if}
 
-    {#if showSiteChrome}
+    {#if !appState.pendingInvite && !isCoupleSetup}
       <footer class="site-footer">
         <span>Fanta Matrimonio · Gioca, scatta, rispondi e scala la classifica</span>
-        <a
-          href="/admin"
-          class="admin-link-subtle"
-          onclick={(e) => {
-            e.preventDefault();
-            history.pushState(null, '', '/admin');
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          }}
-        >
-          Console Admin
-        </a>
+        <a href="/admin" class="admin-link-subtle" onclick={openAdmin}>Console Admin</a>
       </footer>
     {/if}
   </div>

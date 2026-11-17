@@ -18,7 +18,7 @@
   }
 </script>
 
-<header class="navbar" class:game-mode={appState.isInGame}>
+<header class="navbar game-mode">
   <div class="band">
   <div class="bar">
     <span class="monogram font-serif" aria-hidden="true">{initials[0]}<i>&amp;</i>{initials[1]}</span>
@@ -26,13 +26,11 @@
 
     {#if appState.isAuthenticated}
       <div class="user-stats">
-        {#if appState.activeTab !== 'dashboard'}
-          {#if appState.user && !appState.isCouple}
-            <div class="chip static">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-              <span class="points-val">{appState.user?.total_points || 0} pt</span>
-            </div>
-          {/if}
+        {#if !appState.isCouple}
+          <div class="chip static">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+            <span class="points-val">{appState.user?.total_points || 0} pt</span>
+          </div>
         {/if}
 
         {#if appState.hasAccount}
@@ -248,19 +246,6 @@
     outline-offset: 2px;
   }
 
-  .icon-btn-gold {
-    background: linear-gradient(145deg, #fbefcf, #e3c07e);
-    color: var(--wine-deep);
-    border: 1.5px solid rgba(240, 216, 168, 0.75);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    animation: pulse-glow 2.5s ease-in-out infinite;
-  }
-
-  .pulse-attention {
-    animation: attention-wave 1.4s infinite ease-in-out !important;
-    background: linear-gradient(145deg, #fff2d6, #edd193) !important;
-  }
-
   @keyframes attention-wave {
     0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(240, 216, 168, 0.7); }
     50% { transform: scale(1.12); box-shadow: 0 0 0 8px rgba(240, 216, 168, 0.25); }
@@ -273,9 +258,6 @@
   }
 
   @media (max-width: 500px) {
-    .chip-text {
-      display: none;
-    }
     .chip:not(.static) {
       padding: 8px;
       min-width: 38px;

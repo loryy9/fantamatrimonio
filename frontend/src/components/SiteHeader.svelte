@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { appState } from '../lib/state.svelte.js';
 
-  let { scrollToId } = $props();
   let showUserMenu = $state(false);
   let menuOpen = $state(false);
 
@@ -17,41 +16,24 @@
 
   // Durante la configurazione del matrimonio appena creato (pendingInvite) l'evento
   // esiste già: prima di uscire avvisa che lo si ritrova in "I miei matrimoni".
-  async function leaveCreationOk() {
-    if (!appState.pendingInvite) return true;
-    return appState.confirm(
+  async function navigate(action) {
+    const ok = !appState.pendingInvite || await appState.confirm(
       'Il matrimonio è già stato creato: lo ritrovi in «I miei matrimoni», dove potrai completare le sfide e recuperare il codice invito.',
       { title: 'Lasciare la creazione?', confirmText: 'Esci', cancelText: 'Resta qui' }
     );
+    if (ok) action();
   }
 
-  async function navigate(action) {
-    if (await leaveCreationOk()) action();
+  function goHome() {
+    if (appState.hasAccount) appState.openDashboard();
+    else appState.setAuthView('entry');
   }
 
-  async function handleBrandClick() {
-    if (!(await leaveCreationOk())) return;
-    if (appState.hasAccount) {
-      appState.openDashboard();
-    } else {
-      appState.setAuthView('entry');
-    }
-  }
-
-  function handleAnchorClick(id) {
-    if (appState.authView !== 'entry' || appState.activeTab === 'dashboard' || appState.activeTab === 'create' || appState.activeTab === 'join') {
-      appState.setAuthView('entry');
-      setTimeout(() => {
-        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 70);
-      return;
-    }
-
-    if (scrollToId) {
-      scrollToId(id);
-    } else {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+  function scrollToSection(id) {
+    const scroll = () => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (appState.view === 'entry') return scroll();
+    appState.setAuthView('entry');
+    setTimeout(scroll, 70);
   }
 
   async function handleLogout() {
@@ -61,10 +43,18 @@
   }
 </script>
 
-<header class="site-header" class:has-account={appState.hasAccount}>
+{#snippet chevron()}
+  <svg class="row-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+{/snippet}
+
+{#snippet rowIcon(paths)}
+  <svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{@html paths}</svg>
+{/snippet}
+
+<header class="site-header">
   <div class="site-header-inner">
     <!-- Brand a sinistra: Logo anelli + Scritta Fanta Matrimonio -->
-    <button class="brand" onclick={handleBrandClick} aria-label="Fanta Matrimonio Home">
+    <button class="brand" onclick={() => navigate(goHome)} aria-label="Fanta Matrimonio Home">
       <div class="brand-icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="9" cy="12" r="5"></circle>
@@ -74,7 +64,7 @@
       <span class="brand-name font-serif gold-gradient-text">Fanta Matrimonio</span>
     </button>
 
-    <!-- Navmenu a destra -->
+    <!-- Navmenu a destra (drawer su mobile) -->
     <button
       class="menu-backdrop"
       class:open={menuOpen}
@@ -101,96 +91,64 @@
         <span class="drawer-title font-serif">Fanta Matrimonio</span>
         <span class="drawer-sub">Menu</span>
       </div>
+
       {#if appState.hasAccount}
-        <!-- Menu per utente autenticato con account -->
-
-        {#if appState.authView !== 'create'}
         <button
           class="btn btn-secondary nav-action-btn"
-          onclick={() => appState.setAuthView('create')}
-          title="Crea nuovo matrimonio"
-          aria-label="Crea nuovo matrimonio"
-        >
-          <svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          <span class="nav-text">Crea matrimonio</span>
-          <svg class="row-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
-        </button>
-        {/if}
-
-        <button
-          class="btn btn-secondary nav-action-btn"
-          class:active={appState.authView === 'join'}
+          class:active={appState.view === 'join'}
           onclick={() => navigate(() => appState.setAuthView('join'))}
           title="Partecipa a un matrimonio"
         >
-          <svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+          {@render rowIcon('<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>')}
           <span class="nav-text">Partecipa</span>
-          <svg class="row-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+          {@render chevron()}
         </button>
-
-        {#if appState.account}
-          <div class="user-menu">
-            <button class="user-chip" class:open={showUserMenu} onclick={() => showUserMenu = !showUserMenu} aria-expanded={showUserMenu} aria-haspopup="true" title="Apri menu account">
-            <svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span class="user-name">{appState.account.display_name}</span>
-              <svg
-                class="dropdown-chevron"
-                class:rotated={showUserMenu}
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="m6 9 6 6 6-6"></path>
-              </svg>
-            </button>
-            {#if showUserMenu}
-              <div class="user-dropdown">
-                <span class="dropdown-email">{appState.account.email}</span>
-                <button class="dropdown-item" onclick={() => { showUserMenu = false; navigate(() => appState.openDashboard()); }}>I miei matrimoni</button>
-                <button class="dropdown-item dropdown-logout" onclick={() => { showUserMenu = false; handleLogout(); }}>Esci</button>
-              </div>
-            {/if}
-          </div>
-        {/if}
-
-        <!-- <button class="btn-logout" onclick={handleLogout} title="Esci dall'account" aria-label="Esci">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-          <span class="logout-label">Esci</span>
-        </button> -->
       {:else}
-        <!-- Menu pubblico per visitatori non autenticati -->
-        <button class="nav-link nav-anchor" onclick={() => handleAnchorClick('come-funziona')}><svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg><span>Come funziona</span><svg class="row-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
-        <button class="nav-link nav-anchor" onclick={() => handleAnchorClick('giochi')}><svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h4M8 9v4"/><path d="M15 12h.01M18 10h.01"/><rect width="20" height="12" x="2" y="6" rx="4"/></svg><span>I giochi</span><svg class="row-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
-
+        <button class="nav-link nav-anchor" onclick={() => scrollToSection('come-funziona')}>
+          {@render rowIcon('<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>')}
+          <span>Come funziona</span>
+          {@render chevron()}
+        </button>
+        <button class="nav-link nav-anchor" onclick={() => scrollToSection('giochi')}>
+          {@render rowIcon('<path d="M6 11h4M8 9v4"/><path d="M15 12h.01M18 10h.01"/><rect width="20" height="12" x="2" y="6" rx="4"/>')}
+          <span>I giochi</span>
+          {@render chevron()}
+        </button>
         <button
           class="btn btn-secondary nav-action-btn nav-guest-btn"
-          class:active={appState.authView === 'login-secure'}
+          class:active={appState.view === 'login-secure'}
           onclick={() => appState.setAuthView('login-secure')}
           title="Accedi al tuo account"
-          aria-label="Accedi al tuo account"
         >
-          <svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          {@render rowIcon('<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>')}
           <span>Accedi</span>
-          <svg class="row-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+          {@render chevron()}
         </button>
+      {/if}
 
-        {#if appState.authView !== 'create'}
-        <button
-          class="btn btn-primary nav-cta"
-          onclick={() => appState.setAuthView('create')}
-          title="Crea il vostro matrimonio"
-        >
+      <!-- Azione principale, uguale per tutti; nascosta mentre si sta già creando un matrimonio -->
+      {#if appState.view !== 'create'}
+        <button class="btn btn-primary nav-cta" onclick={() => appState.setAuthView('create')} title="Crea il vostro matrimonio">
           <span class="desktop-only">Crea matrimonio</span>
           <span class="mobile-only">Crea il tuo matrimonio</span>
         </button>
-        {/if}
+      {/if}
+
+      {#if appState.account}
+        <div class="user-menu">
+          <button class="user-chip" class:open={showUserMenu} onclick={() => showUserMenu = !showUserMenu} aria-expanded={showUserMenu} aria-haspopup="true" title="Apri menu account">
+            <svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="user-name">{appState.account.display_name}</span>
+            <svg class="dropdown-chevron" class:rotated={showUserMenu} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          </button>
+          {#if showUserMenu}
+            <div class="user-dropdown">
+              <span class="dropdown-email">{appState.account.email}</span>
+              <button class="dropdown-item" onclick={() => { showUserMenu = false; navigate(() => appState.openDashboard()); }}>I miei matrimoni</button>
+              <button class="dropdown-item dropdown-logout" onclick={() => { showUserMenu = false; handleLogout(); }}>Esci</button>
+            </div>
+          {/if}
+        </div>
       {/if}
     </nav>
   </div>
@@ -282,8 +240,7 @@
     white-space: nowrap;
   }
 
-  .nav-link:hover,
-  .nav-link.active {
+  .nav-link:hover {
     color: var(--gold-dark);
     background: rgba(201, 169, 110, 0.12);
   }
@@ -319,19 +276,6 @@
     background: rgba(201, 169, 110, 0.14);
     border-color: var(--gold-primary);
     color: var(--gold-dark);
-  }
-
-  .nav-login-link {
-    font-size: 0.86rem;
-    color: var(--text-muted);
-    padding: 7px 10px;
-    border-radius: var(--radius-md);
-  }
-
-  .nav-login-link:hover,
-  .nav-login-link.active {
-    color: var(--gold-dark);
-    background: rgba(201, 169, 110, 0.1);
   }
 
   .user-chip {
@@ -423,27 +367,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .btn-logout {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: none;
-    border: 1px solid rgba(200, 50, 50, 0.2);
-    color: #a83232;
-    padding: 7px 11px;
-    border-radius: 10px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-    white-space: nowrap;
-  }
-
-  .btn-logout:hover {
-    background: rgba(200, 50, 50, 0.08);
-    border-color: rgba(200, 50, 50, 0.4);
   }
 
   .mobile-only {
@@ -642,7 +565,6 @@
       backdrop-filter: blur(6px);
     }
 
-    .nav-link.active,
     .top-nav :global(.btn.active:not(.nav-cta)),
     .user-chip.open {
       background: rgba(240, 216, 168, 0.18);
@@ -689,14 +611,14 @@
       box-shadow: 0 14px 28px -10px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.7);
     }
 
-    .nav-cta.active {
-      color: var(--wine-deep);
-    }
-
-    /* account: the profile row sits at the bottom */
+    /* account: the profile row sits at the bottom, right under the primary action */
     .user-menu {
       width: 100%;
       margin-top: auto;
+    }
+
+    .nav-cta + .user-menu {
+      margin-top: 0;
     }
 
     .user-name {

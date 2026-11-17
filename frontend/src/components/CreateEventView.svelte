@@ -7,14 +7,10 @@
   import OnboardingSetup from './OnboardingSetup.svelte';
   import EmailVerificationField from './EmailVerificationField.svelte';
   import SocialButtons from './SocialButtons.svelte';
-  import SiteHeader from './SiteHeader.svelte';
   import PageIntro from './PageIntro.svelte';
 
-  const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const cardTransition = {
-    duration: prefersReducedMotion ? 0 : 240,
-    easing: cubicOut
-  };
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const cardTransition = { duration: prefersReducedMotion ? 0 : 240, easing: cubicOut };
   const progressTransitionDuration = prefersReducedMotion ? 0 : 420;
   const pageExitDuration = prefersReducedMotion ? 0 : 180;
   const onboardingEnterTransition = {
@@ -22,8 +18,10 @@
     duration: prefersReducedMotion ? 0 : 340,
     easing: cubicOut
   };
+  const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  // Wizard: 1 Nomi & Cerimonia -> 2 Registrazione (solo se non si ha già un account) -> 'setup' -> 'share'.
+  // Wizard: 1 Nomi & Cerimonia -> 2 Registrazione (solo senza account) -> 'setup' -> 'share'.
+  let currentStep = $state('form'); // 'form' | 'setup' | 'share'
   let wizardStep = $state(1);
   const totalSteps = $derived(appState.hasAccount ? 2 : 3);
   let completingCreation = $state(false);
@@ -32,9 +30,23 @@
   let step1FormEl = $state(null);
   let registerFormEl = $state(null);
   let loginFormEl = $state(null);
+  let isSubmitting = $state(false);
+  let copied = $state('');
+
+  // Step 1: Nomi & Cerimonia
+  let spouse1 = $state('');
+  let spouse2 = $state('');
+  let eventDate = $state(localDateString());
+  let enableTimer = $state(false);
+  // Inizio e fine sfide: giorno e ora separati (nessun overflow su mobile)
+  let startDate = $state(localDateString());
+  let startTime = $state('12:00');
+  let endDate = $state(localDateString());
+  let endTime = $state('23:30');
 
   // Step 2: registrazione / accesso di chi crea il matrimonio
   let authMode = $state('register'); // 'register' | 'login'
+  const isRegister = $derived(authMode === 'register');
   let cFirst = $state('');
   let cLast = $state('');
   let cEmail = $state('');
@@ -45,127 +57,87 @@
   let lEmail = $state('');
   let lPassword = $state('');
 
-  // Step 1: Nomi & Cerimonia
-  let spouse1 = $state('');
-  let spouse2 = $state('');
-  let eventDate = $state(localDateString());
-  let enableTimer = $state(false);
+  function localDateString(date = new Date()) {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
+  }
 
-  // Orari inizio e fine sfide: Giorno + Ora separati sia per inizio che per fine (nessun overflow su mobile!)
-  let startDate = $state(localDateString());
-  let startTime = $state('12:00');
-  let endDate = $state(localDateString());
-  let endTime = $state('23:30');
+  const timerStart = () => new Date(`${startDate}T${startTime}`);
+  const timerEnd = () => new Date(`${endDate}T${endTime}`);
+
+  /** Regole del passo 1: ritorna il messaggio d'errore, oppure null se è tutto a posto. */
+  function step1Error() {
+    if (!spouse1.trim() || !spouse2.trim()) return 'Inserisci il nome di entrambi gli sposi.';
+    if (!eventDate || eventDate < localDateString()) return 'La data del matrimonio non può essere nel passato.';
+    if (!enableTimer) return null;
+    if (!startDate || !startTime || !endDate || !endTime) return 'Imposta sia giorno che ora di inizio e di chiusura delle sfide.';
+    const start = timerStart();
+    const end = timerEnd();
+    if (isNaN(start) || isNaN(end)) return 'Date e orari non validi.';
+    if (start <= new Date()) return "L'inizio dei giochi deve essere nel futuro.";
+    if (end <= start) return "La chiusura delle sfide deve essere successiva all'inizio.";
+    return null;
+  }
 
   const canAdvance = $derived.by(() => {
     if (isSubmitting) return false;
-    if (wizardStep === 1) {
-      if (!spouse1.trim() || !spouse2.trim() || !eventDate || eventDate < localDateString()) return false;
-      if (step1FormEl && !step1FormEl.checkValidity()) return false;
-      if (!enableTimer) return true;
-      if (!startDate || !startTime || !endDate || !endTime) return false;
-      const start = new Date(`${startDate}T${startTime}`);
-      const end = new Date(`${endDate}T${endTime}`);
-      return !isNaN(start.getTime()) && !isNaN(end.getTime()) && start > new Date() && end > start;
+    if (wizardStep === 1) return !step1Error() && step1FormEl?.checkValidity() !== false;
+    if (isRegister) {
+      return cVerified && !!cEmail.trim() && !!cFirst.trim() && !!cLast.trim() &&
+        cPassword.length >= 6 && !!registerFormEl?.checkValidity();
     }
-
-    if (authMode === 'register') {
-      return cVerified && !!cEmail.trim() &&
-        !!cFirst.trim() && !!cLast.trim() && cPassword.length >= 6 &&
-        !!registerFormEl?.checkValidity();
-    }
-
     return !!lEmail.trim() && !!lPassword && !!loginFormEl?.checkValidity();
   });
 
-  function localDateString(date = new Date()) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
+  const backLabel = $derived(wizardStep === 1 ? 'Torna alla pagina precedente' : 'Torna ai dati del matrimonio');
+  const forwardLabel = $derived(wizardStep === 1 ? 'Continua al passaggio successivo' : 'Completa la creazione del matrimonio');
 
-  let isSubmitting = $state(false);
-  let copied = $state('');
-
-  // Sottofase onboarding post-creazione
-  let currentStep = $state('form'); // 'form' | 'setup' | 'share'
-
-  function scrollToTopInstant() {
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-      const appEl = document.getElementById('app');
-      if (appEl) appEl.scrollTop = 0;
-    }
-  }
-
-  // Sincronizza la data dell'evento con le date di inizio e fine
+  // Le date di inizio/fine seguono la data dell'evento finché non vengono cambiate a mano
   $effect(() => {
-    if (eventDate) {
-      if (!startDate || startDate === endDate) {
-        startDate = eventDate;
-        endDate = eventDate;
-      }
+    if (eventDate && (!startDate || startDate === endDate)) {
+      startDate = eventDate;
+      endDate = eventDate;
     }
   });
 
-  // Data leggibile in italiano
-  const readableDate = $derived.by(() => {
-    if (!eventDate) return '';
-    try {
-      const d = new Date(eventDate);
-      return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    } catch {
-      return '';
-    }
-  });
-
-  const inviteLink = $derived(
-    appState.pendingInvite ? `${window.location.origin}/?code=${appState.pendingInvite}` : ''
+  const readableDate = $derived(
+    eventDate
+      ? new Date(eventDate).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : ''
   );
 
-  /** Valida il passo 1 e prepara i dati dell'evento (null + toast se qualcosa non va). */
+  const inviteLink = $derived(
+    appState.pendingInvite ? `${location.origin}/?code=${appState.pendingInvite}` : ''
+  );
+
+  async function scrollToTop() {
+    await tick();
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }
+
+  async function withSubmitting(task) {
+    isSubmitting = true;
+    try {
+      await task();
+    } finally {
+      isSubmitting = false;
+    }
+  }
+
+  /** Dati dell'evento dal passo 1 (null + toast se qualcosa non va). */
   function buildPayload() {
-    if (!spouse1.trim() || !spouse2.trim()) {
-      appState.showToast('Inserisci il nome di entrambi gli sposi.', 'error');
+    const error = step1Error();
+    if (error) {
+      appState.showToast(error, 'error');
       return null;
-    }
-    if (!eventDate || eventDate < localDateString()) {
-      appState.showToast("La data del matrimonio non può essere nel passato.", 'error');
-      return null;
-    }
-    let startIso = null;
-    let endIso = null;
-    if (enableTimer) {
-      if (!startDate || !startTime || !endDate || !endTime) {
-        appState.showToast('Imposta sia giorno che ora di inizio e di chiusura delle sfide.', 'error');
-        return null;
-      }
-      const dStart = new Date(`${startDate}T${startTime}`);
-      const dEnd = new Date(`${endDate}T${endTime}`);
-      if (isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) {
-        appState.showToast('Date e orari non validi.', 'error');
-        return null;
-      }
-      if (dStart <= new Date()) {
-        appState.showToast("L'inizio dei giochi deve essere nel futuro.", 'error');
-        return null;
-      }
-      if (dEnd <= dStart) {
-        appState.showToast("La chiusura delle sfide deve essere successiva all'inizio.", 'error');
-        return null;
-      }
-      startIso = dStart.toISOString();
-      endIso = dEnd.toISOString();
     }
     return {
       spouse1_name: spouse1.trim(),
       spouse2_name: spouse2.trim(),
       enable_timer: enableTimer,
-      start_time: startIso,
-      end_time: endIso
+      start_time: enableTimer ? timerStart().toISOString() : null,
+      end_time: enableTimer ? timerEnd().toISOString() : null
     };
   }
 
@@ -173,32 +145,25 @@
     const payload = buildPayload();
     if (!payload) {
       wizardStep = 1;
-      await tick();
-      scrollToTopInstant();
-      return false;
+      await scrollToTop();
+      return;
     }
     completingCreation = true;
     await tick();
-    const progressFinished = progressTransitionDuration
-      ? new Promise(resolve => setTimeout(resolve, progressTransitionDuration + 30))
-      : Promise.resolve();
-    const res = await appState.createEvent(payload, { deferInvite: true });
+    const progressFinished = wait(progressTransitionDuration ? progressTransitionDuration + 30 : 0);
+    const res = await appState.createEvent(payload);
     if (!res.success) {
       completingCreation = false;
       appState.showToast(res.error || 'Impossibile creare il matrimonio.', 'error');
-      return false;
+      return;
     }
     await progressFinished;
     isLeavingCreatePage = true;
     await tick();
-    if (pageExitDuration) {
-      await new Promise(resolve => setTimeout(resolve, pageExitDuration));
-    }
+    await wait(pageExitDuration);
     appState.pendingInvite = res.inviteCode;
     currentStep = 'setup';
-    await tick();
-    scrollToTopInstant();
-    return true;
+    await scrollToTop();
   }
 
   // Passo 1: con un account si crea subito, altrimenti si passa alla registrazione.
@@ -206,45 +171,42 @@
     e.preventDefault();
     if (!buildPayload()) return;
     if (appState.hasAccount) {
-      isSubmitting = true;
-      await createTheEvent();
-      isSubmitting = false;
+      await withSubmitting(createTheEvent);
     } else {
       wizardStep = 2;
-      await tick();
-      scrollToTopInstant();
+      await scrollToTop();
     }
-  }
-
-  async function goToStep1() {
-    wizardStep = 1;
-    await tick();
-    scrollToTopInstant();
   }
 
   function goBack() {
     if (isSubmitting) return;
-    if (wizardStep > 1) goToStep1();
-    else appState.setAuthView('entry');
+    if (wizardStep > 1) {
+      wizardStep = 1;
+      scrollToTop();
+    } else {
+      appState.setAuthView('entry');
+    }
   }
 
   function goForward() {
-    if (!canAdvance || isSubmitting) return;
-    const form = wizardStep === 1
-      ? step1FormEl
-      : authMode === 'register' ? registerFormEl : loginFormEl;
+    if (!canAdvance) return;
+    const form = wizardStep === 1 ? step1FormEl : isRegister ? registerFormEl : loginFormEl;
     form?.requestSubmit();
   }
 
-  async function afterAuth(res) {
-    if (!res.success) {
-      appState.showToast(res.error, 'error');
-      return;
-    }
-    await createTheEvent();
+  /** Dopo login/registrazione nel passo 2 si crea il matrimonio. */
+  function authThenCreate(authenticate) {
+    return withSubmitting(async () => {
+      const res = await authenticate();
+      if (!res.success) {
+        appState.showToast(res.error, 'error');
+        return;
+      }
+      await createTheEvent();
+    });
   }
 
-  async function handleRegister(e) {
+  function handleRegister(e) {
     e.preventDefault();
     if (!cFirst.trim() || !cLast.trim()) {
       appState.showToast('Nome e cognome sono obbligatori.', 'error');
@@ -258,78 +220,70 @@
       appState.showToast('Verifica la tua email inserendo il codice a 6 cifre.', 'error');
       return;
     }
-    isSubmitting = true;
-    try {
-      await afterAuth(
-        await appState.register(
-          {
-            email: cEmail.trim(),
-            password: cPassword,
-            firstName: cFirst.trim(),
-            lastName: cLast.trim(),
-            nickname: '',
-            verificationCode: cCode.trim()
-          },
-          { redirect: false }
-        )
-      );
-    } finally {
-      isSubmitting = false;
-    }
+    authThenCreate(() => appState.register(
+      {
+        email: cEmail.trim(),
+        password: cPassword,
+        firstName: cFirst.trim(),
+        lastName: cLast.trim(),
+        nickname: '',
+        verificationCode: cCode.trim()
+      },
+      { redirect: false }
+    ));
   }
 
-  async function handleLogin(e) {
+  function handleLogin(e) {
     e.preventDefault();
     if (!lEmail.trim() || !lPassword) {
       appState.showToast('Email e password sono obbligatorie.', 'error');
       return;
     }
-    isSubmitting = true;
-    try {
-      await afterAuth(await appState.loginSecure(lEmail.trim(), lPassword, { redirect: false }));
-    } finally {
-      isSubmitting = false;
-    }
+    authThenCreate(() => appState.loginSecure(lEmail.trim(), lPassword, { redirect: false }));
   }
 
-  async function handleSocial(provider, token) {
-    isSubmitting = true;
-    try {
-      await afterAuth(await appState.loginSocial(provider, token, { redirect: false }));
-    } finally {
-      isSubmitting = false;
-    }
+  function handleSocial(provider, token) {
+    authThenCreate(() => appState.loginSocial(provider, token, { redirect: false }));
   }
 
   async function copy(kind, text) {
-    const ok = await copyToClipboard(text);
-    if (ok) {
-      copied = kind;
-      setTimeout(() => { if (copied === kind) copied = ''; }, 2000);
-      appState.showToast('Copiato negli appunti!', 'success');
-    }
+    if (!(await copyToClipboard(text))) return;
+    copied = kind;
+    setTimeout(() => { if (copied === kind) copied = ''; }, 2000);
+    appState.showToast('Copiato negli appunti!', 'success');
   }
 
   async function share() {
     const text = `Partecipa al nostro Fanta Matrimonio! Codice invito: ${appState.pendingInvite}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Fanta Matrimonio', text, url: inviteLink });
-      } catch { /* dismissed */ }
-    } else {
-      copy('link', inviteLink);
-    }
+    if (!navigator.share) return copy('link', inviteLink);
+    try {
+      await navigator.share({ title: 'Fanta Matrimonio', text, url: inviteLink });
+    } catch { /* condivisione annullata */ }
   }
 </script>
 
+{#snippet arrowRight(size, strokeWidth)}
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={strokeWidth} stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+{/snippet}
+
+{#snippet submitButton(label, busyLabel)}
+  <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
+    {#if isSubmitting}
+      <div class="spinner spinner-on-dark"></div>
+      <span>{busyLabel}</span>
+    {:else}
+      <span>{label}</span>
+      {@render arrowRight(18, 2.5)}
+    {/if}
+  </button>
+{/snippet}
+
 {#if currentStep === 'setup'}
   <div class="onboarding-arrival" in:fly|local={onboardingEnterTransition}>
-    {#if appState.pendingInvite}<SiteHeader />{/if}
-    <OnboardingSetup onComplete={() => { currentStep = 'share'; scrollToTopInstant(); }} />
+    <OnboardingSetup onComplete={() => { currentStep = 'share'; scrollToTop(); }} />
   </div>
-{:else if currentStep === 'share' || (appState.pendingInvite && !completingCreation)}
+{:else if currentStep === 'share'}
   <!-- SCHERMATA CODICE PRONTO -->
-  {#if appState.pendingInvite}<SiteHeader />{/if}
   <div class="wizard-screen">
     <div class="wizard-container">
       <div class="reveal-card">
@@ -346,30 +300,23 @@
           Condividete questo codice o il link con gli invitati per farli entrare al volo!
         </p>
 
-        <div class="code-big-display">
-          {appState.pendingInvite || appState.event?.invite_code}
-        </div>
+        <div class="code-big-display">{appState.pendingInvite}</div>
 
         <div class="reveal-actions">
           <button type="button" class="action-pill-btn" onclick={() => copy('code', appState.pendingInvite)}>
-            {#if copied === 'code'}✓ Codice copiato{:else}Copia codice{/if}
+            {copied === 'code' ? '✓ Codice copiato' : 'Copia codice'}
           </button>
           <button type="button" class="action-pill-btn" onclick={() => copy('link', inviteLink)}>
-            {#if copied === 'link'}✓ Link copiato{:else}Copia link WhatsApp{/if}
+            {copied === 'link' ? '✓ Link copiato' : 'Copia link WhatsApp'}
           </button>
-          <button type="button" class="action-pill-btn primary-wine" onclick={share}>
-            Condividi
-          </button>
+          <button type="button" class="action-pill-btn primary-wine" onclick={share}>Condividi</button>
         </div>
 
         <div class="reveal-footer">
           <button type="button" class="submit-action-btn" onclick={() => appState.finishOnboarding('dashboard')}>
             <span>Vai alla tua dashboard</span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
+            {@render arrowRight(18, 2.2)}
           </button>
-
           <button type="button" class="secondary-plain-btn" onclick={() => appState.finishOnboarding('home')}>
             Guarda cosa vedono gli invitati
           </button>
@@ -383,28 +330,16 @@
     <div class="create-intro">
       {#if wizardStep === 1}
         <PageIntro before="Chi sono i" accent="festeggiati?" lead="Questi nomi compariranno nell'app degli invitati, nelle classifiche delle sfide e nelle foto condivise." />
+      {:else if isRegister}
+        <PageIntro before="Create il vostro" accent="account" lead="Serve a voi per gestire la festa: console di regia, classifica e foto restano sempre a vostra disposizione. Registrandovi creiamo subito il matrimonio." />
       {:else}
-        <PageIntro
-          before={authMode === 'register' ? 'Create il vostro' : 'Bentornati,'}
-          accent={authMode === 'register' ? 'account' : 'sposi'}
-          lead={authMode === 'register'
-            ? 'Serve a voi per gestire la festa: console di regia, classifica e foto restano sempre a vostra disposizione. Registrandovi creiamo subito il matrimonio.'
-            : 'Accedete con il vostro account: creeremo il matrimonio con quei dati.'}
-        />
+        <PageIntro before="Bentornati," accent="sposi" lead="Accedete con il vostro account: creeremo il matrimonio con quei dati." />
       {/if}
-
     </div>
 
     <div class="auth-card create-form">
       <div class="wizard-stepper">
-        <button
-          type="button"
-          class="step-arrow"
-          onclick={goBack}
-          disabled={isSubmitting}
-          aria-label={wizardStep === 1 ? 'Torna alla pagina precedente' : 'Torna ai dati del matrimonio'}
-          title={wizardStep === 1 ? 'Torna alla pagina precedente' : 'Torna ai dati del matrimonio'}
-        >
+        <button type="button" class="step-arrow" onclick={goBack} disabled={isSubmitting} aria-label={backLabel} title={backLabel}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
           </svg>
@@ -419,17 +354,8 @@
         >
           <div class="create-progress-bar" style="width: {progress}%"></div>
         </div>
-        <button
-          type="button"
-          class="step-arrow step-arrow-next"
-          onclick={goForward}
-          disabled={!canAdvance || isSubmitting}
-          aria-label={wizardStep === 1 ? 'Continua al passaggio successivo' : 'Completa la creazione del matrimonio'}
-          title={wizardStep === 1 ? 'Continua al passaggio successivo' : 'Completa la creazione del matrimonio'}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
-          </svg>
+        <button type="button" class="step-arrow step-arrow-next" onclick={goForward} disabled={!canAdvance} aria-label={forwardLabel} title={forwardLabel}>
+          {@render arrowRight(20, 2.2)}
         </button>
       </div>
 
@@ -490,25 +416,17 @@
             {/if}
           </div>
 
-          <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
-            {#if isSubmitting}
-              <div class="spinner spinner-on-dark"></div>
-              <span>Creazione in corso...</span>
-            {:else}
-              <span>{appState.hasAccount ? 'Continua: scegli le modalità' : 'Continua: crea il tuo account'}</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            {/if}
-          </button>
+          {@render submitButton(appState.hasAccount ? 'Continua: scegli le modalità' : 'Continua: crea il tuo account', 'Creazione in corso...')}
           <p class="field-hint center">Potrai modificare questi dettagli in qualsiasi momento dalle impostazioni.</p>
         </form>
       {:else}
-        <h2 class="form-title font-serif">{authMode === 'register' ? 'Registrati' : 'Accedi'}</h2>
+        <h2 class="form-title font-serif">{isRegister ? 'Registrati' : 'Accedi'}</h2>
 
         <div class="social-transition" transition:slide|local={cardTransition}>
-          <SocialButtons onToken={handleSocial} busy={isSubmitting} label={authMode === 'register' ? 'Registrati con' : 'Accedi con'} />
+          <SocialButtons onToken={handleSocial} busy={isSubmitting} label={isRegister ? 'Registrati con' : 'Accedi con'} />
         </div>
 
-        {#if authMode === 'register'}
+        {#if isRegister}
           <form bind:this={registerFormEl} class="create-fields" onsubmit={handleRegister} transition:slide|local={cardTransition}>
             <EmailVerificationField
               bind:email={cEmail}
@@ -521,32 +439,24 @@
             />
             {#if cVerified}
               <div class="verified-fields" transition:slide|local={cardTransition}>
-              <div class="name-row">
-                <div class="input-group">
-                  <label for="cFirst" class="input-label">Nome</label>
-                  <input id="cFirst" type="text" class="input-field" placeholder="Elena" bind:value={cFirst} autocomplete="given-name" required />
+                <div class="name-row">
+                  <div class="input-group">
+                    <label for="cFirst" class="input-label">Nome</label>
+                    <input id="cFirst" type="text" class="input-field" placeholder="Elena" bind:value={cFirst} autocomplete="given-name" required />
+                  </div>
+                  <div class="input-group">
+                    <label for="cLast" class="input-label">Cognome</label>
+                    <input id="cLast" type="text" class="input-field" placeholder="Rossi" bind:value={cLast} autocomplete="family-name" required />
+                  </div>
                 </div>
                 <div class="input-group">
-                  <label for="cLast" class="input-label">Cognome</label>
-                  <input id="cLast" type="text" class="input-field" placeholder="Rossi" bind:value={cLast} autocomplete="family-name" required />
+                  <label for="cPassword" class="input-label">Password</label>
+                  <input id="cPassword" type={showPassword ? 'text' : 'password'} class="input-field" placeholder="Almeno 6 caratteri" bind:value={cPassword} autocomplete="new-password" minlength="6" required disabled={isSubmitting} />
+                  <button type="button" class="link-btn align-start" onclick={() => (showPassword = !showPassword)}>
+                    {showPassword ? 'Nascondi password' : 'Mostra password'}
+                  </button>
                 </div>
-              </div>
-              <div class="input-group">
-                <label for="cPassword" class="input-label">Password</label>
-                <input id="cPassword" type={showPassword ? 'text' : 'password'} class="input-field" placeholder="Almeno 6 caratteri" bind:value={cPassword} autocomplete="new-password" minlength="6" required disabled={isSubmitting} />
-                <button type="button" class="link-btn align-start" onclick={() => (showPassword = !showPassword)}>
-                  {showPassword ? 'Nascondi password' : 'Mostra password'}
-                </button>
-              </div>
-              <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
-                {#if isSubmitting}
-                  <div class="spinner spinner-on-dark"></div>
-                  <span>Creazione in corso...</span>
-                {:else}
-                  <span>Crea account e matrimonio</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                {/if}
-              </button>
+                {@render submitButton('Crea account e matrimonio', 'Creazione in corso...')}
               </div>
             {/if}
           </form>
@@ -561,15 +471,7 @@
               <label for="lPassword" class="input-label">Password</label>
               <input id="lPassword" type="password" class="input-field" placeholder="La tua password" bind:value={lPassword} autocomplete="current-password" required />
             </div>
-            <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
-              {#if isSubmitting}
-                <div class="spinner spinner-on-dark"></div>
-                <span>Accesso in corso...</span>
-              {:else}
-                <span>Accedi e crea il matrimonio</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-              {/if}
-            </button>
+            {@render submitButton('Accedi e crea il matrimonio', 'Accesso in corso...')}
           </form>
           <p class="switch center">Non hai un account? <button type="button" class="link-btn" onclick={() => (authMode = 'register')}>Registrati</button></p>
         {/if}
@@ -591,134 +493,10 @@
   }
 
   /* STICKY STEP HEADER CON ZERO SPAZIO MORTO IN ALTO */
-  .sticky-step-header {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    width: 100%;
-    background: #faf7f2;
-    padding-top: 0;
-    border-bottom: 1px solid rgba(140, 47, 75, 0.08);
-    box-shadow: 0 1px 6px rgba(43, 31, 36, 0.03);
-  }
-
-  @media (display-mode: standalone) {
-    .sticky-step-header {
-      padding-top: max(4px, env(safe-area-inset-top, 0px));
-    }
-  }
-
-  .sticky-inner {
-    width: 100%;
-    max-width: 620px;
-    margin: 0 auto;
-    padding: 0 14px;
-  }
 
   /* Top Navigation Bar */
-  .wizard-topbar {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 4px 0 2px;
-    min-height: 42px;
-  }
-
-  .top-icon-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    color: var(--wine);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .top-icon-btn:hover {
-    background: rgba(140, 47, 75, 0.08);
-  }
-
-  .user-avatar-pill {
-    background: var(--wine);
-    color: #ffffff;
-    width: 32px;
-    height: 32px;
-  }
-
-  .top-nav-center {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 1px;
-  }
-
-  .sub-brand {
-    font-size: 0.58rem;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    color: #9c8850;
-    text-transform: uppercase;
-    line-height: 1;
-  }
-
-  .step-pill-indicator {
-    font-family: var(--font-display);
-    font-size: 0.92rem;
-    color: var(--wine);
-    font-weight: 700;
-    line-height: 1.15;
-  }
-
-  .top-nav-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .step-percent-tag {
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: var(--wine);
-    background: #faedf2;
-    padding: 2px 7px;
-    border-radius: 999px;
-  }
 
   /* Progress Line */
-  .step-progress-wrapper {
-    width: 100%;
-    height: 2.5px;
-    background: rgba(200, 185, 175, 0.35);
-    margin: 2px 0 0;
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .step-progress-bar {
-    height: 100%;
-    background: var(--wine);
-    transition: width 0.35s ease-out;
-  }
-
-  .gold-pill-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #faeed3;
-    color: #7a5814;
-    padding: 5px 14px;
-    border-radius: 999px;
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    align-self: flex-start;
-  }
 
   /* Container */
   .wizard-container {
@@ -732,14 +510,6 @@
   }
 
   /* Header */
-  .wizard-header {
-    text-align: left;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 4px;
-    margin-bottom: 2px;
-  }
 
   .wizard-title {
     font-size: clamp(1.65rem, 4.5vw, 2.1rem);
@@ -756,171 +526,8 @@
   }
 
   /* Form */
-  .wizard-form {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
 
   /* Clean Card */
-  .clean-card {
-    background: #ffffff;
-    border-radius: 22px;
-    padding: 20px;
-    box-shadow: 0 4px 16px rgba(140, 47, 75, 0.04);
-    border: 1px solid rgba(220, 205, 195, 0.4);
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .card-section-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: #8c7840;
-    text-transform: uppercase;
-  }
-
-  .field-block {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .flex-1 {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .spouses-inputs-row {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  @media (min-width: 540px) {
-    .spouses-inputs-row {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: end;
-      gap: 12px;
-    }
-  }
-
-  .desktop-row-2col {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  @media (min-width: 540px) {
-    .desktop-row-2col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-  }
-
-  .label-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .field-sublabel {
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    color: #4a3c43;
-    text-transform: uppercase;
-  }
-
-  .field-tag-muted {
-    font-size: 0.72rem;
-    font-style: italic;
-    color: #8e7f86;
-  }
-
-  .field-tag-badge.gold {
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: #9c7b2c;
-  }
-
-  .input-with-icon {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .input-with-icon svg {
-    position: absolute;
-    left: 14px;
-    color: #7b6d74;
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  .clean-input {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    background: #f4efe9;
-    border: 1.5px solid transparent;
-    border-radius: 14px;
-    padding: 13px 16px 13px 44px;
-    font-family: var(--font-sans);
-    font-size: 16px !important; /* Prevents auto zoom on iOS */
-    color: var(--text-main);
-    transition: all 0.2s ease;
-    outline: none;
-  }
-
-  .clean-input:focus {
-    background: #ffffff;
-    border-color: var(--wine);
-    box-shadow: 0 0 0 3px rgba(140, 47, 75, 0.12);
-  }
-
-  .clean-input::placeholder {
-    color: #9c8e94;
-  }
-
-  .ampersand-divider {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: -2px 0;
-  }
-
-  @media (min-width: 540px) {
-    .ampersand-divider {
-      padding-bottom: 8px;
-    }
-  }
-
-  .ampersand-divider span {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: #f4efe9;
-    color: #7b6d74;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-display);
-    font-size: 1.1rem;
-    font-style: italic;
-    font-weight: 600;
-  }
 
   .field-hint {
     font-size: 0.74rem;
@@ -934,47 +541,6 @@
   }
 
   /* Timer card & Datetime inputs */
-  .timer-toggle-card {
-    background: #f5f0eb;
-    border: none;
-  }
-
-  .timer-card-head {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .clock-icon-bubble {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    background: #f4d068;
-    color: #4a3400;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .timer-head-copy {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .timer-head-copy strong {
-    font-size: 0.88rem;
-    color: #2b1f24;
-  }
-
-  .timer-head-copy p {
-    font-size: 0.75rem;
-    color: #6b5d63;
-    line-height: 1.35;
-    margin: 0;
-  }
 
   /* Clean Switch */
   .clean-switch {
@@ -1020,164 +586,9 @@
     transform: translateX(20px);
   }
 
-  .timer-full-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding-top: 14px;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .timer-range-card {
-    background: #fbf9f6;
-    border: 1px solid rgba(220, 205, 195, 0.5);
-    border-radius: 14px;
-    padding: 12px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .timer-range-header {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-  }
-
-  .timer-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-  }
-
-  .timer-dot.start {
-    background: #2ea869;
-    box-shadow: 0 0 6px rgba(46, 168, 105, 0.4);
-  }
-
-  .timer-dot.end {
-    background: var(--wine);
-    box-shadow: 0 0 6px rgba(140, 47, 75, 0.4);
-  }
-
-  .timer-inputs-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .mini-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: #7b6d74;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 2px;
-  }
-
-  .timer-cell-input {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    font-size: 16px !important;
-    padding: 10px 12px !important;
-    background: #ffffff !important;
-    border: 1px solid rgba(200, 185, 175, 0.4) !important;
-    border-radius: 10px !important;
-    color: var(--text-main);
-  }
-
-  @media (max-width: 360px) {
-    .timer-inputs-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
   /* Preview Code Card */
-  .preview-code-card {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .preview-code-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .qr-icon-bubble {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    background: #fae0ea;
-    color: var(--wine);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .code-preview-text {
-    display: block;
-    font-size: 1.05rem;
-    letter-spacing: 0.08em;
-    color: var(--wine);
-    margin-top: 2px;
-  }
-
-  .auto-tag {
-    background: #eae5e0;
-    color: #65585f;
-    font-size: 0.72rem;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 999px;
-  }
 
   /* Transparency card */
-  .transparency-card {
-    background: #f5f0eb;
-    border: none;
-    flex-direction: row;
-    gap: 14px;
-    align-items: flex-start;
-  }
-
-  .sparkle-bubble {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: #f4d068;
-    color: #4a3400;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .transparency-card strong {
-    display: block;
-    font-size: 0.88rem;
-    color: #2b1f24;
-    margin-bottom: 2px;
-  }
-
-  .transparency-card p {
-    font-size: 0.78rem;
-    color: #6b5d63;
-    line-height: 1.4;
-    margin: 0;
-  }
-
-  .email-verify-wrapper {
-    margin-bottom: 6px;
-  }
 
   /* Buttons */
   .submit-action-btn {
@@ -1201,53 +612,6 @@
 
   .submit-action-btn:hover {
     background: var(--wine-deep);
-  }
-
-  .bottom-safe-note {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    font-size: 0.73rem;
-    color: #6a5e64;
-    text-align: center;
-  }
-
-  .bottom-safe-note svg {
-    color: #8c7840;
-  }
-
-  .back-link-btn {
-    background: transparent;
-    border: none;
-    color: var(--wine);
-    font-weight: 700;
-    font-size: 0.86rem;
-    cursor: pointer;
-    align-self: center;
-    padding: 6px 12px;
-  }
-
-  .eye-btn {
-    position: absolute;
-    right: 12px;
-    background: transparent;
-    border: none;
-    color: #7b6d74;
-    cursor: pointer;
-    padding: 4px;
-    z-index: 2;
-  }
-
-  .preauth-notice {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #eef7f2;
-    border-radius: 12px;
-    padding: 12px;
-    color: #246845;
-    font-size: 0.82rem;
   }
 
   /* Code Reveal screen */
@@ -1339,31 +703,8 @@
     padding: 8px;
   }
 
-  .spinner-white {
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.35);
-    border-top-color: #ffffff;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
   @keyframes spin {
     to { transform: rotate(360deg); }
-  }
-
-  .step2-form {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .step2-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-  @media (max-width: 420px) {
-    .step2-row { grid-template-columns: 1fr; }
   }
 
   /* ── Wizard di creazione: stesso stile delle altre pagine (login/registrazione) ── */
@@ -1398,20 +739,6 @@
     gap: 16px;
     position: sticky;
     top: 96px;
-  }
-  .eyebrow {
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--wine);
-    padding: 5px 14px;
-    border-radius: var(--radius-full);
-    background: #fae9f0;
-    border: 1px solid rgba(140, 47, 75, 0.12);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
   }
   .wizard-stepper {
     display: grid;
@@ -1529,12 +856,6 @@
     padding: 0;
     text-align: left;
   }
-  .optional {
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: normal;
-    font-size: 0.85em;
-  }
   .option-box {
     background: rgba(201, 169, 110, 0.08);
     border: 1px solid rgba(201, 169, 110, 0.25);
@@ -1565,19 +886,6 @@
   .timer-grid .input-group {
     margin-bottom: 0;
   }
-  .verification-note {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    background: rgba(201, 169, 110, 0.1);
-    border: 1px solid rgba(201, 169, 110, 0.35);
-  }
-  .verification-note span {
-    color: #6b5f64;
-    font-size: 0.9rem;
-  }
   .align-start {
     align-self: flex-start;
     font-size: 0.85rem;
@@ -1606,12 +914,6 @@
     .create-form.auth-card {
       padding: 24px 22px;
       border-radius: 24px;
-    }
-    .eyebrow {
-      max-width: 100%;
-      font-size: 0.64rem;
-      letter-spacing: 0.08em;
-      padding: 6px 12px;
     }
     .switch {
       font-size: 0.88rem;

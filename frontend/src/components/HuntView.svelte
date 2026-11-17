@@ -159,7 +159,6 @@
 </div>
 
 <style>
-  .header-box { padding: 0 4px; }
   .page-title { font-family: var(--font-display); font-size: clamp(2rem, 6vw, 2.8rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; color: var(--text-main); }
   .page-desc { font-size: 0.92rem; font-style: italic; color: #6b5f64; margin-top: 8px; line-height: 1.5; max-width: 560px; }
 
@@ -190,7 +189,4 @@
   .ended-banner-text { display: flex; flex-direction: column; gap: 2px; font-size: .82rem; color: #6b5f64; }
   .ended-banner-text strong { font-size: .9rem; color: var(--wine-deep); }
   .ended-mission-notice { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 14px; background: var(--bg-surface-elevated); border: 1px dashed rgba(36,28,32,.18); border-radius: 999px; color: #6b5f64; font-size: .82rem; font-weight: 600; }
-  .couple-hint-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-radius: 22px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 18px 34px -26px rgba(106,32,55,.4); font-size: .88rem; color: var(--text-main); }
-  .couple-hint-banner :global(.inline-svg-icon) { color: var(--wine); vertical-align: -3px; }
-  @media (max-width: 600px) { .couple-hint-banner { flex-direction: column; align-items: flex-start; gap: 10px; } }
 </style>

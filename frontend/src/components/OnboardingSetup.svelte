@@ -1105,84 +1105,6 @@
     margin-bottom: 4px;
   }
 
-  .header-top-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    flex-wrap: wrap;
-    position: relative;
-    width: 100%;
-  }
-
-  .btn-cancel-header {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 36px;
-    padding: 6px 14px;
-    border-radius: 9999px;
-    background: rgba(166, 53, 82, 0.07);
-    border: 1px solid rgba(166, 53, 82, 0.25);
-    color: #a63552;
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition:
-      background 0.2s,
-      border-color 0.2s;
-  }
-
-  @media (hover: hover) {
-    .btn-cancel-header:hover:not(:disabled) {
-      background: rgba(166, 53, 82, 0.14);
-      border-color: rgba(166, 53, 82, 0.45);
-    }
-  }
-
-  .btn-cancel-header:disabled,
-  .btn-cancel-footer:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .btn-cancel-footer {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 9px 14px;
-    border-radius: 9999px;
-    background: transparent;
-    border: 1px dashed rgba(166, 53, 82, 0.4);
-    color: #a63552;
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition:
-      background 0.2s,
-      border-color 0.2s;
-  }
-
-  @media (hover: hover) {
-    .btn-cancel-footer:hover:not(:disabled) {
-      background: rgba(166, 53, 82, 0.07);
-      border-color: rgba(166, 53, 82, 0.65);
-    }
-  }
-
-  .header-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 9999px;
-    background: var(--wine-tint);
-    border: 1px solid rgba(140, 47, 75, 0.15);
-    color: var(--wine);
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-
   .page-title {
     font-size: clamp(2rem, 4vw, 2.8rem);
     line-height: 1.08;
@@ -1215,11 +1137,6 @@
     margin: 0;
   }
 
-  .page-lead strong {
-    color: var(--wine);
-    font-weight: 600;
-  }
-
   /* Sticky navigation tabs */
   .sticky-tabs-container {
     position: -webkit-sticky;
@@ -1239,81 +1156,6 @@
     box-sizing: border-box;
   }
 
-  .scroll-fade-edge {
-    position: absolute;
-    top: 2px;
-    bottom: 2px;
-    z-index: 26;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    background: transparent;
-    padding: 0;
-    transition:
-      opacity 0.2s ease,
-      transform 0.2s ease;
-  }
-
-  .scroll-fade-edge.left {
-    left: 2px;
-    width: 44px;
-    background: linear-gradient(
-      to right,
-      rgba(255, 255, 255, 0.98) 60%,
-      transparent
-    );
-    border-radius: 9999px 0 0 9999px;
-    justify-content: flex-start;
-    padding-left: 4px;
-  }
-
-  .scroll-fade-edge.right {
-    right: 2px;
-    width: 76px;
-    background: linear-gradient(
-      to left,
-      rgba(255, 255, 255, 0.98) 60%,
-      transparent
-    );
-    border-radius: 0 9999px 9999px 0;
-    justify-content: flex-end;
-    padding-right: 4px;
-  }
-
-  .scroll-arrow-chip {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    min-height: 28px;
-    padding: 0 8px;
-    border-radius: 9999px;
-    background: var(--wine);
-    box-shadow: 0 2px 10px rgba(106, 32, 55, 0.35);
-    color: #ffffff;
-    font-size: 0.74rem;
-    font-weight: 700;
-    line-height: 1;
-    animation: bounce-subtle 1.8s infinite ease-in-out;
-  }
-
-  .scroll-fade-edge.left .scroll-arrow-chip {
-    padding: 0 6px;
-    min-height: 26px;
-    width: 26px;
-    background: #ffffff;
-    border: 1px solid rgba(140, 47, 75, 0.2);
-    color: var(--wine);
-    animation: none;
-  }
-
-  .scroll-chip-text {
-    font-size: 0.72rem;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-  }
-
   @keyframes bounce-subtle {
     0%,
     100% {
@@ -1322,10 +1164,6 @@
     50% {
       transform: translateX(3px);
     }
-  }
-
-  .tabs-swipe-indicator {
-    display: none;
   }
 
   .section-tabs {
@@ -1391,11 +1229,7 @@
   }
 
   .tab-btn:focus-visible,
-  .btn-cancel-header:focus-visible,
-  .btn-cancel-footer:focus-visible,
-  .add-opt-link:focus-visible,
-  .remove-opt-btn:focus-visible,
-  .correct-radio-btn:focus-visible {
+  .add-opt-link:focus-visible {
     outline: 2px solid var(--wine);
     outline-offset: 2px;
   }
@@ -1563,16 +1397,6 @@
     backdrop-filter: blur(5px);
   }
 
-  .card-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid rgba(36, 28, 32, 0.07);
-    margin-bottom: 16px;
-  }
-
   .checkbox-label {
     display: inline-flex;
     align-items: center;
@@ -1624,157 +1448,7 @@
     color: var(--text-main);
   }
 
-  .points-input-wrap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .points-label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-muted);
-  }
-
-  .points-field {
-    width: 72px;
-    padding: 6px 8px;
-    font-size: 1rem;
-    border-radius: 9999px;
-    border: 1px solid rgba(36, 28, 32, 0.12);
-    background: #fff;
-    font-weight: 700;
-    text-align: center;
-    color: var(--wine);
-  }
-
-  .points-field:focus-visible {
-    outline: 2px solid var(--wine);
-    outline-offset: 2px;
-  }
-
-  .card-body {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .question-field {
-    font-size: 1.05rem;
-    font-weight: 600;
-  }
-
   /* Options block */
-  .options-edit-block {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 14px;
-    border-radius: 20px;
-    background: var(--bg-primary);
-    border: 1px solid rgba(36, 28, 32, 0.05);
-  }
-
-  .options-header-label {
-    font-family: var(--font-display);
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-main);
-  }
-
-  .options-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .option-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 4px 8px;
-    border-radius: 9999px;
-    background: #fff;
-    border: 1px solid rgba(36, 28, 32, 0.08);
-    transition:
-      border-color 0.15s,
-      background 0.15s;
-  }
-
-  .option-row.is-correct {
-    border-color: #3f7a5f;
-    background: #eef6f1;
-  }
-
-  .correct-radio-btn {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    border: 2px solid rgba(36, 28, 32, 0.2);
-    background: #fff;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    transition:
-      background 0.15s,
-      border-color 0.15s;
-    flex-shrink: 0;
-    padding: 0;
-  }
-
-  .correct-radio-btn.active {
-    background: #3f7a5f;
-    border-color: #3f7a5f;
-  }
-
-  .option-input {
-    flex: 1;
-    min-width: 0;
-    border: none;
-    background: transparent;
-    padding: 6px 4px;
-    font-size: 1rem;
-    box-shadow: none;
-  }
-
-  .option-input:focus {
-    outline: none;
-    box-shadow: none;
-  }
-
-  .correct-badge {
-    padding: 3px 10px;
-    border-radius: 9999px;
-    background: #dceee4;
-    color: #2f6049;
-    font-size: 0.75rem;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  .remove-opt-btn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    padding: 6px;
-    border-radius: 50%;
-    display: inline-flex;
-    transition: color 0.15s;
-  }
-
-  @media (hover: hover) {
-    .remove-opt-btn:hover:not(:disabled) {
-      color: #a63552;
-    }
-  }
-
-  .remove-opt-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
 
   .add-opt-link {
     align-self: flex-start;
@@ -1870,8 +1544,7 @@
       animation-duration: 2s;
     }
     .setup-card,
-    .tab-btn,
-    .option-row {
+    .tab-btn {
       transition: none;
     }
   }

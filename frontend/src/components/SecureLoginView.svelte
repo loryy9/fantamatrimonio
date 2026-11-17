@@ -10,7 +10,7 @@
   import SpouseCard from './SpouseCard.svelte';
 
   const cardTransition = {
-    duration: typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 240,
+    duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 240,
     easing: cubicOut
   };
 
@@ -35,9 +35,7 @@
 
   // Codice matrimonio: richiesto solo dalla registrazione dentro "entra con codice".
   const needsCode = $derived(embedded && joinMode);
-  let inviteCode = $state(
-    typeof window === 'undefined' ? '' : (new URLSearchParams(window.location.search).get('code') || '').trim().toUpperCase()
-  );
+  let inviteCode = $state((new URLSearchParams(location.search).get('code') || '').trim().toUpperCase());
   let eventPreview = $state(null);
   let previewError = $state('');
   let socialBusy = $state(false);
@@ -148,11 +146,19 @@
       isSubmitting = false;
     }
   }
-
-  function switchMode(m) {
-    mode = m;
-  }
 </script>
+
+{#snippet submitButton(label, busyLabel)}
+  <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
+    {#if isSubmitting}
+      <div class="spinner spinner-on-dark"></div>
+      <span>{busyLabel}</span>
+    {:else}
+      <span>{label}</span>
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    {/if}
+  </button>
+{/snippet}
 
 <div class="secure-layout" class:embedded class:join-mode={!!intro}>
   <div class="secure-intro" class:join-mode={!!intro}>
@@ -161,7 +167,7 @@
         <PageIntro before="Entra nella" accent="festa" lead="Inserisci il codice del matrimonio per iniziare a giocare, scattare foto e votare con gli sposi." />
       </div>
       <div class="spouse-card-slot">
-        <SpouseCard onLogin={() => switchMode('login')} />
+        <SpouseCard onLogin={() => (mode = 'login')} />
       </div>
     {:else if mode === 'login'}
       <PageIntro before="Bentornato al" accent="Fanta Matrimonio" lead="Accedi per partecipare ai matrimoni, vedere le tue foto, i quiz e i tuoi punteggi." />
@@ -211,15 +217,7 @@
           <input id="secPassword" type="password" class="input-field" placeholder="La tua password" bind:value={password} autocomplete="current-password" required />
         </div>
 
-        <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
-          {#if isSubmitting}
-            <div class="spinner spinner-on-dark"></div>
-            <span>Accesso in corso...</span>
-          {:else}
-            <span>Accedi</span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-          {/if}
-        </button>
+        {@render submitButton('Accedi', 'Accesso in corso...')}
       </form>
     {:else}
       <form class="secure-form" onsubmit={handleRegister} transition:slide|local={cardTransition}>
@@ -261,15 +259,7 @@
             <input id="regConfirm" type="password" class="input-field" placeholder="Ripeti la password" bind:value={regConfirm} autocomplete="new-password" required disabled={isSubmitting} />
           </div>
 
-          <button type="submit" class="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
-            {#if isSubmitting}
-              <div class="spinner spinner-on-dark"></div>
-              <span>Creazione in corso...</span>
-            {:else}
-              <span>Crea il mio account</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            {/if}
-          </button>
+          {@render submitButton('Crea il mio account', 'Creazione in corso...')}
           </div>
         {/if}
       </form>
@@ -278,10 +268,10 @@
     <p class="switch center">
       {#if mode === 'login'}
         Non hai ancora un account?
-        <button type="button" class="link-btn" onclick={() => switchMode('register')}>Registrati</button>
+        <button type="button" class="link-btn" onclick={() => (mode = 'register')}>Registrati</button>
       {:else}
         Hai già un account?
-        <button type="button" class="link-btn" onclick={() => switchMode('login')}>Accedi</button>
+        <button type="button" class="link-btn" onclick={() => (mode = 'login')}>Accedi</button>
       {/if}
     </p>
   </div>
@@ -298,22 +288,6 @@
     margin: 0 auto;
   }
 
-  .verification-required-note {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    background: rgba(201, 169, 110, 0.1);
-    border: 1px solid rgba(201, 169, 110, 0.35);
-    color: var(--text-main);
-  }
-
-  .verification-required-note span {
-    color: #6b5f64;
-    font-size: 0.9rem;
-  }
-
   .secure-intro {
     display: flex;
     flex-direction: column;
@@ -321,22 +295,6 @@
     gap: 16px;
     position: sticky;
     top: 96px;
-  }
-
-  .eyebrow {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--gold-dark);
-    padding: 6px 14px;
-    border-radius: var(--radius-full);
-    background: rgba(201, 169, 110, 0.12);
-    border: 1px solid rgba(201, 169, 110, 0.3);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0;
   }
 
   .switch {

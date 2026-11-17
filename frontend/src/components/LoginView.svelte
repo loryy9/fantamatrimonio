@@ -436,21 +436,6 @@
         gap: 12px;
     }
 
-    .badge-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: #fae9f0;
-        color: var(--wine);
-        border-radius: 999px;
-        padding: 5px 14px;
-        font-size: 0.68rem;
-        font-weight: 800;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        margin-bottom: 12px;
-    }
-
     /* Clean Card */
     .clean-card {
         width: 100%;
@@ -466,10 +451,6 @@
         display: flex;
         flex-direction: column;
         gap: 18px;
-    }
-
-    .minimal-footer {
-        grid-column: 1 / -1;
     }
 
     @media (max-width: 900px) {
@@ -579,13 +560,6 @@
         text-transform: uppercase;
     }
 
-    .clean-input.pin-input {
-        letter-spacing: 0.3em;
-        font-size: 18px !important;
-        font-weight: 700;
-        padding-right: 48px;
-    }
-
     .clean-input::placeholder {
         color: #9c8e94;
         font-weight: 400;
@@ -647,19 +621,6 @@
 
     .paste-btn:active {
         transform: scale(0.96);
-    }
-
-    .eye-btn {
-        position: absolute;
-        right: 12px;
-        background: transparent;
-        border: none;
-        color: #7b6d74;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        padding: 4px;
     }
 
     .field-hint {
@@ -751,71 +712,8 @@
     }
 
     /* Sub cards */
-    .sub-card {
-        width: 100%;
-        border-radius: 20px;
-        padding: 16px 18px;
-        display: flex;
-        gap: 14px;
-        border: 1px solid rgba(220, 205, 195, 0.35);
-    }
-
-    .whatsapp-card {
-        background: #fcf9f2;
-        align-items: flex-start;
-    }
-
-    .yellow-bubble {
-        background: #f8e596;
-        color: #614d0a;
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .sub-card-body {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-    }
-
-    .sub-card-title {
-        font-size: 0.88rem;
-        font-weight: 700;
-        color: #2b1f24;
-        line-height: 1.3;
-    }
-
-    .sub-card-text {
-        font-size: 0.78rem;
-        color: #6b5d63;
-        line-height: 1.45;
-    }
 
     /* Footer */
-    .minimal-footer {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-        margin-top: 14px;
-        text-align: center;
-    }
-
-    .footer-divider {
-        color: #c59e58;
-        opacity: 0.6;
-    }
-
-    .footer-copy {
-        font-size: 0.74rem;
-        color: #8c7d84;
-    }
 
     .spinner-white {
         width: 18px;
@@ -844,9 +742,4 @@
         gap: 6px;
     }
 
-    .conflict-actions {
-        display: flex;
-        gap: 8px;
-        margin-top: 4px;
-    }
 </style>

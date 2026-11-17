@@ -387,21 +387,6 @@
     text-align: left;
   }
 
-  .badge-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #fae9f0;
-    color: var(--wine);
-    border-radius: 999px;
-    padding: 5px 14px;
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 14px;
-  }
-
   .landing-title {
     font-size: clamp(2.3rem, 4.5vw, 3.4rem);
     color: var(--wine);

@@ -338,31 +338,6 @@
     min-width: 0;
   }
 
-  .btn-verify-otp {
-    flex-shrink: 0;
-    padding: 0 16px;
-    border: 0;
-    border-radius: 12px;
-    background: var(--wine, #8c2f4b);
-    color: white;
-    font-weight: 700;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-  }
-
-  .btn-verify-otp:hover:not(:disabled) {
-    opacity: 0.88;
-  }
-
-  .btn-verify-otp:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .btn-verify-otp.btn-verified {
-    background: #3d8060;
-  }
-
   .otp-input:focus {
     border-color: var(--gold-dark, #8b6d2e);
     box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.2);

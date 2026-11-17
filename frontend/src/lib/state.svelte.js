@@ -412,6 +412,15 @@ class AppState {
     return goto(ROUTES.home);
   }
 
+  /** Logout dopo conferma: usato dai menu, sia nel sito che nel gioco. */
+  async confirmLogout() {
+    const ok = await this.confirm(
+      'Uscirai dal tuo account su questo dispositivo. Punti e foto restano salvati: potrai rientrare quando vuoi.',
+      { title: 'Logout', confirmText: 'Logout' }
+    );
+    if (ok) await this.logout();
+  }
+
   // ── Dati di gioco ─────────────────────────────────────────────────────────
 
   async loadInitialData() {

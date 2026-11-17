@@ -27,11 +27,6 @@
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  async function handleLogout() {
-    if (await appState.confirm('Vuoi uscire dal tuo account?', { title: 'Esci', confirmText: 'Esci' })) {
-      appState.logout();
-    }
-  }
 
   // Voci di navigazione, le stesse nella barra (desktop) e nel menu laterale (mobile).
   // "Partecipa" c'è per tutti; chi non ha un account vede anche le sezioni della home e "Accedi".
@@ -42,7 +37,7 @@
     ]),
     { label: 'Partecipa', icon: ICONS.ticket, onclick: () => goto(ROUTES.join), active: path === ROUTES.join },
     ...(appState.hasAccount ? [] : [
-      { label: 'Accedi', icon: ICONS.user, onclick: () => goto(loginUrl(page.url.searchParams.get('code'))), active: path === ROUTES.login }
+      { label: 'Accedi', icon: ICONS.login, onclick: () => goto(loginUrl(page.url.searchParams.get('code'))), active: path === ROUTES.login }
     ])
   ]);
 
@@ -88,7 +83,7 @@
             <div class="user-dropdown">
               <span class="dropdown-email">{appState.account.email}</span>
               <button class="dropdown-item" onclick={() => { showUserMenu = false; goto(ROUTES.dashboard); }}>I miei matrimoni</button>
-              <button class="dropdown-item dropdown-logout" onclick={() => { showUserMenu = false; handleLogout(); }}>Esci</button>
+              <button class="dropdown-item dropdown-logout" onclick={() => { showUserMenu = false; appState.confirmLogout(); }}>Logout</button>
             </div>
           {/if}
         </div>
@@ -110,10 +105,10 @@
     <DrawerItem label="I miei matrimoni" icon={ICONS.dashboard} active={path === ROUTES.dashboard} onclick={() => goto(ROUTES.dashboard)} />
   {/if}
   {#if showCreate}
-    <DrawerItem label="Crea il tuo matrimonio" variant="cta" onclick={() => goto(ROUTES.create)} />
+    <DrawerItem label="Crea matrimonio" icon={ICONS.plus} variant="cta" onclick={() => goto(ROUTES.create)} />
   {/if}
   {#if appState.account}
-    <DrawerItem label="Esci" icon={ICONS.logout} variant="danger" onclick={handleLogout} />
+    <DrawerItem label="Logout" icon={ICONS.logout} variant="danger" onclick={() => appState.confirmLogout()} />
   {/if}
 </SideDrawer>
 

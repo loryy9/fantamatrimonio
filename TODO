@@ -21,9 +21,11 @@
 [P] Visualizzazione dettagliata delle foto deve permettermi di scorrere tra le foto
 [] Connessione cloudflares bucket per caricare immagini
 [] testare bene tutti i vari login 
-[] logout consentito durante il gioco?
+[P] logout consentito durante il gioco? CLAUDE DICE CHE PER LUI SI PUO' LASCIARE, TOGLIERLO FAREBBE SENTIRE GLI UTENTI IN TRAPPOLA
 [P] anche la pagina in cui viene mostrato il codice non ha la topbar
 [P] usare sveltekit per routing
 [P] implementare popup di conferma al posto di alert predefinito del browser
 [P] se sto creando un matrimonio e faccio partecipa non cambia niente e mi compaiono due topbar, se faccio crea matrimonio mentre creo un matrimonio non succede niente probabilmente togliere tasto
-[] Far funzionare accedi con google
+[P] Far funzionare accedi con google
+[] generazione codice QR
+[] lettura codice QR sia da fotocamera che direttamente da sito

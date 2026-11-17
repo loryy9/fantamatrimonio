@@ -1,6 +1,6 @@
 <script>
   // Voce del menu laterale: icona dorata, testo e freccia.
-  // variant: 'cta' = azione principale dorata in fondo, 'danger' = es. Esci.
+  // variant: 'cta' = azione principale (dorata), 'danger' = Logout (in fondo al menu).
   // icon: contenuto SVG (path) di un'icona 24x24 a tratto.
   let { label, icon = '', onclick, active = false, variant = '' } = $props();
 </script>
@@ -10,9 +10,7 @@
     <svg class="item-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{@html icon}</svg>
   {/if}
   <span class="item-label">{label}</span>
-  {#if variant !== 'cta'}
-    <svg class="item-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
-  {/if}
+  <svg class="item-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
 </button>
 
 <style>
@@ -72,32 +70,30 @@
     color: rgba(240, 216, 168, 0.7);
   }
 
-  /* azione principale: dorata, spinta in fondo al menu */
+  /* azione principale: stessa forma delle altre voci, ma dorata */
   .cta {
-    justify-content: center;
-    margin-top: auto;
-    border: 0;
+    border-color: transparent;
     color: var(--wine-deep);
     background: linear-gradient(145deg, #fbefcf, #e3c07e);
-    box-shadow: 0 14px 28px -10px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  }
-
-  .cta .item-label {
-    flex: 0 1 auto;
   }
 
   .cta:hover {
     background: linear-gradient(145deg, #fff4d8, #e9c98a);
   }
 
-  /* Esci sta sempre in fondo, subito sotto l'eventuale azione principale */
+  .cta .item-icon {
+    color: #f0d8a8;
+    background: var(--wine);
+  }
+
+  .cta .item-chev {
+    color: var(--wine);
+  }
+
+  /* Logout sta sempre in fondo al menu */
   .danger {
     margin-top: auto;
     color: #ffc9c9;
-  }
-
-  .cta + .danger {
-    margin-top: 0;
   }
 
   .danger .item-icon {

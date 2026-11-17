@@ -22,11 +22,6 @@
     appState.isCouple ? 'Gli sposi' : `${appState.user?.nickname || 'Ospite'} · ${appState.user?.total_points || 0} pt`
   );
 
-  async function handleLogout() {
-    if (await appState.confirm('Vuoi davvero uscire?', { title: 'Esci', confirmText: 'Esci' })) {
-      appState.logout();
-    }
-  }
 </script>
 
 <header class="navbar game-mode">
@@ -62,7 +57,7 @@
       onclick={() => goto(dashboardUrl(appState.isCouple ? appState.event?.id : null))}
     />
   {/if}
-  <DrawerItem label="Esci" icon={ICONS.logout} variant="danger" onclick={handleLogout} />
+  <DrawerItem label="Logout" icon={ICONS.logout} variant="danger" onclick={() => appState.confirmLogout()} />
 </SideDrawer>
 
 <style>

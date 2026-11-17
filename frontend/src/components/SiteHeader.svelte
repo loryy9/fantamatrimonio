@@ -15,7 +15,22 @@
     return () => document.removeEventListener('click', closeMenu);
   });
 
-  function handleBrandClick() {
+  // Durante la configurazione del matrimonio appena creato (pendingInvite) l'evento
+  // esiste già: prima di uscire avvisa che lo si ritrova in "I miei matrimoni".
+  async function leaveCreationOk() {
+    if (!appState.pendingInvite) return true;
+    return appState.confirm(
+      'Il matrimonio è già stato creato: lo ritrovi in «I miei matrimoni», dove potrai completare le sfide e recuperare il codice invito.',
+      { title: 'Lasciare la creazione?', confirmText: 'Esci', cancelText: 'Resta qui' }
+    );
+  }
+
+  async function navigate(action) {
+    if (await leaveCreationOk()) action();
+  }
+
+  async function handleBrandClick() {
+    if (!(await leaveCreationOk())) return;
     if (appState.hasAccount) {
       appState.openDashboard();
     } else {
@@ -39,8 +54,8 @@
     }
   }
 
-  function handleLogout() {
-    if (confirm('Vuoi uscire dal tuo account?')) {
+  async function handleLogout() {
+    if (await appState.confirm('Vuoi uscire dal tuo account?', { title: 'Esci', confirmText: 'Esci' })) {
       appState.logout();
     }
   }
@@ -89,9 +104,9 @@
       {#if appState.hasAccount}
         <!-- Menu per utente autenticato con account -->
 
+        {#if appState.authView !== 'create'}
         <button
           class="btn btn-secondary nav-action-btn"
-          class:active={appState.authView === 'create'}
           onclick={() => appState.setAuthView('create')}
           title="Crea nuovo matrimonio"
           aria-label="Crea nuovo matrimonio"
@@ -100,11 +115,12 @@
           <span class="nav-text">Crea matrimonio</span>
           <svg class="row-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
+        {/if}
 
         <button
           class="btn btn-secondary nav-action-btn"
           class:active={appState.authView === 'join'}
-          onclick={() => appState.setAuthView('join')}
+          onclick={() => navigate(() => appState.setAuthView('join'))}
           title="Partecipa a un matrimonio"
         >
           <svg class="row-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
@@ -137,7 +153,7 @@
             {#if showUserMenu}
               <div class="user-dropdown">
                 <span class="dropdown-email">{appState.account.email}</span>
-                <button class="dropdown-item" onclick={() => { showUserMenu = false; appState.openDashboard(); }}>I miei matrimoni</button>
+                <button class="dropdown-item" onclick={() => { showUserMenu = false; navigate(() => appState.openDashboard()); }}>I miei matrimoni</button>
                 <button class="dropdown-item dropdown-logout" onclick={() => { showUserMenu = false; handleLogout(); }}>Esci</button>
               </div>
             {/if}
@@ -165,15 +181,16 @@
           <svg class="row-chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
 
+        {#if appState.authView !== 'create'}
         <button
           class="btn btn-primary nav-cta"
-          class:active={appState.authView === 'create'}
           onclick={() => appState.setAuthView('create')}
           title="Crea il vostro matrimonio"
         >
           <span class="desktop-only">Crea matrimonio</span>
           <span class="mobile-only">Crea il tuo matrimonio</span>
         </button>
+        {/if}
       {/if}
     </nav>
   </div>

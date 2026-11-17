@@ -120,6 +120,35 @@ class AppState {
     this.toasts = this.toasts.filter(t => t.id !== id);
   }
 
+  // Dialogo di conferma/avviso al posto di confirm()/alert() del browser.
+  dialog = $state(null); // { title, message, confirmText, cancelText, danger, alertOnly }
+  _dialogResolve = null;
+
+  /** Chiede conferma: risolve true/false. */
+  confirm(message, { title = 'Sei sicuro?', confirmText = 'Conferma', cancelText = 'Annulla', danger = false } = {}) {
+    this._closeDialog(false); // un eventuale dialogo aperto viene annullato
+    return new Promise(resolve => {
+      this._dialogResolve = resolve;
+      this.dialog = { title, message, confirmText, cancelText, danger, alertOnly: false };
+    });
+  }
+
+  /** Avviso con il solo tasto "Ok": risolve quando viene chiuso. */
+  alert(message, { title = 'Attenzione', confirmText = 'Ok' } = {}) {
+    this._closeDialog(false);
+    return new Promise(resolve => {
+      this._dialogResolve = () => resolve();
+      this.dialog = { title, message, confirmText, cancelText: '', danger: false, alertOnly: true };
+    });
+  }
+
+  _closeDialog(result) {
+    const resolve = this._dialogResolve;
+    this._dialogResolve = null;
+    this.dialog = null;
+    resolve?.(result);
+  }
+
   setUser(u) {
     if (!u) {
       this.user = null;
@@ -310,6 +339,8 @@ class AppState {
   }
 
   openDashboard(eventId = null) {
+    // Uscendo dal wizard di creazione l'evento resta salvato: si chiude solo il flusso.
+    this.pendingInvite = null;
     this.activeTab = 'dashboard';
     this.authView = 'dashboard';
     this.stopPolling();
@@ -324,6 +355,9 @@ class AppState {
       if (view === 'login-secure' && urlCode) this.pendingJoinCode = urlCode.trim().toUpperCase();
       else if (view === 'entry' || view === 'create') this.pendingJoinCode = null;
     }
+    // pendingInvite tiene "agganciato" il wizard di creazione: va chiuso quando si naviga
+    // altrove, altrimenti App continua a mostrare CreateEventView (doppia topbar, link inerti).
+    if (view !== 'create') this.pendingInvite = null;
     this.authView = view;
     if (view === 'create') {
       this.activeTab = 'create';
@@ -576,6 +610,7 @@ class AppState {
   }
 
   logout() {
+    this.pendingInvite = null;
     this.token = null;
     this.refreshToken = null;
     this.jwtToken = null;

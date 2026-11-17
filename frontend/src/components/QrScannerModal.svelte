@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import jsQR from 'jsqr';
+  import { appState } from '../lib/state.svelte.js';
 
   let { isOpen = false, onScan = () => {}, onClose = () => {} } = $props();
 
@@ -155,9 +156,9 @@
           return;
         }
       }
-      alert('Nessun codice QR valido rilevato nella foto. Prova ad avvicinarti o inserisci il codice a mano.');
+      appState.alert('Nessun codice QR valido rilevato nella foto. Prova ad avvicinarti o inserisci il codice a mano.', { title: 'QR non trovato' });
     } catch (err) {
-      alert('Errore durante la lettura dell\'immagine. Riprova o inserisci il codice a mano.');
+      appState.alert('Errore durante la lettura dell\'immagine. Riprova o inserisci il codice a mano.', { title: 'Errore' });
     } finally {
       isDecoding = false;
       if (fileInputEl) fileInputEl.value = '';

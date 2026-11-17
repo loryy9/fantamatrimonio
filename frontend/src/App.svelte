@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { appState } from './lib/state.svelte.js';
   import Toast from './components/Toast.svelte';
+  import ConfirmDialog from './components/ConfirmDialog.svelte';
   import InstructionsModal from './components/InstructionsModal.svelte';
   import Navbar from './components/Navbar.svelte';
   import BottomNav from './components/BottomNav.svelte';
@@ -111,6 +112,7 @@
 </script>
 
 <Toast />
+<ConfirmDialog />
 {#if appState.isInGame}
   <div class="game-safe-area-overlay" aria-hidden="true"></div>
 {/if}

@@ -160,8 +160,9 @@
 
   // Elimina sfida con conferma
   async function handleDelete(challenge) {
-    const confirmed = confirm(
-      `Vuoi davvero eliminare "${challenge.title}"?\nSe gli invitati vi hanno già risposto, i punti assegnati verranno rimossi.`
+    const confirmed = await appState.confirm(
+      `Vuoi davvero eliminare "${challenge.title}"?\nSe gli invitati vi hanno già risposto, i punti assegnati verranno rimossi.`,
+      { title: 'Eliminare la sfida?', confirmText: 'Elimina', danger: true }
     );
     if (!confirmed) return;
 

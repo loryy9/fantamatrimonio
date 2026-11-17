@@ -118,14 +118,13 @@
     }
   }
 
-  function resetChallenges() {
+  async function resetChallenges() {
     if (!hasChallengeChanges || !savedChallengeSnapshot) return;
-    if (
-      !confirm(
-        "Confermi di voler ripristinare le opzioni alla versione precedente?",
-      )
-    )
-      return;
+    const ok = await appState.confirm(
+      "Confermi di voler ripristinare le opzioni alla versione precedente?",
+      { title: "Ripristinare?", confirmText: "Ripristina" },
+    );
+    if (!ok) return;
 
     if (savedChallengeSnapshot) {
       quizzes = savedChallengeSnapshot.quizzes.map((item) => ({
@@ -404,9 +403,14 @@
       onCancel?.();
       return;
     }
-    const ok = confirm(
-      "Sei sicuro di voler annullare la creazione del matrimonio?\n\n" +
-        "L'evento e tutti i record salvati finora verranno eliminati definitivamente dal database.",
+    const ok = await appState.confirm(
+      "L'evento e tutti i dati salvati finora verranno eliminati definitivamente.",
+      {
+        title: "Annullare la creazione?",
+        confirmText: "Sì, annulla",
+        cancelText: "Continua",
+        danger: true,
+      },
     );
     if (!ok) return;
 
@@ -414,7 +418,10 @@
     try {
       await appState.cancelEventCreation();
     } catch (err) {
-      alert("Errore durante l'eliminazione: " + (err.message || err));
+      appState.showToast(
+        "Errore durante l'eliminazione: " + (err.message || err),
+        "error",
+      );
     } finally {
       isCancelling = false;
     }

@@ -11,8 +11,8 @@
 
   const title = $derived(hasCouple ? `${s1} & ${s2}` : 'Fanta Matrimonio');
 
-  function handleLogout() {
-    if (confirm('Vuoi davvero uscire?')) {
+  async function handleLogout() {
+    if (await appState.confirm('Vuoi davvero uscire?', { title: 'Esci', confirmText: 'Esci' })) {
       appState.logout();
     }
   }

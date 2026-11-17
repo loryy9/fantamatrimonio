@@ -12,6 +12,64 @@
   let caption = $state('');
   let activeModalPhoto = $state(null);
 
+  // ── Lightbox: scorrimento tra le foto (frecce, tastiera, swipe) ──
+  // L'indice si ricava dall'id, così resta valido anche quando il polling aggiorna la lista.
+  const activeIndex = $derived(
+    activeModalPhoto ? appState.galleryPhotos.findIndex(p => p.id === activeModalPhoto.id) : -1
+  );
+  const hasPrev = $derived(activeIndex > 0);
+  const hasNext = $derived(activeIndex >= 0 && activeIndex < appState.galleryPhotos.length - 1);
+
+  function showPhotoAt(index) {
+    const photo = appState.galleryPhotos[index];
+    if (!photo) return;
+    activeModalPhoto = photo;
+    // Mantiene la griglia allineata se si scorre oltre le foto già caricate
+    if (index >= visibleCount) visibleCount = Math.min(index + 1 + PAGE_SIZE, appState.galleryPhotos.length);
+  }
+
+  function prevPhoto() { if (hasPrev) showPhotoAt(activeIndex - 1); }
+  function nextPhoto() { if (hasNext) showPhotoAt(activeIndex + 1); }
+
+  function handleLightboxKeydown(e) {
+    if (!activeModalPhoto || appState.dialog) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prevPhoto(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); nextPhoto(); }
+    else if (e.key === 'Escape') { e.preventDefault(); activeModalPhoto = null; }
+  }
+
+  const SWIPE_MIN_PX = 50;
+  let swipeStartX = null;
+  let swipeStartY = null;
+  let swipeDx = $state(0);
+
+  function onSwipeStart(e) {
+    if (e.touches.length !== 1) return;
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+    swipeDx = 0;
+  }
+
+  function onSwipeMove(e) {
+    if (swipeStartX === null) return;
+    const dx = e.touches[0].clientX - swipeStartX;
+    const dy = e.touches[0].clientY - swipeStartY;
+    // Solo gesti prevalentemente orizzontali; ai bordi l'immagine fa resistenza
+    if (Math.abs(dx) > Math.abs(dy)) {
+      const atEdge = (dx > 0 && !hasPrev) || (dx < 0 && !hasNext);
+      swipeDx = atEdge ? dx * 0.25 : dx;
+    }
+  }
+
+  function onSwipeEnd() {
+    if (swipeStartX === null) return;
+    const dx = swipeDx;
+    swipeStartX = swipeStartY = null;
+    swipeDx = 0;
+    if (dx <= -SWIPE_MIN_PX) nextPhoto();
+    else if (dx >= SWIPE_MIN_PX) prevPhoto();
+  }
+
   const isCompressingAny = $derived(
     selectedPhotos.some(p => p.isCompressing)
   );
@@ -212,12 +270,19 @@
     const msg = isEnded
       ? 'Vuoi rimuovere questa foto dalla galleria?'
       : 'Vuoi rimuovere questa foto dalla galleria? Perderai i punti guadagnati con questo scatto (se è una missione della caccia, tornerà da rifare).';
-    if (!confirm(msg)) return;
+    const ok = await appState.confirm(msg, {
+      title: 'Rimuovere la foto?',
+      confirmText: 'Rimuovi',
+      danger: true
+    });
+    if (!ok) return;
     try {
-      // Rimozione istantanea dalla UI
+      // Rimozione istantanea dalla UI; nel lightbox si passa alla foto successiva (o precedente)
+      const removedIndex = appState.galleryPhotos.findIndex(p => p.id === photoId);
       appState.galleryPhotos = appState.galleryPhotos.filter(p => p.id !== photoId);
       if (activeModalPhoto?.id === photoId) {
-        activeModalPhoto = null;
+        const list = appState.galleryPhotos;
+        activeModalPhoto = list[removedIndex] ?? list[removedIndex - 1] ?? null;
       }
       const res = await api.deletePhoto(photoId);
       const removed = Number(res?.points_removed) || 0;
@@ -422,6 +487,8 @@
   {/if}
 </div>
 
+<svelte:window onkeydown={handleLightboxKeydown} />
+
 <!-- Photo Lightbox Modal -->
 {#if activeModalPhoto}
   {@const isMineModal = isMyPhoto(activeModalPhoto)}
@@ -430,7 +497,38 @@
       <button class="lightbox-close" onclick={() => activeModalPhoto = null} aria-label="Chiudi">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
-      <img src={activeModalPhoto.photo_url} alt="Dettaglio foto" class="lightbox-img" />
+      <div
+        class="lightbox-stage"
+        role="group"
+        aria-label="Foto, scorri per cambiare"
+        ontouchstart={onSwipeStart}
+        ontouchmove={onSwipeMove}
+        ontouchend={onSwipeEnd}
+        ontouchcancel={onSwipeEnd}
+      >
+        {#key activeModalPhoto.id}
+          <img
+            src={activeModalPhoto.photo_url}
+            alt={activeModalPhoto.caption || 'Dettaglio foto'}
+            class="lightbox-img"
+            class:dragging={swipeDx !== 0}
+            style:transform={swipeDx ? `translateX(${swipeDx}px)` : null}
+          />
+        {/key}
+        {#if hasPrev}
+          <button class="lightbox-nav lightbox-prev" onclick={prevPhoto} aria-label="Foto precedente">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+        {/if}
+        {#if hasNext}
+          <button class="lightbox-nav lightbox-next" onclick={nextPhoto} aria-label="Foto successiva">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        {/if}
+        {#if appState.galleryPhotos.length > 1 && activeIndex >= 0}
+          <span class="lightbox-counter">{activeIndex + 1} / {appState.galleryPhotos.length}</span>
+        {/if}
+      </div>
       <div class="lightbox-info">
         <div class="lightbox-header">
           <span class="lightbox-author">{displayName(activeModalPhoto)}</span>
@@ -516,7 +614,15 @@
   .lightbox-overlay { position: fixed; inset: 0; background: rgba(36,28,32,.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 999999; display: flex; align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top, 0px)) 16px max(12px, env(safe-area-inset-bottom, 0px)) 16px; animation: fadeIn .2s ease; }
   .lightbox-content { position: relative; max-width: 520px; width: 100%; max-height: min(88dvh, calc(100svh - 24px)); display: flex; flex-direction: column; background: var(--paper); border-radius: 28px; overflow: hidden; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 30px 60px -24px rgba(106,32,55,.55); }
   .lightbox-close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: 50%; background: rgba(36,28,32,.55); color: #fff; border: 1px solid rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; }
-  .lightbox-img { width: 100%; max-height: 65vh; object-fit: contain; background: var(--bg-surface-elevated); }
+  .lightbox-stage { position: relative; overflow: hidden; background: var(--bg-surface-elevated); touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+  .lightbox-img { display: block; width: 100%; max-height: 65vh; object-fit: contain; background: var(--bg-surface-elevated); transition: transform .2s ease; animation: fadeIn .2s ease; }
+  .lightbox-img.dragging { transition: none; }
+  .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%; background: rgba(36,28,32,.55); color: #fff; border: 1px solid rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5; padding: 0; }
+  .lightbox-prev { left: 10px; }
+  .lightbox-next { right: 10px; }
+  .lightbox-counter { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); padding: 3px 10px; border-radius: 9999px; background: rgba(36,28,32,.55); color: #fff; font-size: .75rem; font-weight: 700; pointer-events: none; }
+  @media (hover: hover) { .lightbox-nav:hover { background: rgba(36,28,32,.75); } }
+  .lightbox-nav:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
   .lightbox-info { padding: 16px 20px 18px; }
   .lightbox-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
   .lightbox-author { font-family: var(--font-display); font-weight: 600; color: var(--wine); font-size: 1.25rem; }

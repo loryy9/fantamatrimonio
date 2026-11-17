@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { appState } from '../lib/state.svelte.js';
@@ -22,6 +22,8 @@
 
   async function scrollToSection(id) {
     if (path !== ROUTES.home) await goto(ROUTES.home);
+    // aspetta che il menu sia chiuso: finché è aperto la pagina sotto è bloccata e non scorre
+    await tick();
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -31,16 +33,18 @@
     }
   }
 
-  // Voci di navigazione, le stesse nella barra (desktop) e nel menu laterale (mobile)
-  const links = $derived(
-    appState.hasAccount
-      ? [{ label: 'Partecipa', icon: ICONS.ticket, onclick: () => goto(ROUTES.join), active: path === ROUTES.join }]
-      : [
-          { label: 'Come funziona', icon: ICONS.help, onclick: () => scrollToSection('come-funziona'), anchor: true },
-          { label: 'I giochi', icon: ICONS.gamepad, onclick: () => scrollToSection('giochi'), anchor: true },
-          { label: 'Accedi', icon: ICONS.user, onclick: () => goto(loginUrl(page.url.searchParams.get('code'))), active: path === ROUTES.login }
-        ]
-  );
+  // Voci di navigazione, le stesse nella barra (desktop) e nel menu laterale (mobile).
+  // "Partecipa" c'è per tutti; chi non ha un account vede anche le sezioni della home e "Accedi".
+  const links = $derived([
+    ...(appState.hasAccount ? [] : [
+      { label: 'Come funziona', icon: ICONS.help, onclick: () => scrollToSection('come-funziona'), anchor: true },
+      { label: 'I giochi', icon: ICONS.gamepad, onclick: () => scrollToSection('giochi'), anchor: true }
+    ]),
+    { label: 'Partecipa', icon: ICONS.ticket, onclick: () => goto(ROUTES.join), active: path === ROUTES.join },
+    ...(appState.hasAccount ? [] : [
+      { label: 'Accedi', icon: ICONS.user, onclick: () => goto(loginUrl(page.url.searchParams.get('code'))), active: path === ROUTES.login }
+    ])
+  ]);
 
   // Azione principale, uguale per tutti; nascosta mentre si sta già creando un matrimonio
   const showCreate = $derived(path !== ROUTES.create);

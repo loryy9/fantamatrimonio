@@ -208,7 +208,7 @@
   </section>
 
   <!-- ===================== TRE PASSAGGI ===================== -->
-  <section class="section-block">
+  <section id="come-funziona" class="section-block">
     <div class="wrap">
       <span class="section-eyebrow">SEMPLICITÀ ASSOLUTA</span>
       <h2 class="section-heading font-serif">Tre passaggi, poi tocca alla festa</h2>
@@ -243,7 +243,7 @@
   </section>
 
   <!-- ===================== QUATTRO MODALITÀ ===================== -->
-  <section class="section-block">
+  <section id="giochi" class="section-block">
     <div class="wrap">
       <span class="section-eyebrow">COINVOLGIMENTO TOTALE</span>
       <h2 class="section-heading font-serif">Quattro modalità di gioco</h2>
@@ -828,6 +828,8 @@
   .section-block {
     width: 100%;
     margin-bottom: 48px;
+    /* arrivando dal menu, il titolo non finisce sotto la barra in alto */
+    scroll-margin-top: 72px;
     text-align: left;
   }
 

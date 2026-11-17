@@ -41,7 +41,7 @@
   aria-modal="true"
   aria-label={title}
   inert={!open}
-  onclick={(e) => { if (e.target.closest('[data-drawer-item]')) close(); }}
+  onclickcapture={(e) => { if (e.target.closest('[data-drawer-item]')) close(); }}
 >
   <div class="drawer-head">
     <span class="drawer-logo" aria-hidden="true">
@@ -176,27 +176,29 @@
     gap: 8px;
   }
 
-  /* le voci entrano in sequenza dopo il pannello */
-  .drawer-items > :global(*) {
-    opacity: 0;
-    transform: translateX(18px);
-    transition: opacity 0.3s ease, transform 0.4s ease;
-  }
-
+  /* le voci entrano in sequenza dopo il pannello. Animazione e non transition:
+     così non si pesta con la transition propria delle voci (hover, pressione) */
   .open .drawer-items > :global(*) {
-    opacity: 1;
-    transform: none;
+    animation: drawer-item-in 0.35s ease both;
   }
 
-  .open .drawer-items > :global(:nth-child(2)) { transition-delay: 0.05s; }
-  .open .drawer-items > :global(:nth-child(3)) { transition-delay: 0.1s; }
-  .open .drawer-items > :global(:nth-child(4)) { transition-delay: 0.15s; }
-  .open .drawer-items > :global(:nth-child(n + 5)) { transition-delay: 0.2s; }
+  .open .drawer-items > :global(:nth-child(2)) { animation-delay: 0.05s; }
+  .open .drawer-items > :global(:nth-child(3)) { animation-delay: 0.1s; }
+  .open .drawer-items > :global(:nth-child(4)) { animation-delay: 0.15s; }
+  .open .drawer-items > :global(:nth-child(n + 5)) { animation-delay: 0.2s; }
+
+  @keyframes drawer-item-in {
+    from {
+      opacity: 0;
+      transform: translateX(18px);
+    }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .side-drawer,
-    .drawer-items > :global(*) {
+    .open .drawer-items > :global(*) {
       transition: none;
+      animation: none;
     }
   }
 </style>

@@ -31,7 +31,7 @@ function jwtKey(cfg: Config): Uint8Array {
   return new TextEncoder().encode(cfg.jwtSecret);
 }
 
-async function sign(cfg: Config, payload: JWTPayload, ttlSeconds: number): Promise<string> {
+export async function sign(cfg: Config, payload: JWTPayload, ttlSeconds: number): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })

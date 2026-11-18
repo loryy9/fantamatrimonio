@@ -19,6 +19,7 @@ import challenges from "./routes/challenges";
 import dashboard from "./routes/dashboard";
 import events from "./routes/events";
 import leaderboard from "./routes/leaderboard";
+import live from "./routes/live";
 import submissions from "./routes/submissions";
 
 export { EventLive } from "./live/EventLive";
@@ -59,6 +60,7 @@ app.route("/api/leaderboard", leaderboard);
 app.route("/api/events", events);
 app.route("/api/admin", admin);
 app.route("/api/dashboard", dashboard);
+app.route("/api/live", live);
 
 // Rotte /api sconosciute -> 404 JSON (tutto il resto e' del frontend)
 app.all("/api/*", (c) => c.json({ detail: "Not Found" }, 404));

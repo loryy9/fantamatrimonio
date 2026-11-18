@@ -17,7 +17,8 @@ const allTopics = () => [...new Set([...owners.values()].flat())];
 function dispatch(topics) {
   for (const topic of topics) {
     for (const fn of handlers.get(topic) ?? []) {
-      try { Promise.resolve(fn()).catch(() => {}); } catch { /* handler difettoso: gli altri proseguono */ }
+      const warn = (err) => console.warn(`Handler live "${topic}" fallito:`, err);
+      try { Promise.resolve(fn()).catch(warn); } catch (err) { warn(err); } // gli altri handler proseguono
     }
   }
 }

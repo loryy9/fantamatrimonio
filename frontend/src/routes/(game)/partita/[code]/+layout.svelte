@@ -8,8 +8,10 @@
   let { children } = $props();
 
   // Aggiornamenti live finché si è dentro il gioco (topic "event": inizio partita, timer)
+  // Solo l'id: refreshUser() sostituisce l'oggetto event ad ogni giro e non deve riaprire il socket
+  const liveEventId = $derived(appState.event?.id ?? null);
   $effect(() => {
-    const eventId = appState.event?.id;
+    const eventId = liveEventId;
     if (!eventId) return;
     const unbind = bindGameHandlers();
     live.start(eventId);

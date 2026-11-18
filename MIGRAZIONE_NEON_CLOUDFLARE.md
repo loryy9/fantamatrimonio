@@ -126,6 +126,16 @@ Per usare un Postgres locale invece di Neon serve il proxy WebSocket di Neon (is
 - Se cresci, valuta Durable Objects/WebSocket per la galleria in tempo reale (il vecchio piano su Supabase Realtime è stato eliminato perché non più applicabile).
 - Nessuna cancellazione dei file R2 quando si elimina un evento o un account (la cascade del DB toglie solo le righe): le foto orfane restano nel bucket. Si può aggiungere una pulizia periodica nel Cron.
 
+## Aggiornamenti live
+
+Classifica e galleria si aggiornano in tempo reale via WebSocket, tramite un Durable Object.
+
+- **Binding**: `EVENT_LIVE` (classe `EventLive`) in `worker/wrangler.jsonc`, con migration `v1` e `new_sqlite_classes: ["EventLive"]`.
+- **Endpoint**: `POST /api/live/ticket` (ticket di accesso) e `GET /api/live` (upgrade WebSocket).
+- **Segreti**: nessuno nuovo. Nessuna operazione manuale oltre a `wrangler deploy` (la migration viene applicata al deploy).
+- **Dokploy** (`wrangler dev` in Docker): il reverse proxy deve inoltrare gli upgrade WebSocket su `/api/live`. Di solito Traefik lo fa di default, ma va verificato.
+- **Stato del DO**: è solo l'elenco delle socket collegate; si ricostruisce alle riconnessioni dei client, quindi un riavvio non fa perdere dati.
+
 ## 5. File principali
 
 - `worker/src/index.ts` – app, middleware, rotta media, Cron

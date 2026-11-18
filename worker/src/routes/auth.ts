@@ -142,6 +142,8 @@ router.post("/join", requireAccount, async (c) => {
       });
     }
     user = await db.execute("UPDATE users SET nickname = $1 WHERE id = $2 RETURNING *", [requested, user.id]);
+    // Il nickname cambiato compare in classifica
+    publish(c, String(event.id), ["leaderboard"]);
   }
 
   const u = user!;

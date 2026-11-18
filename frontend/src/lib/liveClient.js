@@ -75,9 +75,15 @@ export class LiveClient {
     let ticket;
     try {
       ticket = await this.getTicket();
-    } catch {
+    } catch (err) {
       if (gen !== this.generation) return;
       this.connecting = false;
+      if (err?.terminal) {
+        // Evento sparito (ticket rifiutato): niente retry, decide il chiamante.
+        this.disconnect();
+        this.onEventDeleted();
+        return;
+      }
       this._scheduleReconnect();
       return;
     }

@@ -1,6 +1,7 @@
 import { goto } from '$app/navigation';
 import { api } from './api.js';
 import { fireCelebration } from './confetti.js';
+import { mergeGallery } from './galleryMerge.js';
 import { formatName } from './formatters.js';
 import { ROUTES, gameUrl, joinUrl, dashboardUrl } from './routes.js';
 import { DEFAULT_PHOTO_CHALLENGES, PRESET_QUIZZES, PRESET_HUNTS, PRESET_MOMENTS } from './challengePresets.js';
@@ -94,7 +95,9 @@ class AppState {
   celebratePoints(points) {
     if (!(points > 0)) return;
     this.pointsBurst = { id: Date.now() + Math.random(), points };
-    fireCelebration();
+    if (!(typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)) {
+      fireCelebration();
+    }
   }
 
   removeToast(id) {
@@ -531,11 +534,9 @@ class AppState {
     if (!this.hasSession) return;
     try {
       const data = await api.getGallery();
-      // Evita di rimpiazzare l'array (e rieseguire il render di tutte le immagini) se non ci sono nuove foto
-      if (!force && this.galleryPhotos.length === data.length && this.galleryPhotos[0]?.id === data[0]?.id) {
-        return;
-      }
-      this.galleryPhotos = data.map(withFormattedNames);
+      // Evita di rimpiazzare l'array se non ci sono nuove foto; le foto in caricamento restano
+      const merged = mergeGallery(this.galleryPhotos, data, withFormattedNames, force);
+      if (merged) this.galleryPhotos = merged;
     } catch (err) {
       console.error('Failed to load gallery', err);
     }

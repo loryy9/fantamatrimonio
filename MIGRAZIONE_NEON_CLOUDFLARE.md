@@ -123,7 +123,6 @@ Per usare un Postgres locale invece di Neon serve il proxy WebSocket di Neon (is
 - Il rate limit sugli OTP (20 s) è per email+scopo, non per IP: un attaccante può comunque generare mail verso indirizzi altrui. Valutare un limite per IP.
 - `/api/admin/login` non ha limitazione sui tentativi: con password debole è forzabile. Usa una password lunga o metti l'area admin dietro Cloudflare Access.
 - Il codice OTP e i token sono salvati in chiaro nel DB (come prima). Accettabile per OTP a 15 minuti; per le password si usa bcrypt.
-- Se cresci, valuta Durable Objects/WebSocket per la galleria in tempo reale (il vecchio piano su Supabase Realtime è stato eliminato perché non più applicabile).
 - Nessuna cancellazione dei file R2 quando si elimina un evento o un account (la cascade del DB toglie solo le righe): le foto orfane restano nel bucket. Si può aggiungere una pulizia periodica nel Cron.
 
 ## Aggiornamenti live

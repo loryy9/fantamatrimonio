@@ -73,13 +73,14 @@
   const openEventId = $derived(selectedEvent?.event.id ?? null);
   $effect(() => {
     const eventId = openEventId;
-    if (!eventId) return;
+    const accountToken = localStorage.getItem('fm_jwt_token');
+    if (!eventId || !accountToken) return; // senza token account il ticket sarebbe per l'evento sbagliato
     const refresh = () => reloadDetail(eventId, { silent: true });
     const offs = ['leaderboard', 'gallery', 'challenges', 'event'].map((topic) => live.on(topic, refresh));
     const owner = Symbol('dashboard-live');
     live.addTopics(owner, ['leaderboard', 'gallery', 'challenges', 'event']);
     live.start(eventId, {
-      accountToken: localStorage.getItem('fm_jwt_token'),
+      accountToken,
       onEventDeleted: async () => {
         goBack();
         await appState.alert('Gli sposi hanno chiuso questa partita', { title: 'Partita chiusa' });

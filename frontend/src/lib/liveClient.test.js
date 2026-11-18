@@ -134,6 +134,19 @@ describe('LiveClient', () => {
     c.disconnect();
   });
 
+  it('getTicket con errore terminale: niente retry e onEventDeleted', async () => {
+    const getTicket = vi.fn().mockRejectedValue(Object.assign(new Error('gone'), { terminal: true }));
+    const c = new LiveClient({
+      getTicket, url: (t) => t, onChanged, onEventDeleted, WebSocketImpl: FakeWebSocket, random: () => 0.5
+    });
+    c.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(getTicket).toHaveBeenCalledTimes(1);
+    expect(onEventDeleted).toHaveBeenCalledTimes(1);
+    expect(FakeWebSocket.instances).toHaveLength(0);
+  });
+
   it('getTicket che rigetta riprova con backoff', async () => {
     const getTicket = vi.fn().mockRejectedValueOnce(new Error('x')).mockResolvedValue('tk');
     const c = new LiveClient({

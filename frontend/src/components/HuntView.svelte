@@ -32,8 +32,8 @@
 
     uploadingId = challengeId;
     try {
-      await api.submitHunt(challengeId, file);
-      appState.celebratePoints(25);
+      const res = await api.submitHunt(challengeId, file);
+      appState.celebratePoints(Number(res?.points_awarded) || 0);
       uploadingId = null;
       if (fileInputs[challengeId]) fileInputs[challengeId].value = '';
 

@@ -7,6 +7,7 @@
   import LockedChallenges from './LockedChallenges.svelte';
   import { fade, scale } from 'svelte/transition';
   import { withRetainedPhoto } from '../lib/galleryRetain.js';
+  import { dedupeById } from '../lib/galleryMerge.js';
 
   let selectedPhotos = $state([]);
   let isUploading = $state(false);
@@ -294,7 +295,8 @@
           const createdSubs = res.submissions || [];
           // L'id reale eredita la chiave della card temporanea (nessun blink)
           tempIds.forEach((tid, i) => { if (createdSubs[i]) keyAlias.set(createdSubs[i].id, tid); });
-          appState.galleryPhotos = appState.galleryPhotos.map((p) => {
+          // dedupeById: la copia del server può essere già arrivata via refresh live
+          appState.galleryPhotos = dedupeById(appState.galleryPhotos.map((p) => {
             const tempIdx = tempIds.indexOf(p.id);
             if (tempIdx !== -1 && createdSubs[tempIdx]) {
               return {
@@ -305,7 +307,7 @@
               };
             }
             return p;
-          });
+          }));
 
           Promise.all([
             appState.refreshUser(),

@@ -178,9 +178,9 @@ router.delete("/photo/:id", requireUser, async (c) => {
   // Punti realmente tolti dal trigger (calcolati prima della cancellazione)
   const pts = await db.queryOne("SELECT submission_points($1, $2) AS pts", [sub.challenge_id, sub.answer_text]);
   await db.execute("DELETE FROM user_submissions WHERE id = $1", [submissionId]);
+  publish(c, String(user.event_id), ["gallery", "leaderboard"]);
   if (sub.image_url) await deletePhoto(c.env.PHOTOS, sub.image_url);
 
-  publish(c, String(user.event_id), ["gallery", "leaderboard"]);
   return c.json({
     success: true,
     deleted_id: submissionId,

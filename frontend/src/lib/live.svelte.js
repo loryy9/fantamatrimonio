@@ -48,7 +48,15 @@ export const live = {
     onDeleted = onEventDeleted;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     client = new LiveClient({
-      getTicket: async () => (await api.getLiveTicket(eventId, accountToken)).ticket,
+      getTicket: async () => {
+        try {
+          return (await api.getLiveTicket(eventId, accountToken)).ticket;
+        } catch (err) {
+          // 401/403/404: evento eliminato (o accesso revocato) mentre eravamo offline
+          if ([401, 403, 404].includes(err?.status)) err.terminal = true;
+          throw err;
+        }
+      },
       url: (ticket) => `${proto}://${location.host}/api/live?ticket=${encodeURIComponent(ticket)}`,
       onChanged: dispatch,
       onEventDeleted: () => (onDeleted ?? defaultEventDeleted)()

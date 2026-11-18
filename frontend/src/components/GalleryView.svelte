@@ -621,7 +621,7 @@
 <style>
 
   .gallery-container { display: flex; flex-direction: column; gap: 20px; width: 100%; min-width: 0; box-sizing: border-box; }
-  .gallery-container.gallery-empty { min-height: 100%; }
+  .gallery-container.gallery-empty { flex: 1; }
   .upload-card { padding: 18px; border-radius: 26px; background: #fff; border: 1px solid rgba(36,28,32,.07); box-shadow: 0 18px 34px -24px rgba(106,32,55,.4); width: 100%; min-width: 0; box-sizing: border-box; }
   .gallery-fab { position: fixed; right: 20px; bottom: calc(88px + var(--safe-bottom)); z-index: 90; width: 58px; height: 58px; border: 2px solid rgba(255,255,255,.9); border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--grad-gold-rose); box-shadow: 0 12px 24px rgba(106,32,55,.28), 0 0 0 5px rgba(255,255,255,.72); cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
   .gallery-fab:active { transform: scale(.94); }

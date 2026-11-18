@@ -34,14 +34,16 @@
 <style>
   /* Floating frosted-glass dock (app: GlassNavBar) */
   .bottom-nav {
+    /* Staccata dal bordo: un elemento fisso attaccato al fondo fa colorare a Safari (iOS 26)
+       tutta la barra in basso, invece di lasciar vedere la pagina che ci scorre sotto */
     position: fixed;
-    bottom: 0;
+    bottom: calc(12px + var(--safe-bottom));
     left: 0;
     right: 0;
     z-index: 100;
     display: flex;
     justify-content: center;
-    padding: 0 12px calc(12px + var(--safe-bottom));
+    padding: 0 12px;
     pointer-events: none;
   }
 
@@ -56,9 +58,11 @@
     border-radius: 26px;
     background: rgba(255, 253, 251, 0.98);
     border: 1px solid rgba(106, 32, 55, 0.22);
+    /* Ombra corta: la barra sta a 12px dal fondo e Safari taglia di netto quello che
+       sborda oltre, creando una fascia di colore diverso sopra la barra degli indirizzi */
     box-shadow:
-      0 16px 32px rgba(36, 28, 32, 0.22),
-      0 3px 10px rgba(106, 32, 55, 0.12),
+      0 2px 10px -2px rgba(36, 28, 32, 0.2),
+      0 -4px 18px -6px rgba(106, 32, 55, 0.14),
       inset 0 1px 0 rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
@@ -122,7 +126,7 @@
   /* ── 900px: dock leggermente espansa ── */
   @media (min-width: 900px) {
     .bottom-nav {
-      bottom: 18px;
+      bottom: calc(18px + var(--safe-bottom));
     }
 
     .nav-container {

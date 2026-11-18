@@ -76,6 +76,8 @@
 
   --site-header-height: 72px;
   --main-content-top-padding: 16px;
+  /* Altezza della navbar del gioco (barra 56px + taglio diagonale 6px): le intestazioni sticky si fermano qui sotto */
+  --game-navbar-height: 62px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
@@ -146,9 +148,9 @@ body {
   width: 100%;
   max-width: 540px;
   margin: 0 auto;
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
+  /* svh e non dvh: dvh cambia mentre la barra di Safari si riduce e ricalcolerebbe la pagina a ogni scroll */
+  min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -157,15 +159,28 @@ body {
 
 .main-content {
   flex: 1;
-  min-height: 0;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 100vw;
   box-sizing: border-box;
   padding: var(--main-content-top-padding) 16px calc(112px + var(--safe-bottom)) 16px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+}
+
+/* Nel gioco scorre la finestra: niente "trascina per ricaricare" su Android, come prima */
+html:has(.app-wrapper) {
+  overscroll-behavior-y: none;
+}
+
+/* Con una finestra o un menu aperti la pagina sotto resta ferma */
+html:has(
+  .modal-backdrop,
+  .modal-overlay,
+  .dialog-backdrop,
+  .lightbox-overlay,
+  .drawer-backdrop.open
+) {
+  overflow: hidden;
 }
 
 @keyframes page-enter {
@@ -230,7 +245,8 @@ body {
 /* Intestazioni fisse: scorre solo il contenuto sotto */
 .sticky-head {
   position: sticky;
-  top: calc(var(--main-content-top-padding) * -1);
+  /* = posizione di partenza (padding di main annullato dal margin negativo): si blocca subito, senza salire */
+  top: var(--game-navbar-height);
   z-index: 20;
   background: var(--bg-primary);
   margin-top: calc(var(--main-content-top-padding) * -1);
@@ -253,9 +269,9 @@ body {
 /* page-header + sticky-head: titolo staccato dalla topbar, vicino al contenuto che introduce */
 .main-content .page-header.sticky-head {
   position: sticky;
-  top: calc(var(--main-content-top-padding) * -1 - 12px) !important;
+  top: calc(var(--game-navbar-height) - 12px) !important;
   margin-top: calc(var(--main-content-top-padding) * -1 - 12px) !important;
-  padding: 34px 4px 6px !important;
+  padding: 24px 4px 6px !important;
   background: var(--bg-primary) !important;
   z-index: 20 !important;
 }

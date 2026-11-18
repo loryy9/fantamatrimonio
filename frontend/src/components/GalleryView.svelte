@@ -278,7 +278,7 @@
       if (isEnded) {
         appState.showToast(count === 1 ? 'Foto aggiunta alla galleria!' : `${count} foto aggiunte alla galleria!`, 'success');
       } else {
-        appState.showToast(count === 1 ? 'Foto caricata! +10 PT' : `${count} foto caricate! +${pts} PT`, 'success', pts);
+        appState.celebratePoints(pts);
       }
 
       // Chiudi subito l'area di caricamento per l'utente

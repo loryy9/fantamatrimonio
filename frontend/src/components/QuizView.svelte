@@ -35,7 +35,8 @@
 
       const pts = res.points_awarded || quizPoints;
       if (res.is_correct) {
-        appState.showToast('Risposta corretta', 'success', pts);
+        if (pts > 0) appState.celebratePoints(pts);
+        else appState.showToast('Risposta corretta', 'success');
       } else {
         appState.showToast('Risposta sbagliata', 'error');
       }
@@ -72,7 +73,8 @@
       const isFirstTime = res.status === 'created';
       if (isFirstTime) {
         const pts = res.points_awarded || votePoints;
-        appState.showToast('Momento salvato!', 'success', pts);
+        if (pts > 0) appState.celebratePoints(pts);
+        else appState.showToast('Momento salvato!', 'success');
       } else {
         appState.showToast('Momento aggiornato con successo!', 'success');
       }
@@ -99,7 +101,8 @@
     votingId = challengeId;
     try {
       await api.submitVote(challengeId, optionId);
-      appState.showToast('Voto registrato con successo!', 'success', votePoints);
+      if (votePoints > 0) appState.celebratePoints(votePoints);
+      else appState.showToast('Voto registrato con successo!', 'success');
       await Promise.all([
         appState.refreshUser(),
         appState.refreshMySubmissions(),

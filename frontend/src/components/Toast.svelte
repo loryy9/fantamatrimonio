@@ -2,16 +2,6 @@
   import { appState } from '../lib/state.svelte.js';
   import { page } from '$app/state';
 
-  function formatPoints(pts) {
-    if (typeof pts === 'string') {
-      if (pts.toLowerCase().includes('punt') || pts.toLowerCase().includes('pt')) {
-        return pts.startsWith('+') ? pts : `+${pts}`;
-      }
-    }
-    const num = Number(pts);
-    const label = num === 1 ? 'punto' : 'punti';
-    return `+${pts} ${label}`;
-  }
 </script>
 
 <div class="toast-container" class:has-bottom-nav={page.route.id?.startsWith('/(game)')}>
@@ -28,9 +18,6 @@
       </div>
       <div class="toast-content">
         <div class="toast-text">{toast.text}</div>
-        {#if toast.points}
-          <div class="toast-points">{formatPoints(toast.points)}</div>
-        {/if}
       </div>
       <button class="toast-close" onclick={() => appState.removeToast(toast.id)} aria-label="Chiudi">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -105,17 +92,6 @@
     font-weight: 600;
     line-height: 1.3;
     color: #fff;
-  }
-
-  .toast-points {
-    font-size: 0.74rem;
-    font-weight: 800;
-    padding: 2px 8px;
-    border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.22);
-    color: #fff;
-    white-space: nowrap;
-    flex-shrink: 0;
   }
 
   .toast-close {

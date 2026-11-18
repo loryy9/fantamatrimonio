@@ -82,11 +82,19 @@ class AppState {
 
   // ── Toast e dialoghi ──────────────────────────────────────────────────────
 
-  showToast(text, type = 'info', points = null) {
+  showToast(text, type = 'info') {
     const id = Date.now() + Math.random();
-    this.toasts.push({ id, text, type, points });
-    if (points > 0) fireCelebration();
+    this.toasts.push({ id, text, type });
     setTimeout(() => this.removeToast(id), 4000);
+  }
+
+  // Animazione "+X punti" al centro dello schermo (al posto del toast) con coriandoli.
+  pointsBurst = $state(null); // { id, points }
+
+  celebratePoints(points) {
+    if (!(points > 0)) return;
+    this.pointsBurst = { id: Date.now() + Math.random(), points };
+    fireCelebration();
   }
 
   removeToast(id) {

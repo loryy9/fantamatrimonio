@@ -33,7 +33,7 @@
     uploadingId = challengeId;
     try {
       await api.submitHunt(challengeId, file);
-      appState.showToast('Missione completata con successo!', 'success', 25);
+      appState.celebratePoints(25);
       uploadingId = null;
       if (fileInputs[challengeId]) fileInputs[challengeId].value = '';
 

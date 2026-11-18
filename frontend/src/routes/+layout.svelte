@@ -2,6 +2,7 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import Toast from '#components/Toast.svelte';
+  import PointsBurst from '#components/PointsBurst.svelte';
   import ConfirmDialog from '#components/ConfirmDialog.svelte';
 
   let { children } = $props();
@@ -11,5 +12,6 @@
 </script>
 
 <Toast />
+<PointsBurst />
 <ConfirmDialog />
 {@render children()}

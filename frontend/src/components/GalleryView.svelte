@@ -249,7 +249,7 @@
           });
 
           Promise.all([
-            appState.refreshUser(true),
+            appState.refreshUser(),
             appState.refreshLeaderboard()
           ])
             .catch(e => console.warn('Background sync:', e));
@@ -292,7 +292,7 @@
         'info'
       );
       await Promise.all([
-        appState.refreshUser(true),
+        appState.refreshUser(),
         appState.refreshMySubmissions(),
         appState.refreshChallenges(),
         appState.refreshLeaderboard(),

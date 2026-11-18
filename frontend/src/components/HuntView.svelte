@@ -39,7 +39,7 @@
 
       // Aggiornamento dati in background senza bloccare la UI
       Promise.all([
-        appState.refreshUser(true),
+        appState.refreshUser(),
         appState.refreshMySubmissions(),
         appState.refreshLeaderboard(),
         appState.refreshGallery()

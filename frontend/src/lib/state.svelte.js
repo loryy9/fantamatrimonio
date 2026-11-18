@@ -38,7 +38,6 @@ class AppState {
   dashboardLoading = $state(false);
 
   toasts = $state([]);
-  pollingTimer = null;
 
   // ── Getter ────────────────────────────────────────────────────────────────
 
@@ -194,7 +193,6 @@ class AppState {
     this.mySubmissions = [];
     this.leaderboard = [];
     this.galleryPhotos = [];
-    this.stopPolling();
   }
 
   /** Recupera la sessione salvata (una sola volta): lo attende il layout radice prima di ogni pagina. */
@@ -480,14 +478,10 @@ class AppState {
     }
   }
 
-  async refreshUser(silent = false) {
+  async refreshUser() {
     if (!this.hasSession) return;
     try {
       const res = await api.getMe();
-      if (!silent && this.user && res.user.total_points > this.user.total_points) {
-        const diff = res.user.total_points - this.user.total_points;
-        this.showToast(`Hai guadagnato +${diff} punti!`, 'success', diff);
-      }
       this.setUser(res.user);
       this.event = res.event || this.event;
       if (res.account) this.account = res.account;
@@ -535,21 +529,6 @@ class AppState {
     } catch (err) {
       console.error('Failed to load gallery', err);
     }
-  }
-
-  /** Punteggio e classifica live mentre si è dentro il gioco (lo avvia il layout del gioco). */
-  startPolling() {
-    if (this.pollingTimer) return;
-    this.pollingTimer = setInterval(async () => {
-      if (this.isAuthenticated) {
-        await Promise.allSettled([this.refreshUser(true), this.refreshLeaderboard()]);
-      }
-    }, 20000);
-  }
-
-  stopPolling() {
-    clearInterval(this.pollingTimer);
-    this.pollingTimer = null;
   }
 }
 

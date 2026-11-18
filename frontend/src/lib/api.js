@@ -192,6 +192,12 @@ export const api = {
     return await request(`/auth/me${query}`, { headers });
   },
 
+  /** Ticket monouso per il WebSocket live; con `accountToken` usa quello dell'account (dashboard). */
+  async getLiveTicket(eventId, accountToken = null) {
+    const headers = accountToken ? { Authorization: `Bearer ${accountToken}` } : undefined;
+    return await request(`/live/ticket?event_id=${encodeURIComponent(eventId)}`, { method: 'POST', headers });
+  },
+
   // Challenges
   async getChallenges(includeInactive = false) {
     const query = includeInactive ? '?include_inactive=true' : '';

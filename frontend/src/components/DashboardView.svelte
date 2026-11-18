@@ -5,6 +5,7 @@
   import { page } from '$app/state';
   import { ROUTES, dashboardUrl } from '../lib/routes.js';
   import { api } from '../lib/api.js';
+  import { live } from '../lib/live.svelte.js';
   import { formatName } from '../lib/formatters.js';
   import { copyToClipboard } from '../lib/clipboard.js';
 
@@ -29,33 +30,68 @@
     }
   });
 
-  async function openEvent(ev) {
-    selectedEvent = ev;
-    setEventInUrl(ev.event.id);
-    detailLoading = true;
-    eventLoadError = false;
-    activeSection = 'photos';
+  /** Carica dettaglio e risposte; `silent` (aggiornamenti live) non mostra lo spinner né segnala errori. */
+  async function reloadDetail(eventId, { silent = false } = {}) {
+    if (!silent) {
+      detailLoading = true;
+      eventLoadError = false;
+    }
     try {
       const [detail, subs] = await Promise.all([
-        api.getDashboardEventDetail(ev.event.id),
-        api.getDashboardEventSubmissions(ev.event.id),
+        api.getDashboardEventDetail(eventId),
+        api.getDashboardEventSubmissions(eventId),
       ]);
+      // Nel frattempo l'utente potrebbe aver chiuso o cambiato matrimonio
+      if (selectedEvent?.event.id !== eventId) return;
       eventDetail = detail;
       eventSubmissions = subs;
     } catch (err) {
+      if (silent) return;
       eventLoadError = true;
-      appState.showToast('Errore nel caricamento dell\'evento', 'error');
+      appState.showToast("Errore nel caricamento dell'evento", 'error');
     } finally {
-      detailLoading = false;
+      if (!silent) detailLoading = false;
     }
   }
 
+  async function openEvent(ev) {
+    selectedEvent = ev;
+    setEventInUrl(ev.event.id);
+    activeSection = 'photos';
+    await reloadDetail(ev.event.id);
+  }
+
   function goBack() {
+    live.stop();
     selectedEvent = null;
     eventDetail = null;
     eventSubmissions = null;
     setEventInUrl(null);
   }
+
+  // Aggiornamenti live del matrimonio aperto (con il token dell'account: il token di gioco ignora event_id)
+  const openEventId = $derived(selectedEvent?.event.id ?? null);
+  $effect(() => {
+    const eventId = openEventId;
+    if (!eventId) return;
+    const refresh = () => reloadDetail(eventId, { silent: true });
+    const offs = ['leaderboard', 'gallery', 'challenges', 'event'].map((topic) => live.on(topic, refresh));
+    const owner = Symbol('dashboard-live');
+    live.addTopics(owner, ['leaderboard', 'gallery', 'challenges', 'event']);
+    live.start(eventId, {
+      accountToken: localStorage.getItem('fm_jwt_token'),
+      onEventDeleted: async () => {
+        goBack();
+        await appState.alert('Gli sposi hanno chiuso questa partita', { title: 'Partita chiusa' });
+        void appState.loadDashboardEvents();
+      }
+    });
+    return () => {
+      offs.forEach((off) => off());
+      live.removeTopics(owner);
+      live.stop();
+    };
+  });
 
   async function copyInviteCode(code) {
     const ok = await copyToClipboard(code);

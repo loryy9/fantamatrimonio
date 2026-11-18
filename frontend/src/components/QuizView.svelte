@@ -41,7 +41,7 @@
       }
 
       await Promise.all([
-        appState.refreshUser(true),
+        appState.refreshUser(),
         appState.refreshMySubmissions(),
         appState.refreshLeaderboard(),
         appState.refreshChallenges()
@@ -78,7 +78,7 @@
       }
 
       await Promise.all([
-        appState.refreshUser(true),
+        appState.refreshUser(),
         appState.refreshMySubmissions(),
         appState.refreshLeaderboard(),
         appState.refreshChallenges()
@@ -101,7 +101,7 @@
       await api.submitVote(challengeId, optionId);
       appState.showToast('Voto registrato con successo!', 'success', votePoints);
       await Promise.all([
-        appState.refreshUser(true),
+        appState.refreshUser(),
         appState.refreshMySubmissions(),
         appState.refreshLeaderboard(),
         appState.refreshChallenges()

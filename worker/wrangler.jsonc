@@ -19,6 +19,10 @@
   // Foto degli invitati. Creazione: npx wrangler r2 bucket create fantamatrimonio-photos
   "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "fantamatrimonio-photos" }],
 
+  // Aggiornamenti live: un Durable Object (WebSocket) per evento.
+  "durable_objects": { "bindings": [{ "name": "EVENT_LIVE", "class_name": "EventLive" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EventLive"] }],
+
   // Invia ogni ora i reminder di registrazione scaduti.
   "triggers": { "crons": ["0 * * * *"] },
 

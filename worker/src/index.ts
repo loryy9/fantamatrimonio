@@ -21,6 +21,8 @@ import events from "./routes/events";
 import leaderboard from "./routes/leaderboard";
 import submissions from "./routes/submissions";
 
+export { EventLive } from "./live/EventLive";
+
 const app = new Hono<AppEnv>();
 
 app.use("*", trimTrailingSlash());

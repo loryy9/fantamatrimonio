@@ -1,5 +1,6 @@
 import type { Db, Row } from "./db";
 import type { Config } from "./config";
+import type { EventLive } from "./live/EventLive";
 
 /** Bindings e variabili del Worker (wrangler.jsonc + secrets). */
 export interface Env {
@@ -7,6 +8,8 @@ export interface Env {
   /** Bucket R2 con le foto caricate. */
   PHOTOS: R2Bucket;
   RATE_LIMIT_KV?: KVNamespace;
+  /** Durable Object per gli aggiornamenti live (uno per evento). */
+  EVENT_LIVE: DurableObjectNamespace<EventLive>;
 
   DATABASE_URL?: string;
   MEDIA_BASE_URL?: string;

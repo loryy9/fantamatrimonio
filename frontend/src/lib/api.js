@@ -347,6 +347,14 @@ export const api = {
     return await request(`/dashboard/events/${eventId}/submissions`);
   },
 
+  /** Nomi degli sposi e orario dei giochi (solo sposi); manda solo i campi cambiati. */
+  async updateDashboardEvent(eventId, changes) {
+    return await request(`/dashboard/events/${eventId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(changes)
+    });
+  },
+
   // Admin Endpoints
   async adminLogin(username, password) {
     return await request('/admin/login', {

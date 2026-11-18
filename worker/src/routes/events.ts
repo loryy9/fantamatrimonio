@@ -14,11 +14,12 @@ import { decodeJwt, isJwt, requireCouple, requireUser } from "../auth";
 import type { Row } from "../db";
 import type { Env, AppEnv } from "../env";
 import { ApiError } from "../errors";
-import { GAME_STARTED_MESSAGE, loadGameStarted } from "../gameLock";
-import { closeEventLive, publish } from "../live/publish";
+import { loadGameStarted } from "../gameLock";
+import { closeEventLive } from "../live/publish";
 import { generateInviteCode } from "../invite";
+import { updateEventSettings } from "../eventSettings";
 import { accountOut, eventOut, userOut } from "../serializers";
-import { dateTime, parseJson, setFields } from "../util";
+import { dateTime, parseJson } from "../util";
 
 const router = new Hono<AppEnv>();
 
@@ -158,54 +159,9 @@ router.get("/me", requireUser, async (c) => {
   return c.json(eventOut(event, await loadGameStarted(c.get("db"), event)));
 });
 
-const UpdateEventRequest = z.object({
-  spouse1_name: z.string().nullish(),
-  spouse2_name: z.string().nullish(),
-  enable_timer: z.boolean().nullish(),
-  start_time: dateTime.nullish(),
-  end_time: dateTime.nullish(),
-});
-
 router.patch("/me", requireCouple, async (c) => {
-  const db = c.get("db");
-  const eventId = c.get("user").event_id;
-  const { data, raw } = await parseJson(c, UpdateEventRequest);
-
-  const event = await db.queryOne("SELECT * FROM events WHERE id = $1", [eventId]);
-  if (!event) throw new ApiError(404, "Evento non trovato.");
-
-  const updates = setFields(data, raw, ["spouse1_name", "spouse2_name", "enable_timer", "start_time", "end_time"]);
-  if (Object.keys(updates).length === 0) return c.json(eventOut(event));
-
-  // A partita iniziata solo l'orario di inizio e il timer sono bloccati (end_time e nomi restano modificabili).
-  if (("start_time" in updates || "enable_timer" in updates) && (await loadGameStarted(db, event))) {
-    throw new ApiError(409, GAME_STARTED_MESSAGE);
-  }
-
-  for (const field of ["spouse1_name", "spouse2_name", "enable_timer"]) {
-    if (field in updates && updates[field] == null) {
-      throw new ApiError(422, `Il campo '${field}' non può essere nullo.`);
-    }
-  }
-
-  const mergedTimer = "enable_timer" in updates ? updates.enable_timer : event.enable_timer;
-  const mergedStart = ("start_time" in updates ? updates.start_time : event.start_time) as Date | null;
-  const mergedEnd = ("end_time" in updates ? updates.end_time : event.end_time) as Date | null;
-  if (mergedTimer && mergedStart && mergedEnd && mergedEnd.getTime() <= mergedStart.getTime()) {
-    throw new ApiError(422, "L'orario di fine deve essere successivo a quello di inizio.");
-  }
-
-  // I nomi colonna provengono dalla allowlist sopra: mai da input utente.
-  const params: (string | boolean | Date | null)[] = [];
-  const sets = Object.entries(updates).map(([col, val]) => {
-    params.push(val as string | boolean | Date | null);
-    return `${col} = $${params.length}`;
-  });
-  params.push(eventId);
-
-  const updated = await db.execute(`UPDATE events SET ${sets.join(", ")} WHERE id = $${params.length} RETURNING *`, params);
-  publish(c, String(eventId), ["event"]);
-  return c.json(eventOut(updated!));
+  const updated = await updateEventSettings(c, c.get("user").event_id);
+  return c.json(eventOut(updated));
 });
 
 router.get("/me/invite", requireUser, async (c) => {

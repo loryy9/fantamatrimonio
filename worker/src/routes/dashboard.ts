@@ -3,11 +3,13 @@
  * GET /api/dashboard/events                        -> eventi dell'account
  * GET /api/dashboard/events/:id                    -> dettaglio evento (galleria, partecipanti, statistiche)
  * GET /api/dashboard/events/:id/submissions        -> submission con privacy
+ * PATCH /api/dashboard/events/:id                  -> nomi e orario dei giochi (solo sposi)
  */
 import { Hono } from "hono";
 import { requireAccount } from "../auth";
 import type { AppEnv } from "../env";
 import { ApiError } from "../errors";
+import { updateEventSettings } from "../eventSettings";
 import { loadGameStarted } from "../gameLock";
 import { eventOut, userOut } from "../serializers";
 import { iso } from "../util";
@@ -98,6 +100,22 @@ router.get("/events/:event_id", requireAccount, async (c) => {
       quiz_count: quiz?.count ?? 0,
     },
   });
+});
+
+/** Nomi degli sposi e orario dei giochi, modificabili dagli sposi senza entrare nella partita. */
+router.patch("/events/:event_id", requireAccount, async (c) => {
+  const db = c.get("db");
+  const eventId = c.req.param("event_id");
+
+  const me = await db.queryOne("SELECT role FROM users WHERE event_id = $1 AND account_id = $2", [
+    eventId,
+    c.get("account").id,
+  ]);
+  if (!me) throw new ApiError(403, "Non fai parte di questo evento.");
+  if (me.role !== "couple") throw new ApiError(403, "Solo gli sposi possono modificare il matrimonio.");
+
+  const updated = await updateEventSettings(c, eventId);
+  return c.json(eventOut(updated, await loadGameStarted(db, updated)));
 });
 
 /**

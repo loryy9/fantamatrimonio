@@ -8,6 +8,7 @@
   import { live } from '../lib/live.svelte.js';
   import { formatName } from '../lib/formatters.js';
   import { copyToClipboard } from '../lib/clipboard.js';
+  import EventSettingsDrawer from './EventSettingsDrawer.svelte';
 
   const requestedEventId = page.url.searchParams.get('event');
   // Cambia solo il ?event= nell'URL, senza scroll né nuova voce nella cronologia
@@ -20,6 +21,7 @@
   let isEnteringEvent = $state(false);
   let activeSection = $state('photos'); // 'photos' | 'quiz' | 'participants'
   let copied = $state(false);
+  let settingsOpen = $state(false);
 
   onMount(() => {
     if (requestedEventId) {
@@ -112,6 +114,30 @@
     }
   }
 
+  const fmtDay = (d) => d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+  const fmtTime = (d) => d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+  /** Riassunto dell'orario dei giochi mostrato nella card del matrimonio. */
+  function scheduleSummary(ev) {
+    if (!ev?.enable_timer || !ev.start_time || !ev.end_time) return { text: 'Giochi sempre aperti', status: '' };
+    const start = new Date(ev.start_time);
+    const end = new Date(ev.end_time);
+    const sameDay = start.toDateString() === end.toDateString();
+    const text = sameDay
+      ? `Giochi ${fmtDay(start)}, ${fmtTime(start)}–${fmtTime(end)}`
+      : `Giochi da ${fmtDay(start)} ${fmtTime(start)} a ${fmtDay(end)} ${fmtTime(end)}`;
+    const now = new Date();
+    const status = now < start ? '' : now < end ? 'in corso' : 'conclusi';
+    return { text, status };
+  }
+
+  const schedule = $derived(scheduleSummary(eventDetail?.event));
+
+  function handleSettingsSaved(updated) {
+    eventDetail.event = { ...eventDetail.event, ...updated };
+    void appState.loadDashboardEvents();
+  }
+
   const photos = $derived(eventDetail?.photos || []);
   const participants = $derived(eventDetail?.participants || []);
   const quizSubmissions = $derived(
@@ -153,6 +179,12 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg>
       </div>
 
+      {#if eventDetail.is_couple}
+        <button type="button" class="hero-edit" onclick={() => (settingsOpen = true)} aria-label="Modifica nomi e orari" title="Modifica nomi e orari">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>
+        </button>
+      {/if}
+
       <div class="hero-content">
         <div class="hero-eyebrow">
           <span class="rule"></span>
@@ -180,6 +212,14 @@
           </button>
         </div>
 
+        <div class="hero-schedule">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="schedule-text">
+            {schedule.text}
+            {#if schedule.status}<span class="schedule-status" class:live={schedule.status === 'in corso'}>{schedule.status}</span>{/if}
+          </span>
+        </div>
+
         <div class="hero-cta-wrap" class:couple-ctas={eventDetail.is_couple}>
           {#if eventDetail.is_couple}
             <button class="btn btn-primary hero-live-btn" disabled={isEnteringEvent} onclick={() => enterEvent(eventDetail.event, 'setup')}>
@@ -199,6 +239,10 @@
         </div>
       </div>
     </div>
+
+    {#if eventDetail.is_couple}
+      <EventSettingsDrawer bind:open={settingsOpen} event={eventDetail.event} onSaved={handleSettingsSaved} />
+    {/if}
 
     <!-- Statistiche compatte a 3 colonne orizzontali -->
     <div class="detail-stats-grid">
@@ -843,6 +887,72 @@
     color: var(--wine, #8c2f4b);
     font-weight: 700;
     font-size: 0.75rem;
+  }
+
+  .hero-schedule {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+  }
+
+  .hero-schedule > svg {
+    flex-shrink: 0;
+    color: var(--wine);
+  }
+
+  .schedule-text {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--text-main);
+  }
+
+  .schedule-status {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--bg-surface-elevated);
+    color: var(--text-muted);
+    font-size: var(--fs-xs);
+    font-weight: 700;
+  }
+
+  .schedule-status.live {
+    background: rgba(91, 155, 122, 0.14);
+    color: #2f6b4c;
+  }
+
+  /* Matita in alto a destra: apre il pannello nomi e orari (solo sposi) */
+  .hero-edit {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(140, 47, 75, 0.18);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--wine);
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .hero-edit:hover {
+    background: var(--wine);
+    border-color: var(--wine);
+    color: #fff;
+  }
+
+  /* lo spazio della matita: i nomi lunghi non ci finiscono sotto */
+  .hero-edit + .hero-content .hero-eyebrow,
+  .hero-edit + .hero-content .hero-spouses {
+    padding-right: 40px;
   }
 
   .hero-cta-wrap {

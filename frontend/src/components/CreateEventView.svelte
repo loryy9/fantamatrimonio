@@ -8,6 +8,7 @@
   import { copyToClipboard } from '../lib/clipboard.js';
   import OnboardingSetup from './OnboardingSetup.svelte';
   import EmailVerificationField from './EmailVerificationField.svelte';
+  import TimerFields from './TimerFields.svelte';
   import SocialButtons from './SocialButtons.svelte';
   import PageIntro from './PageIntro.svelte';
 
@@ -403,42 +404,19 @@
             </div>
           </div>
 
-          <div class="option-box">
-            <div class="option-head">
-              <div class="option-copy">
-                <strong>Orario di apertura giochi</strong>
-                <span>Missioni e quiz attivi solo durante il ricevimento, per evitare spoiler prima del brindisi.</span>
-              </div>
-              <label class="clean-switch">
-                <input type="checkbox" bind:checked={enableTimer} />
-                <span class="slider"></span>
-              </label>
-            </div>
-
-            {#if enableTimer}
-              <div class="timer-grid">
-                <div class="input-group">
-                  <label for="startDateInput" class="input-label">Giorno inizio</label>
-                  <input id="startDateInput" type="date" class="input-field" bind:value={startDate} />
-                </div>
-                <div class="input-group">
-                  <label for="startTimeInput" class="input-label">Ora inizio</label>
-                  <input id="startTimeInput" type="time" class="input-field" bind:value={startTime} />
-                </div>
-                <div class="input-group">
-                  <label for="endDateInput" class="input-label">Giorno fine</label>
-                  <input id="endDateInput" type="date" class="input-field" bind:value={endDate} />
-                </div>
-                <div class="input-group">
-                  <label for="endTimeInput" class="input-label">Ora fine</label>
-                  <input id="endTimeInput" type="time" class="input-field" bind:value={endTime} />
-                </div>
-              </div>
-            {/if}
+          <div class="timer-slot">
+            <TimerFields
+              bind:enabled={enableTimer}
+              bind:startDate
+              bind:startTime
+              bind:endDate
+              bind:endTime
+              idPrefix="create-timer"
+            />
           </div>
 
           {@render submitButton(appState.hasAccount ? 'Continua: scegli le modalità' : 'Continua: crea il tuo account', 'Creazione in corso...')}
-          <p class="field-hint center">Potrai modificare questi dettagli in qualsiasi momento dalle impostazioni.</p>
+          <p class="field-hint center">Potrai cambiare nomi e orari in qualsiasi momento dalla pagina del matrimonio.</p>
         </form>
       {:else}
         <h2 class="form-title font-serif">{isRegister ? 'Registrati' : 'Accedi'}</h2>
@@ -562,50 +540,6 @@
   }
 
   /* Timer card & Datetime inputs */
-
-  /* Clean Switch */
-  .clean-switch {
-    position: relative;
-    display: inline-block;
-    width: 46px;
-    height: 26px;
-    flex-shrink: 0;
-  }
-
-  .clean-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-
-  .clean-switch .slider {
-    position: absolute;
-    cursor: pointer;
-    inset: 0;
-    background-color: #d1c7c2;
-    transition: 0.25s;
-    border-radius: 26px;
-  }
-
-  .clean-switch .slider:before {
-    position: absolute;
-    content: "";
-    height: 20px;
-    width: 20px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
-    transition: 0.25s;
-    border-radius: 50%;
-  }
-
-  .clean-switch input:checked + .slider {
-    background-color: var(--wine);
-  }
-
-  .clean-switch input:checked + .slider:before {
-    transform: translateX(20px);
-  }
 
   /* Preview Code Card */
 
@@ -841,8 +775,7 @@
     flex-direction: column;
     gap: 4px;
   }
-  .name-row,
-  .timer-grid {
+  .name-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
@@ -879,35 +812,8 @@
     padding: 0;
     text-align: left;
   }
-  .option-box {
-    background: rgba(201, 169, 110, 0.08);
-    border: 1px solid rgba(201, 169, 110, 0.25);
-    border-radius: 16px;
-    padding: 14px 16px;
+  .timer-slot {
     margin-bottom: 14px;
-  }
-  .option-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-  }
-  .option-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-  .option-copy span {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    line-height: 1.4;
-  }
-  .timer-grid {
-    margin-top: 14px;
-  }
-  .timer-grid .input-group {
-    margin-bottom: 0;
   }
   .align-start {
     align-self: flex-start;
@@ -943,8 +849,7 @@
     }
   }
   @media (max-width: 420px) {
-    .name-row,
-    .timer-grid {
+    .name-row {
       grid-template-columns: minmax(0, 1fr);
     }
   }

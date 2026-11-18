@@ -3,8 +3,9 @@
   import { cubicOut } from 'svelte/easing';
   import { onMount } from 'svelte';
   import { page } from '$app/state';
+  import { goto } from '$app/navigation';
   import { appState } from '../lib/state.svelte.js';
-  import { normalizeCode } from '../lib/routes.js';
+  import { normalizeCode, joinUrl } from '../lib/routes.js';
   import { api } from '../lib/api.js';
   import EmailVerificationField from './EmailVerificationField.svelte';
   import SocialButtons from './SocialButtons.svelte';
@@ -71,6 +72,14 @@
     }
   }
 
+  // Chi scrive il codice e poi passa ad "Accedi" non deve perderlo: dopo l'accesso il form
+  // del codice (LoginView) lo legge dall'URL, quindi ce lo mettiamo prima di autenticarsi.
+  async function keepCodeInUrl() {
+    const code = normalizeCode(inviteCode);
+    if (!needsCode || !code || normalizeCode(page.url.searchParams.get('code')) === code) return;
+    await goto(joinUrl(code), { replaceState: true, noScroll: true, keepFocus: true });
+  }
+
   async function handleSocial(provider, token) {
     if (mode === 'register' && needsCode && !eventPreview) {
       appState.showToast('Inserisci prima un codice matrimonio valido.', 'error');
@@ -78,6 +87,7 @@
     }
     socialBusy = true;
     try {
+      await keepCodeInUrl();
       const res = await appState.loginSocial(provider, token, opts);
       if (!res.success) {
         appState.showToast(res.error, 'error');
@@ -97,6 +107,7 @@
     }
     isSubmitting = true;
     try {
+      await keepCodeInUrl();
       const res = await appState.loginSecure(email.trim(), password, opts);
       if (!res.success) appState.showToast(res.error, 'error');
     } finally {

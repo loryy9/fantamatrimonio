@@ -30,6 +30,7 @@
 [] generazione codice QR
 [] lettura codice QR sia da fotocamera che direttamente da sito
 [] Schermata sposi per modificare orari/timer della partita (api.updateEvent esiste ma non è usata; backend con blocco e live già pronti)
-[] Sistemare banner per verifica mail che fa schifo
-[] se faccio "partecipa" metto codice, poi "accedi" perchè ho già un account, dopo accesso mi richiede il codice, se lo perde
-[] quando scorri in una pagina, se poi cambi, quella nuova non ti riporta in alto ma resta nel punto dove eri nella pagina precedente
+[P] Sistemare banner per verifica mail che fa schifo
+[P] se faccio "partecipa" metto codice, poi "accedi" perchè ho già un account, dopo accesso mi richiede il codice, se lo perde
+[P] quando scorri in una pagina, se poi cambi, quella nuova non ti riporta in alto ma resta nel punto dove eri nella pagina precedente
+[] Condivisione link tramite whatsapp e normale serviizo

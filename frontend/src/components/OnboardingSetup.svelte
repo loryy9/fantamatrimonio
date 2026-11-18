@@ -24,6 +24,11 @@
   let errorMessage = $state("");
   let savedChallengeSnapshot = $state(null);
 
+  // Partita iniziata: le sfide non sono più modificabili (solo per l'editor di un evento esistente)
+  const GAME_STARTED_MESSAGE =
+    "La partita è iniziata: le sfide non sono più modificabili.";
+  const locked = $derived(editMode && !!appState.event?.game_started);
+
   // Cloni locali modificabili dei preset
   let quizzes = $state(
     PRESET_QUIZZES.map((q) => ({
@@ -119,6 +124,7 @@
   }
 
   async function resetChallenges() {
+    if (locked) return;
     if (!hasChallengeChanges || !savedChallengeSnapshot) return;
     const ok = await appState.confirm(
       "Confermi di voler ripristinare le opzioni alla versione precedente?",
@@ -162,6 +168,7 @@
   });
 
   function openDrawer(type, item = null) {
+    if (locked) return;
     drawerType = type;
     drawerEditing = item;
     dTitle = item?.title || "";
@@ -189,6 +196,7 @@
   }
 
   function saveDrawer() {
+    if (locked) return;
     const title = dTitle.trim();
     if (!title) {
       appState.showToast("Inserisci il titolo o la domanda.", "error");
@@ -259,6 +267,7 @@
 
   // Salva tutte le sfide selezionate
   async function handleSave(useAllDefaults = false) {
+    if (locked) return;
     isSaving = true;
 
     try {
@@ -387,6 +396,12 @@
         onComplete();
       }
     } catch (err) {
+      if (err.status === 409) {
+        // La partita è iniziata mentre la pagina era aperta: mostra il motivo e ricarica l'evento
+        errorMessage = typeof err.detail === "string" ? err.detail : err.message;
+        await appState.refreshUser();
+        return;
+      }
       appState.showToast(
         err.message || "Errore durante il salvataggio delle attività.",
         "error",
@@ -449,7 +464,13 @@
     </div>
   {/if}
 
-  {#if errorMessage}
+  {#if locked}
+    <div class="form-error" role="status">
+      <span>{GAME_STARTED_MESSAGE}</span>
+    </div>
+  {/if}
+
+  {#if errorMessage && !(locked && errorMessage === GAME_STARTED_MESSAGE)}
     <div class="form-error" role="alert">
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -556,6 +577,7 @@
         </div>
         <button
           class="btn btn-secondary btn-sm"
+          disabled={locked}
           onclick={() => openDrawer("quiz")}
         >
           Aggiungi
@@ -596,13 +618,14 @@
                 class="checkbox-label compact-checkbox"
                 title="Includi questa domanda nel matrimonio"
               >
-                <input type="checkbox" bind:checked={quiz.selected} />
+                <input type="checkbox" bind:checked={quiz.selected} disabled={locked} />
                 <span class="checkbox-custom"></span>
                 <span class="checkbox-text">Includi</span>
               </label>
               <button
                 type="button"
                 class="btn btn-secondary btn-sm"
+                disabled={locked}
                 onclick={() => openDrawer("quiz", quiz)}>Modifica</button
               >
             </div>
@@ -622,6 +645,7 @@
         </div>
         <button
           class="btn btn-secondary btn-sm"
+          disabled={locked}
           onclick={() => openDrawer("hunt")}
         >
           Aggiungi
@@ -652,13 +676,14 @@
                 class="checkbox-label compact-checkbox"
                 title="Includi questa missione nel matrimonio"
               >
-                <input type="checkbox" bind:checked={hunt.selected} />
+                <input type="checkbox" bind:checked={hunt.selected} disabled={locked} />
                 <span class="checkbox-custom"></span>
                 <span class="checkbox-text">Includi</span>
               </label>
               <button
                 type="button"
                 class="btn btn-secondary btn-sm"
+                disabled={locked}
                 onclick={() => openDrawer("hunt", hunt)}>Modifica</button
               >
             </div>
@@ -678,6 +703,7 @@
         </div>
         <button
           class="btn btn-secondary btn-sm"
+          disabled={locked}
           onclick={() => openDrawer("vote")}
         >
           Aggiungi
@@ -708,13 +734,14 @@
                 class="checkbox-label compact-checkbox"
                 title="Includi questo momento nel matrimonio"
               >
-                <input type="checkbox" bind:checked={moment.selected} />
+                <input type="checkbox" bind:checked={moment.selected} disabled={locked} />
                 <span class="checkbox-custom"></span>
                 <span class="checkbox-text">Includi</span>
               </label>
               <button
                 type="button"
                 class="btn btn-secondary btn-sm"
+                disabled={locked}
                 onclick={() => openDrawer("vote", moment)}>Modifica</button
               >
             </div>
@@ -737,7 +764,8 @@
     <button
       type="button"
       class="setup-action-reset"
-      disabled={isSaving ||
+      disabled={locked ||
+        isSaving ||
         isCancelling ||
         isLoadingData ||
         !hasChallengeChanges}
@@ -746,7 +774,11 @@
     <button
       type="button"
       class="btn btn-primary btn-lg setup-action-save"
-      disabled={isSaving || isCancelling || isLoadingData || !!errorMessage}
+      disabled={locked ||
+        isSaving ||
+        isCancelling ||
+        isLoadingData ||
+        !!errorMessage}
       onclick={() => handleSave(false)}
     >
       {#if isSaving}

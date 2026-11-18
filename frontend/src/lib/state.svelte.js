@@ -445,6 +445,8 @@ class AppState {
 
   async ensureStarterChallenges(existingChallenges = null) {
     if (!this.isCouple) return existingChallenges || [];
+    // A partita iniziata le sfide non si possono creare (il backend risponde 409)
+    if (this.event?.game_started) return existingChallenges || [];
     try {
       const existing = existingChallenges || await api.getChallenges(true);
       if (existing.some(ch => ch.type === 'quiz' || ch.type === 'hunt' || ch.type === 'vote')) {

@@ -15,6 +15,7 @@ import { bearerToken, createJwt, decodeJwt, hashPassword, isJwt, requireAccount,
 import type { Db, Row } from "../db";
 import type { AppEnv } from "../env";
 import { ApiError } from "../errors";
+import { loadGameStarted } from "../gameLock";
 import { publish } from "../live/publish";
 import { accountOut, eventOut, userOut } from "../serializers";
 import { parseJson } from "../util";
@@ -309,7 +310,7 @@ router.post("/login-secure", async (c) => {
   return c.json({
     jwt: await createJwt(cfg, String(account.id)),
     account: accountOut(account),
-    events: (await accountEvents(db, account.id)).map(eventOut),
+    events: (await accountEvents(db, account.id)).map((e) => eventOut(e)),
   });
 });
 
@@ -361,7 +362,7 @@ router.post("/social", async (c) => {
   return c.json({
     jwt: await createJwt(cfg, String(account!.id)),
     account: accountOut(account!),
-    events: (await accountEvents(db, account!.id)).map(eventOut),
+    events: (await accountEvents(db, account!.id)).map((e) => eventOut(e)),
   });
 });
 
@@ -400,7 +401,7 @@ router.get("/me", async (c) => {
     return c.json({
       account: accountOut(account),
       user: user ? userOut(user) : null,
-      event: event ? eventOut(event) : null,
+      event: event ? eventOut(event, await loadGameStarted(db, event)) : null,
       token: sessionToken,
       refresh_token: refreshToken,
     });
@@ -425,7 +426,7 @@ router.get("/me", async (c) => {
 
   return c.json({
     user: userOut(row),
-    event: event ? eventOut(event) : null,
+    event: event ? eventOut(event, await loadGameStarted(db, event)) : null,
     account: account ? accountOut(account) : null,
     refresh_token: sessionData?.refresh_token || null,
   });

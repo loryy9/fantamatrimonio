@@ -14,6 +14,7 @@ import { decodeJwt, isJwt, requireCouple, requireUser } from "../auth";
 import type { Row } from "../db";
 import type { Env, AppEnv } from "../env";
 import { ApiError } from "../errors";
+import { GAME_STARTED_MESSAGE, loadGameStarted } from "../gameLock";
 import { closeEventLive, publish } from "../live/publish";
 import { generateInviteCode } from "../invite";
 import { accountOut, eventOut, userOut } from "../serializers";
@@ -154,7 +155,7 @@ router.get("/preview/:invite_code", async (c) => {
 router.get("/me", requireUser, async (c) => {
   const event = await c.get("db").queryOne("SELECT * FROM events WHERE id = $1", [c.get("user").event_id]);
   if (!event) throw new ApiError(404, "Evento non trovato.");
-  return c.json(eventOut(event));
+  return c.json(eventOut(event, await loadGameStarted(c.get("db"), event)));
 });
 
 const UpdateEventRequest = z.object({
@@ -175,6 +176,11 @@ router.patch("/me", requireCouple, async (c) => {
 
   const updates = setFields(data, raw, ["spouse1_name", "spouse2_name", "enable_timer", "start_time", "end_time"]);
   if (Object.keys(updates).length === 0) return c.json(eventOut(event));
+
+  // A partita iniziata solo l'orario di inizio e il timer sono bloccati (end_time e nomi restano modificabili).
+  if (("start_time" in updates || "enable_timer" in updates) && (await loadGameStarted(db, event))) {
+    throw new ApiError(409, GAME_STARTED_MESSAGE);
+  }
 
   for (const field of ["spouse1_name", "spouse2_name", "enable_timer"]) {
     if (field in updates && updates[field] == null) {

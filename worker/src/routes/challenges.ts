@@ -13,6 +13,7 @@ import { requireCouple, requireUser } from "../auth";
 import type { Param, Row } from "../db";
 import type { AppEnv } from "../env";
 import { ApiError } from "../errors";
+import { assertChallengesEditable } from "../gameLock";
 import { publish } from "../live/publish";
 import { intParam, parseJson, queryBool, setFields } from "../util";
 
@@ -114,6 +115,7 @@ router.get("/", requireUser, async (c) => {
 /** Crea una serie di sfide in una singola transazione (onboarding / import preset). */
 router.post("/bulk", requireCouple, async (c) => {
   const user = c.get("user");
+  await assertChallengesEditable(c.get("db"), user.event_id);
   const { data: items } = await parseJson(c, z.array(ChallengeRequest));
 
   const created = await c.get("db").transaction(async (tx) => {
@@ -144,6 +146,7 @@ router.get("/:challenge_id", requireUser, async (c) => {
 
 router.post("/", requireCouple, async (c) => {
   const user = c.get("user");
+  await assertChallengesEditable(c.get("db"), user.event_id);
   const { data: body } = await parseJson(c, ChallengeRequest);
 
   if (!CHALLENGE_TYPES.includes(body.type)) throw new ApiError(422, "Tipo di sfida non valido.");
@@ -158,6 +161,7 @@ router.post("/", requireCouple, async (c) => {
 router.patch("/:challenge_id", requireCouple, async (c) => {
   const db = c.get("db");
   const user = c.get("user");
+  await assertChallengesEditable(db, user.event_id);
   const id = intParam(c, "challenge_id");
   const { data, raw } = await parseJson(c, ChallengeUpdateRequest);
 
@@ -222,6 +226,7 @@ router.delete("/:challenge_id", requireCouple, async (c) => {
   const id = intParam(c, "challenge_id");
   const user = c.get("user");
   const db = c.get("db");
+  await assertChallengesEditable(db, user.event_id);
 
   const existing = await db.queryOne("SELECT id FROM challenges WHERE id = $1 AND event_id = $2", [id, user.event_id]);
   if (!existing) throw new ApiError(404, "Challenge non trovata.");

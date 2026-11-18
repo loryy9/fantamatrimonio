@@ -8,6 +8,7 @@ import { Hono } from "hono";
 import { requireAccount } from "../auth";
 import type { AppEnv } from "../env";
 import { ApiError } from "../errors";
+import { loadGameStarted } from "../gameLock";
 import { eventOut, userOut } from "../serializers";
 import { iso } from "../util";
 
@@ -79,7 +80,7 @@ router.get("/events/:event_id", requireAccount, async (c) => {
   );
 
   return c.json({
-    event: eventOut(event),
+    event: eventOut(event, await loadGameStarted(db, event)),
     is_couple: userInEvent.role === "couple",
     my_user_id: String(userInEvent.id),
     participants: participants.map(userOut),

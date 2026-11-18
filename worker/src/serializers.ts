@@ -2,8 +2,12 @@
 import type { Row } from "./db";
 import { iso } from "./util";
 
-export function eventOut(event: Row): Row {
-  return {
+/**
+ * Serializza l'evento. `game_started` compare solo se passato esplicitamente.
+ * Attenzione: non usare `.map(eventOut)` (l'indice finirebbe in `gameStarted`): usare `.map((e) => eventOut(e))`.
+ */
+export function eventOut(event: Row, gameStarted?: boolean): Row {
+  const out: Row = {
     id: String(event.id),
     spouse1_name: event.spouse1_name,
     spouse2_name: event.spouse2_name,
@@ -12,6 +16,8 @@ export function eventOut(event: Row): Row {
     end_time: event.end_time ? iso(event.end_time) : null,
     invite_code: event.invite_code ?? null,
   };
+  if (gameStarted !== undefined) out.game_started = gameStarted;
+  return out;
 }
 
 export function userOut(user: Row): Row {

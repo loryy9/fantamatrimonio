@@ -128,6 +128,22 @@
     if (!animateGrid && appState.galleryPhotos.length > 0) animateGrid = true;
   });
 
+  // Chiave stabile della griglia: dopo l'upload l'id reale eredita la chiave dell'id temporaneo
+  // (anche per la copia del server arrivata da refreshGallery), così la card non viene ricreata.
+  const keyAlias = new Map();
+  const keyOf = (photo) => keyAlias.get(photo.id) ?? photo.id;
+
+  // Chiavi già mostrate nella lista completa: l'intro riguarda solo le foto davvero nuove,
+  // non quelle che entrano in griglia per paginazione.
+  let knownKeys = new Set();
+  $effect(() => {
+    knownKeys = new Set(allPhotos.map(keyOf));
+  });
+  const introMs = (photo, ms) => (knownKeys.has(keyOf(photo)) ? 0 : motionMs(ms));
+  // L'uscita solo per foto rimosse dalla lista completa (non per quelle tagliate dalla paginazione)
+  const outroMs = (photo, ms) =>
+    photo._optimistic || allPhotos.some(p => keyOf(p) === keyOf(photo)) ? 0 : motionMs(ms);
+
   function motionMs(ms) {
     if (!animateGrid) return 0;
     if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 0;
@@ -276,6 +292,8 @@
       api.submitPhotos(filesToSend, uploadCaption, !isEnded)
         .then((res) => {
           const createdSubs = res.submissions || [];
+          // L'id reale eredita la chiave della card temporanea (nessun blink)
+          tempIds.forEach((tid, i) => { if (createdSubs[i]) keyAlias.set(createdSubs[i].id, tid); });
           appState.galleryPhotos = appState.galleryPhotos.map((p) => {
             const tempIdx = tempIds.indexOf(p.id);
             if (tempIdx !== -1 && createdSubs[tempIdx]) {
@@ -486,13 +504,13 @@
     </div>
   {:else}
     <div class="photos-grid">
-      {#each visiblePhotos as photo (photo.id)}
+      {#each visiblePhotos as photo (keyOf(photo))}
         {@const isMine = isMyPhoto(photo)}
         <div
           class="photo-card glass-card"
           onclick={() => openPhoto(photo, allPhotos.findIndex(p => p.id === photo.id))}
-          in:scale={{ start: 0.92, duration: motionMs(350) }}
-          out:fade={{ duration: photo._optimistic ? 0 : motionMs(300) }}
+          in:scale={{ start: 0.92, duration: introMs(photo, 350) }}
+          out:fade={{ duration: outroMs(photo, 300) }}
         >
           <div class="photo-img-wrapper">
             <img

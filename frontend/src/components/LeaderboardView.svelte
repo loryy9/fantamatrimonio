@@ -2,9 +2,10 @@
   import { appState } from '../lib/state.svelte.js';
   import { api } from '../lib/api.js';
   import { formatName } from '../lib/formatters.js';
-  import { computeGains } from '../lib/leaderboardDiff.js';
+  import { computeGains, interimOrder } from '../lib/leaderboardDiff.js';
   import { Tween } from 'svelte/motion';
   import { flip } from 'svelte/animate';
+  import { crossfade, fade } from 'svelte/transition';
   import { SvelteMap } from 'svelte/reactivity';
   import { untrack, onDestroy } from 'svelte';
 
@@ -16,6 +17,15 @@
   const FLIP_MS = reduceMotion ? 0 : 400;
   const COUNT_MS = reduceMotion ? 0 : 600;
   const HIGHLIGHT_MS = 2000;
+  const SWAP_MS = reduceMotion ? 0 : 550;
+  // Pausa tra l'inizio del conteggio punti e il sorpasso: prima si vedono i punti salire, poi le posizioni cambiano.
+  const SWAP_DELAY_MS = COUNT_MS + 350;
+
+  // Una persona che cambia posto "vola" dal vecchio al nuovo (podio <-> podio, podio <-> tabella).
+  const [send, receive] = crossfade({
+    duration: SWAP_MS,
+    fallback: (node) => fade(node, { duration: reduceMotion ? 0 : 250 })
+  });
 
   // Un Tween per ogni utente (punti) piu' uno per il contatore degli iscritti.
   const pointTweens = new SvelteMap();
@@ -24,6 +34,9 @@
   const highlights = new SvelteMap();
   const timers = new Map();
   let prevBoard = null;
+  // Ordine attualmente a video: segue appState.leaderboard, ma i sorpassi arrivano dopo il conteggio.
+  let shown = $state.raw(appState.leaderboard);
+  let swapTimer = null;
 
   $effect(() => {
     const board = appState.leaderboard;
@@ -48,10 +61,22 @@
         }, HIGHLIGHT_MS));
       }
       prevBoard = board;
+
+      clearTimeout(swapTimer);
+      const interim = reduceMotion ? null : interimOrder(shown, board);
+      if (interim) {
+        shown = interim;
+        swapTimer = setTimeout(() => { shown = board; }, SWAP_DELAY_MS);
+      } else {
+        shown = board;
+      }
     });
   });
 
-  onDestroy(() => timers.forEach((t) => clearTimeout(t)));
+  onDestroy(() => {
+    timers.forEach((t) => clearTimeout(t));
+    clearTimeout(swapTimer);
+  });
 
   function pts(entry) {
     const tw = pointTweens.get(entry.id);
@@ -61,10 +86,10 @@
   let selectedUserDetail = $state(null);
   let isLoadingDetail = $state(false);
 
-  const first = $derived(appState.leaderboard[0] || null);
-  const second = $derived(appState.leaderboard[1] || null);
-  const third = $derived(appState.leaderboard[2] || null);
-  const restOfBoard = $derived(appState.leaderboard.slice(3));
+  const first = $derived(shown[0] || null);
+  const second = $derived(shown[1] || null);
+  const third = $derived(shown[2] || null);
+  const restOfBoard = $derived(shown.slice(3));
 
   function displayName(entry) {
     if (appState.user?.id === entry.id) return 'Tu';
@@ -103,30 +128,38 @@
   <div class="podium-grid">
     <!-- 2nd Place (Left) -->
     <div
-      class="podium-card podium-2 glass-card {second && highlights.has(second.id) ? 'gain-flash' : ''} {second ? 'has-user' : 'empty-slot'}"
+      class="podium-card podium-2 glass-card {second ? 'has-user' : 'empty-slot'}"
       onclick={() => second && openUserDetail(second.id)}
     >
       <div class="podium-medal medal-silver" title="2° Posto">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
       </div>
-      <div class="podium-avatar {second ? '' : 'avatar-empty'}">
-        {second ? formatName(second.first_name).charAt(0) : '—'}
-      </div>
-      <div class="podium-name {second ? '' : 'text-placeholder'}">
-        {second ? displayName(second) : 'In attesa'}
-      </div>
-      {#if second && highlights.has(second.id)}
-        <span class="gain-badge">+{highlights.get(second.id)}</span>
-      {/if}
-      <div class="podium-points {second ? '' : 'points-placeholder'}">
-        {second ? `${pts(second)} pt` : '0 pt'}
+      <div class="podium-slot">
+        {#if second}
+          {#key second.id}
+            <div class="podium-person {highlights.has(second.id) ? 'gain-flash' : ''}" in:receive={{ key: second.id }} out:send={{ key: second.id }}>
+              <div class="podium-avatar">{formatName(second.first_name).charAt(0)}</div>
+              <div class="podium-name">{displayName(second)}</div>
+              {#if highlights.has(second.id)}
+                <span class="gain-badge podium-gain" transition:fade={{ duration: reduceMotion ? 0 : 200 }}>+{highlights.get(second.id)}</span>
+              {/if}
+              <div class="podium-points">{pts(second)} pt</div>
+            </div>
+          {/key}
+        {:else}
+          <div class="podium-person">
+            <div class="podium-avatar avatar-empty">—</div>
+            <div class="podium-name text-placeholder">In attesa</div>
+            <div class="podium-points points-placeholder">0 pt</div>
+          </div>
+        {/if}
       </div>
       <div class="podium-step step-2">2°</div>
     </div>
 
     <!-- 1st Place (Center) -->
     <div
-      class="podium-card podium-1 glass-card podium-gold {first && highlights.has(first.id) ? 'gain-flash' : ''} {first ? 'has-user' : 'empty-slot'}"
+      class="podium-card podium-1 glass-card podium-gold {first ? 'has-user' : 'empty-slot'}"
       onclick={() => first && openUserDetail(first.id)}
     >
       <div class="crown-icon">
@@ -135,40 +168,56 @@
       <div class="podium-medal medal-gold" title="1° Posto">
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
       </div>
-      <div class="podium-avatar avatar-gold {first ? '' : 'avatar-empty'}">
-        {first ? formatName(first.first_name).charAt(0) : '—'}
-      </div>
-      <div class="podium-name {first ? '' : 'text-placeholder'}">
-        {first ? displayName(first) : 'In attesa'}
-      </div>
-      {#if first && highlights.has(first.id)}
-        <span class="gain-badge">+{highlights.get(first.id)}</span>
-      {/if}
-      <div class="podium-points {first ? '' : 'points-placeholder'}">
-        {first ? `${pts(first)} pt` : '0 pt'}
+      <div class="podium-slot">
+        {#if first}
+          {#key first.id}
+            <div class="podium-person {highlights.has(first.id) ? 'gain-flash' : ''}" in:receive={{ key: first.id }} out:send={{ key: first.id }}>
+              <div class="podium-avatar avatar-gold">{formatName(first.first_name).charAt(0)}</div>
+              <div class="podium-name">{displayName(first)}</div>
+              {#if highlights.has(first.id)}
+                <span class="gain-badge podium-gain" transition:fade={{ duration: reduceMotion ? 0 : 200 }}>+{highlights.get(first.id)}</span>
+              {/if}
+              <div class="podium-points">{pts(first)} pt</div>
+            </div>
+          {/key}
+        {:else}
+          <div class="podium-person">
+            <div class="podium-avatar avatar-gold avatar-empty">—</div>
+            <div class="podium-name text-placeholder">In attesa</div>
+            <div class="podium-points points-placeholder">0 pt</div>
+          </div>
+        {/if}
       </div>
       <div class="podium-step step-1">1°</div>
     </div>
 
     <!-- 3rd Place (Right) -->
     <div
-      class="podium-card podium-3 glass-card {third && highlights.has(third.id) ? 'gain-flash' : ''} {third ? 'has-user' : 'empty-slot'}"
+      class="podium-card podium-3 glass-card {third ? 'has-user' : 'empty-slot'}"
       onclick={() => third && openUserDetail(third.id)}
     >
       <div class="podium-medal medal-bronze" title="3° Posto">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
       </div>
-      <div class="podium-avatar {third ? '' : 'avatar-empty'}">
-        {third ? formatName(third.first_name).charAt(0) : '—'}
-      </div>
-      <div class="podium-name {third ? '' : 'text-placeholder'}">
-        {third ? displayName(third) : 'In attesa'}
-      </div>
-      {#if third && highlights.has(third.id)}
-        <span class="gain-badge">+{highlights.get(third.id)}</span>
-      {/if}
-      <div class="podium-points {third ? '' : 'points-placeholder'}">
-        {third ? `${pts(third)} pt` : '0 pt'}
+      <div class="podium-slot">
+        {#if third}
+          {#key third.id}
+            <div class="podium-person {highlights.has(third.id) ? 'gain-flash' : ''}" in:receive={{ key: third.id }} out:send={{ key: third.id }}>
+              <div class="podium-avatar">{formatName(third.first_name).charAt(0)}</div>
+              <div class="podium-name">{displayName(third)}</div>
+              {#if highlights.has(third.id)}
+                <span class="gain-badge podium-gain" transition:fade={{ duration: reduceMotion ? 0 : 200 }}>+{highlights.get(third.id)}</span>
+              {/if}
+              <div class="podium-points">{pts(third)} pt</div>
+            </div>
+          {/key}
+        {:else}
+          <div class="podium-person">
+            <div class="podium-avatar avatar-empty">—</div>
+            <div class="podium-name text-placeholder">In attesa</div>
+            <div class="podium-points points-placeholder">0 pt</div>
+          </div>
+        {/if}
       </div>
       <div class="podium-step step-3">3°</div>
     </div>
@@ -207,6 +256,8 @@
           {@const isMe = appState.user?.id === entry.id}
           <div
             animate:flip={{ duration: FLIP_MS }}
+            in:receive={{ key: entry.id }}
+            out:send={{ key: entry.id }}
             class="table-row {isMe ? 'row-me' : ''} {highlights.has(entry.id) ? 'gain-flash' : ''}"
             onclick={() => openUserDetail(entry.id)}
             title="Clicca per visualizzare le sfide completate"
@@ -339,9 +390,26 @@
     text-align: center;
     cursor: pointer;
     position: relative;
-    overflow: hidden;
+    /* visibile: chi cambia posto deve poter "volare" fuori dalla card */
+    overflow: visible;
     background: #fff;
     border-radius: 26px;
+  }
+
+  /* Vecchio e nuovo occupante si sovrappongono durante il sorpasso invece di impilarsi */
+  .podium-slot {
+    display: grid;
+    width: 100%;
+  }
+
+  .podium-person {
+    grid-area: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+    position: relative;
+    z-index: 2;
   }
 
   .podium-card:focus-visible {
@@ -448,7 +516,8 @@
     font-weight: 700;
     font-size: 1.1rem;
     padding: 8px 0;
-    border-radius: 14px 14px 0 0;
+    /* il fondo segue la curva della card (prima lo tagliava overflow: hidden) */
+    border-radius: 14px 14px 20px 20px;
   }
 
   .step-1 {
@@ -701,7 +770,16 @@
     animation: gain-fade 2s ease-out;
   }
 
-  .podium-card.gain-flash {
+  /* Sul podio il "+N" e' sovrapposto all'avatar: comparire/sparire non cambia l'altezza delle card */
+  .podium-gain {
+    position: absolute;
+    top: 0;
+    left: calc(50% + 14px);
+    z-index: 3;
+    box-shadow: 0 4px 10px -4px rgba(106, 32, 55, 0.5);
+  }
+
+  .podium-person.gain-flash .podium-avatar {
     box-shadow: 0 0 0 3px var(--gold-bright);
     animation: gain-glow 2s ease-out;
   }
@@ -718,7 +796,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .table-row.gain-flash,
-    .podium-card.gain-flash {
+    .podium-person.gain-flash .podium-avatar {
       animation: none;
     }
   }

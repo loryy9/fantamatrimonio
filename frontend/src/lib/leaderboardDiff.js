@@ -12,3 +12,21 @@ export function computeGains(prev, next) {
   }
   return gains;
 }
+
+// Ordine "intermedio" per animare un sorpasso in due tempi: i dati (punti) sono gia'
+// quelli nuovi ma ognuno resta nella posizione che aveva in `shown`, col rank vecchio.
+// I nuovi iscritti vanno in coda, chi non c'e' piu' sparisce.
+// Restituisce null se l'ordine non cambia (nessuna fase intermedia necessaria).
+export function interimOrder(shown, next) {
+  if (!shown || shown.length === 0) return null;
+  const nextById = new Map(next.map((u) => [u.id, u]));
+  const interim = [];
+  for (const old of shown) {
+    const fresh = nextById.get(old.id);
+    if (fresh) interim.push({ ...fresh, rank: old.rank });
+  }
+  const kept = new Set(interim.map((u) => u.id));
+  for (const u of next) if (!kept.has(u.id)) interim.push(u);
+  const sameOrder = interim.every((u, i) => u.id === next[i].id);
+  return sameOrder ? null : interim;
+}

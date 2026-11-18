@@ -5,6 +5,8 @@
   import { formatName } from '../lib/formatters.js';
   import { compressImage } from '../lib/imageCompressor.js';
   import LockedChallenges from './LockedChallenges.svelte';
+  import { fade, scale } from 'svelte/transition';
+  import { withRetainedPhoto } from '../lib/galleryRetain.js';
 
   let selectedPhotos = $state([]);
   let isUploading = $state(false);
@@ -13,19 +15,44 @@
   let activeModalPhoto = $state(null);
 
   // ── Lightbox: scorrimento tra le foto (frecce, tastiera, swipe) ──
-  // L'indice si ricava dall'id, così resta valido anche quando il polling aggiorna la lista.
+  // Foto aperta + posizione: se viene cancellata da un altro utente resta visibile e
+  // navigabile finché non si chiude o si passa a un'altra foto (poi esce dalla griglia).
+  let retained = $state(null);
+
+  // Lista effettiva: le foto live più l'eventuale foto aperta ma rimossa dal server.
+  const allPhotos = $derived(withRetainedPhoto(appState.galleryPhotos, retained));
+
+  // Tiene aggiornato l'indice della foto aperta quando in cima arrivano nuove foto,
+  // così un'eventuale reinserzione avviene nella posizione giusta.
+  $effect(() => {
+    if (!retained) return;
+    const idx = appState.galleryPhotos.findIndex(p => p.id === retained.photo.id);
+    if (idx >= 0 && idx !== retained.index) retained = { photo: retained.photo, index: idx };
+  });
+
+  function openPhoto(photo, index) {
+    activeModalPhoto = photo;
+    retained = { photo, index };
+  }
+
+  function closeLightbox() {
+    activeModalPhoto = null;
+    retained = null;
+  }
+
+  // L'indice si ricava dall'id, così resta valido anche quando la lista live si aggiorna.
   const activeIndex = $derived(
-    activeModalPhoto ? appState.galleryPhotos.findIndex(p => p.id === activeModalPhoto.id) : -1
+    activeModalPhoto ? allPhotos.findIndex(p => p.id === activeModalPhoto.id) : -1
   );
   const hasPrev = $derived(activeIndex > 0);
-  const hasNext = $derived(activeIndex >= 0 && activeIndex < appState.galleryPhotos.length - 1);
+  const hasNext = $derived(activeIndex >= 0 && activeIndex < allPhotos.length - 1);
 
   function showPhotoAt(index) {
-    const photo = appState.galleryPhotos[index];
+    const photo = allPhotos[index];
     if (!photo) return;
-    activeModalPhoto = photo;
+    openPhoto(photo, index);
     // Mantiene la griglia allineata se si scorre oltre le foto già caricate
-    if (index >= visibleCount) visibleCount = Math.min(index + 1 + PAGE_SIZE, appState.galleryPhotos.length);
+    if (index >= visibleCount) visibleCount = Math.min(index + 1 + PAGE_SIZE, allPhotos.length);
   }
 
   function prevPhoto() { if (hasPrev) showPhotoAt(activeIndex - 1); }
@@ -35,7 +62,7 @@
     if (!activeModalPhoto || appState.dialog) return;
     if (e.key === 'ArrowLeft') { e.preventDefault(); prevPhoto(); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); nextPhoto(); }
-    else if (e.key === 'Escape') { e.preventDefault(); activeModalPhoto = null; }
+    else if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); }
   }
 
   const SWIPE_MIN_PX = 50;
@@ -80,17 +107,31 @@
   let sentinelEl = $state(null);
 
   const visiblePhotos = $derived(
-    appState.galleryPhotos.slice(0, visibleCount)
+    allPhotos.slice(0, visibleCount)
   );
 
   const hasMore = $derived(
-    visibleCount < appState.galleryPhotos.length
+    visibleCount < allPhotos.length
   );
 
   function loadMore() {
     if (hasMore) {
-      visibleCount = Math.min(visibleCount + PAGE_SIZE, appState.galleryPhotos.length);
+      visibleCount = Math.min(visibleCount + PAGE_SIZE, allPhotos.length);
     }
+  }
+
+  // ── Animazioni live della griglia ──
+  // Attive solo dopo il primo caricamento (flag impostato dopo il primo render con dati)
+  // e mai con prefers-reduced-motion.
+  let animateGrid = $state(false);
+  $effect(() => {
+    if (!animateGrid && appState.galleryPhotos.length > 0) animateGrid = true;
+  });
+
+  function motionMs(ms) {
+    if (!animateGrid) return 0;
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 0;
+    return ms;
   }
 
   $effect(() => {
@@ -282,7 +323,9 @@
       appState.galleryPhotos = appState.galleryPhotos.filter(p => p.id !== photoId);
       if (activeModalPhoto?.id === photoId) {
         const list = appState.galleryPhotos;
-        activeModalPhoto = list[removedIndex] ?? list[removedIndex - 1] ?? null;
+        const nextIdx = list[removedIndex] ? removedIndex : removedIndex - 1;
+        if (list[nextIdx]) openPhoto(list[nextIdx], nextIdx);
+        else closeLightbox();
       }
       const res = await api.deletePhoto(photoId);
       const removed = Number(res?.points_removed) || 0;
@@ -445,7 +488,12 @@
     <div class="photos-grid">
       {#each visiblePhotos as photo (photo.id)}
         {@const isMine = isMyPhoto(photo)}
-        <div class="photo-card glass-card" onclick={() => activeModalPhoto = photo}>
+        <div
+          class="photo-card glass-card"
+          onclick={() => openPhoto(photo, allPhotos.findIndex(p => p.id === photo.id))}
+          in:scale={{ start: 0.92, duration: motionMs(350) }}
+          out:fade={{ duration: photo._optimistic ? 0 : motionMs(300) }}
+        >
           <div class="photo-img-wrapper">
             <img
               src={photo.photo_url}
@@ -479,7 +527,7 @@
     {#if hasMore}
       <div class="load-more-sentinel" bind:this={sentinelEl}>
         <button class="load-more-btn" onclick={loadMore}>
-          <span>Mostra altre foto ({appState.galleryPhotos.length - visibleCount} rimanenti)</span>
+          <span>Mostra altre foto ({allPhotos.length - visibleCount} rimanenti)</span>
         </button>
       </div>
     {/if}
@@ -492,9 +540,9 @@
 <!-- Photo Lightbox Modal -->
 {#if activeModalPhoto}
   {@const isMineModal = isMyPhoto(activeModalPhoto)}
-  <div class="lightbox-overlay" onclick={() => activeModalPhoto = null}>
+  <div class="lightbox-overlay" onclick={closeLightbox}>
     <div class="lightbox-content" onclick={(e) => e.stopPropagation()}>
-      <button class="lightbox-close" onclick={() => activeModalPhoto = null} aria-label="Chiudi">
+      <button class="lightbox-close" onclick={closeLightbox} aria-label="Chiudi">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
       <div
@@ -525,8 +573,8 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </button>
         {/if}
-        {#if appState.galleryPhotos.length > 1 && activeIndex >= 0}
-          <span class="lightbox-counter">{activeIndex + 1} / {appState.galleryPhotos.length}</span>
+        {#if allPhotos.length > 1 && activeIndex >= 0}
+          <span class="lightbox-counter">{activeIndex + 1} / {allPhotos.length}</span>
         {/if}
       </div>
       <div class="lightbox-info">

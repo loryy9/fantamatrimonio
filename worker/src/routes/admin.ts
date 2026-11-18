@@ -10,6 +10,7 @@ import type { Config } from "../config";
 import { processDueReminders } from "../email";
 import type { AppEnv } from "../env";
 import { ApiError } from "../errors";
+import { closeEventLive, publish } from "../live/publish";
 import { hmacHex, iso, parseJson, safeEqual } from "../util";
 
 const router = new Hono<AppEnv>();
@@ -124,6 +125,7 @@ router.delete("/events/:event_id", requireAdmin, async (c) => {
   if (!existing) throw new ApiError(404, "Matrimonio non trovato.");
 
   await db.execute("DELETE FROM events WHERE id = $1", [eventId]);
+  closeEventLive(c, String(eventId));
   console.log(`Matrimonio ${eventId} (${existing.spouse1_name} & ${existing.spouse2_name}) eliminato dall'amministratore.`);
 
   return c.json({
@@ -194,6 +196,9 @@ router.delete("/users/:account_id", requireAdmin, async (c) => {
     [accountId],
   );
 
+  // Eventi in cui l'account era ospite: raccolti prima del DELETE (poi le righe non esistono piu')
+  const guestEvents = await db.query("SELECT DISTINCT event_id FROM users WHERE account_id = $1 AND role = 'guest'", [accountId]);
+
   await db.transaction(async (tx) => {
     if (deleteEvents) {
       for (const ev of ownedEvents) await tx.execute("DELETE FROM events WHERE id = $1", [ev.id]);
@@ -207,6 +212,12 @@ router.delete("/users/:account_id", requireAdmin, async (c) => {
     await tx.execute("UPDATE users SET account_id = NULL WHERE account_id = $1", [accountId]);
     await tx.execute("DELETE FROM accounts WHERE id = $1", [accountId]);
   });
+
+  const closed = new Set(deleteEvents ? ownedEvents.map((ev) => String(ev.id)) : []);
+  for (const id of closed) closeEventLive(c, id);
+  for (const g of guestEvents) {
+    if (!closed.has(String(g.event_id))) publish(c, String(g.event_id), ["leaderboard"]);
+  }
 
   console.log(`Account ${accountId} (${existing.email}) eliminato dall'amministratore.`);
   return c.json({

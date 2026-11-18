@@ -16,6 +16,7 @@ import { requireUser } from "../auth";
 import type { Db, Row } from "../db";
 import type { AppEnv } from "../env";
 import { ApiError } from "../errors";
+import { publish } from "../live/publish";
 import { deletePhoto, uploadPhoto } from "../storage";
 import { capitalize, iso, intParam, parseJson, queryBool } from "../util";
 
@@ -99,6 +100,7 @@ router.post("/photo", requireUser, async (c) => {
     [user.id, photoChallenge.id, url],
   );
 
+  publish(c, String(user.event_id), ["gallery", "leaderboard"]);
   return c.json({
     id: String(submission!.id),
     image_url: submission!.image_url,
@@ -142,6 +144,7 @@ router.post("/photos", requireUser, async (c) => {
     );
   }
 
+  publish(c, String(user.event_id), ["gallery", "leaderboard"]);
   return c.json({
     count: submissions.length,
     points_per_photo: ptsPerPhoto,
@@ -177,6 +180,7 @@ router.delete("/photo/:id", requireUser, async (c) => {
   await db.execute("DELETE FROM user_submissions WHERE id = $1", [submissionId]);
   if (sub.image_url) await deletePhoto(c.env.PHOTOS, sub.image_url);
 
+  publish(c, String(user.event_id), ["gallery", "leaderboard"]);
   return c.json({
     success: true,
     deleted_id: submissionId,
@@ -213,6 +217,7 @@ router.post("/hunt/:challenge_id", requireUser, async (c) => {
     [user.id, challengeId, url],
   );
 
+  publish(c, String(user.event_id), ["gallery", "leaderboard"]);
   return c.json({
     id: String(submission!.id),
     image_url: submission!.image_url,
@@ -249,6 +254,7 @@ router.post("/vote/:challenge_id", requireUser, async (c) => {
 
   if (existing) {
     await db.execute("UPDATE user_submissions SET answer_text = $1 WHERE id = $2", [chosen, existing.id]);
+    publish(c, String(user.event_id), ["leaderboard"]);
     return c.json({ message: "Momento aggiornato con successo!", option: chosen, points_awarded: 0, status: "updated" });
   }
 
@@ -257,6 +263,7 @@ router.post("/vote/:challenge_id", requireUser, async (c) => {
     challengeId,
     chosen,
   ]);
+  publish(c, String(user.event_id), ["leaderboard"]);
   return c.json({
     message: `Salvato! Hai guadagnato ${challenge.points} punti! 🎉`,
     option: chosen,
@@ -292,6 +299,7 @@ router.post("/quiz/:challenge_id", requireUser, async (c) => {
     body.answer.trim(),
   ]);
 
+  publish(c, String(user.event_id), ["leaderboard"]);
   return c.json({
     is_correct: isCorrect,
     correct: isCorrect,

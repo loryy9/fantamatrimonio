@@ -15,6 +15,7 @@ import { bearerToken, createJwt, decodeJwt, hashPassword, isJwt, requireAccount,
 import type { Db, Row } from "../db";
 import type { AppEnv } from "../env";
 import { ApiError } from "../errors";
+import { publish } from "../live/publish";
 import { accountOut, eventOut, userOut } from "../serializers";
 import { parseJson } from "../util";
 import { verifySocialToken } from "../social";
@@ -144,6 +145,8 @@ router.post("/join", requireAccount, async (c) => {
   }
 
   const u = user!;
+  // Un nuovo iscritto compare in classifica
+  if (isNew) publish(c, String(event.id), ["leaderboard"]);
   const session = await createSession(db, cfg, u.id, account.id);
   return c.json({
     token: session.token,

@@ -14,6 +14,7 @@ import { decodeJwt, isJwt, requireCouple, requireUser } from "../auth";
 import type { Row } from "../db";
 import type { Env, AppEnv } from "../env";
 import { ApiError } from "../errors";
+import { closeEventLive, publish } from "../live/publish";
 import { generateInviteCode } from "../invite";
 import { accountOut, eventOut, userOut } from "../serializers";
 import { dateTime, parseJson, setFields } from "../util";
@@ -197,6 +198,7 @@ router.patch("/me", requireCouple, async (c) => {
   params.push(eventId);
 
   const updated = await db.execute(`UPDATE events SET ${sets.join(", ")} WHERE id = $${params.length} RETURNING *`, params);
+  publish(c, String(eventId), ["event"]);
   return c.json(eventOut(updated!));
 });
 
@@ -235,6 +237,7 @@ router.delete("/me", requireCouple, async (c) => {
   if (!event) throw new ApiError(404, "Matrimonio non trovato.");
 
   await db.execute("DELETE FROM events WHERE id = $1", [eventId]);
+  closeEventLive(c, String(eventId));
   return c.json({
     success: true,
     message: `Matrimonio di ${event.spouse1_name} & ${event.spouse2_name} eliminato definitivamente dal database.`,

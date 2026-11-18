@@ -13,6 +13,7 @@ import { requireCouple, requireUser } from "../auth";
 import type { Param, Row } from "../db";
 import type { AppEnv } from "../env";
 import { ApiError } from "../errors";
+import { publish } from "../live/publish";
 import { intParam, parseJson, queryBool, setFields } from "../util";
 
 const router = new Hono<AppEnv>();
@@ -124,6 +125,7 @@ router.post("/bulk", requireCouple, async (c) => {
     }
     return out;
   });
+  publish(c, String(user.event_id), ["challenges", "leaderboard"]);
   return c.json(created);
 });
 
@@ -147,7 +149,9 @@ router.post("/", requireCouple, async (c) => {
   if (!CHALLENGE_TYPES.includes(body.type)) throw new ApiError(422, "Tipo di sfida non valido.");
   if (body.points < 0) throw new ApiError(422, "I punti non possono essere negativi.");
 
-  return c.json(await c.get("db").execute(INSERT_CHALLENGE, insertParams(user.event_id, body)));
+  const row = await c.get("db").execute(INSERT_CHALLENGE, insertParams(user.event_id, body));
+  publish(c, String(user.event_id), ["challenges", "leaderboard"]);
+  return c.json(row);
 });
 
 /** Modifica una challenge. 404 se non appartiene all'evento corrente. */
@@ -206,6 +210,7 @@ router.patch("/:challenge_id", requireCouple, async (c) => {
     }
     return row;
   });
+  publish(c, String(user.event_id), ["challenges", "leaderboard"]);
   return c.json(updated);
 });
 
@@ -226,6 +231,7 @@ router.delete("/:challenge_id", requireCouple, async (c) => {
     await tx.execute("DELETE FROM challenges WHERE id = $1", [id]);
   });
 
+  publish(c, String(user.event_id), ["challenges", "leaderboard"]);
   return c.json({ success: true, deleted_id: id });
 });
 

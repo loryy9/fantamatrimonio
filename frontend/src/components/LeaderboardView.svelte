@@ -2,6 +2,61 @@
   import { appState } from '../lib/state.svelte.js';
   import { api } from '../lib/api.js';
   import { formatName } from '../lib/formatters.js';
+  import { computeGains } from '../lib/leaderboardDiff.js';
+  import { Tween } from 'svelte/motion';
+  import { flip } from 'svelte/animate';
+  import { SvelteMap } from 'svelte/reactivity';
+  import { untrack, onDestroy } from 'svelte';
+
+  // Con "riduci movimento" tutte le durate vanno a 0 e l'evidenziazione non e' animata.
+  const reduceMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const FLIP_MS = reduceMotion ? 0 : 400;
+  const COUNT_MS = reduceMotion ? 0 : 600;
+  const HIGHLIGHT_MS = 2000;
+
+  // Un Tween per ogni utente (punti) piu' uno per il contatore degli iscritti.
+  const pointTweens = new SvelteMap();
+  const countTween = new Tween(appState.leaderboard.length, { duration: COUNT_MS });
+  // id -> punti guadagnati, presente solo durante la finestra di evidenziazione.
+  const highlights = new SvelteMap();
+  const timers = new Map();
+  let prevBoard = null;
+
+  $effect(() => {
+    const board = appState.leaderboard;
+    untrack(() => {
+      // Il primo caricamento (prevBoard vuoto) non produce guadagni: nessuna evidenziazione.
+      const gains = computeGains(prevBoard, board);
+      for (const entry of board) {
+        const tw = pointTweens.get(entry.id);
+        if (!tw) {
+          pointTweens.set(entry.id, new Tween(entry.total_points, { duration: COUNT_MS }));
+        } else {
+          tw.set(entry.total_points, { duration: COUNT_MS });
+        }
+      }
+      countTween.set(board.length, { duration: COUNT_MS });
+      for (const [id, gain] of gains) {
+        highlights.set(id, gain);
+        clearTimeout(timers.get(id));
+        timers.set(id, setTimeout(() => {
+          highlights.delete(id);
+          timers.delete(id);
+        }, HIGHLIGHT_MS));
+      }
+      prevBoard = board;
+    });
+  });
+
+  onDestroy(() => timers.forEach((t) => clearTimeout(t)));
+
+  function pts(entry) {
+    const tw = pointTweens.get(entry.id);
+    return Math.round(tw ? tw.current : entry.total_points);
+  }
 
   let selectedUserDetail = $state(null);
   let isLoadingDetail = $state(false);
@@ -39,7 +94,7 @@
     <div class="header-top">
       <h1 class="page-title font-serif">Classifica</h1>
       <span class="guest-count-badge">
-        {appState.leaderboard.length} {appState.leaderboard.length === 1 ? 'invitato iscritto' : 'invitati iscritti'}
+        {Math.round(countTween.current)} {appState.leaderboard.length === 1 ? 'invitato iscritto' : 'invitati iscritti'}
       </span>
     </div>
   </div>
@@ -48,7 +103,7 @@
   <div class="podium-grid">
     <!-- 2nd Place (Left) -->
     <div
-      class="podium-card podium-2 glass-card {second ? 'has-user' : 'empty-slot'}"
+      class="podium-card podium-2 glass-card {second && highlights.has(second.id) ? 'gain-flash' : ''} {second ? 'has-user' : 'empty-slot'}"
       onclick={() => second && openUserDetail(second.id)}
     >
       <div class="podium-medal medal-silver" title="2° Posto">
@@ -60,15 +115,18 @@
       <div class="podium-name {second ? '' : 'text-placeholder'}">
         {second ? displayName(second) : 'In attesa'}
       </div>
+      {#if second && highlights.has(second.id)}
+        <span class="gain-badge">+{highlights.get(second.id)}</span>
+      {/if}
       <div class="podium-points {second ? '' : 'points-placeholder'}">
-        {second ? `${second.total_points} pt` : '0 pt'}
+        {second ? `${pts(second)} pt` : '0 pt'}
       </div>
       <div class="podium-step step-2">2°</div>
     </div>
 
     <!-- 1st Place (Center) -->
     <div
-      class="podium-card podium-1 glass-card podium-gold {first ? 'has-user' : 'empty-slot'}"
+      class="podium-card podium-1 glass-card podium-gold {first && highlights.has(first.id) ? 'gain-flash' : ''} {first ? 'has-user' : 'empty-slot'}"
       onclick={() => first && openUserDetail(first.id)}
     >
       <div class="crown-icon">
@@ -83,15 +141,18 @@
       <div class="podium-name {first ? '' : 'text-placeholder'}">
         {first ? displayName(first) : 'In attesa'}
       </div>
+      {#if first && highlights.has(first.id)}
+        <span class="gain-badge">+{highlights.get(first.id)}</span>
+      {/if}
       <div class="podium-points {first ? '' : 'points-placeholder'}">
-        {first ? `${first.total_points} pt` : '0 pt'}
+        {first ? `${pts(first)} pt` : '0 pt'}
       </div>
       <div class="podium-step step-1">1°</div>
     </div>
 
     <!-- 3rd Place (Right) -->
     <div
-      class="podium-card podium-3 glass-card {third ? 'has-user' : 'empty-slot'}"
+      class="podium-card podium-3 glass-card {third && highlights.has(third.id) ? 'gain-flash' : ''} {third ? 'has-user' : 'empty-slot'}"
       onclick={() => third && openUserDetail(third.id)}
     >
       <div class="podium-medal medal-bronze" title="3° Posto">
@@ -103,8 +164,11 @@
       <div class="podium-name {third ? '' : 'text-placeholder'}">
         {third ? displayName(third) : 'In attesa'}
       </div>
+      {#if third && highlights.has(third.id)}
+        <span class="gain-badge">+{highlights.get(third.id)}</span>
+      {/if}
       <div class="podium-points {third ? '' : 'points-placeholder'}">
-        {third ? `${third.total_points} pt` : '0 pt'}
+        {third ? `${pts(third)} pt` : '0 pt'}
       </div>
       <div class="podium-step step-3">3°</div>
     </div>
@@ -142,7 +206,8 @@
         {#each restOfBoard as entry (entry.id)}
           {@const isMe = appState.user?.id === entry.id}
           <div
-            class="table-row {isMe ? 'row-me' : ''}"
+            animate:flip={{ duration: FLIP_MS }}
+            class="table-row {isMe ? 'row-me' : ''} {highlights.has(entry.id) ? 'gain-flash' : ''}"
             onclick={() => openUserDetail(entry.id)}
             title="Clicca per visualizzare le sfide completate"
           >
@@ -158,10 +223,13 @@
                 {#if isMe}
                   <span class="me-badge">Tu</span>
                 {/if}
+                {#if highlights.has(entry.id)}
+                  <span class="gain-badge">+{highlights.get(entry.id)}</span>
+                {/if}
               </div>
             </div>
             <div class="col-points points-cell">
-              <span class="pts-val">{entry.total_points}</span>
+              <span class="pts-val">{pts(entry)}</span>
               <span class="pts-label">pt</span>
             </div>
           </div>
@@ -614,6 +682,45 @@
   .pts-label {
     font-size: 0.74rem;
     color: var(--text-dim);
+  }
+
+  /* Evidenziazione dei guadagni live */
+  .gain-badge {
+    display: inline-block;
+    background: var(--gold-bright);
+    color: var(--wine-deep);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .table-row.gain-flash {
+    background: var(--wine-tint);
+    animation: gain-fade 2s ease-out;
+  }
+
+  .podium-card.gain-flash {
+    box-shadow: 0 0 0 3px var(--gold-bright);
+    animation: gain-glow 2s ease-out;
+  }
+
+  @keyframes gain-fade {
+    from { background: var(--gold-bright); }
+    to { background: var(--wine-tint); }
+  }
+
+  @keyframes gain-glow {
+    from { box-shadow: 0 0 0 6px var(--gold-bright); }
+    to { box-shadow: 0 0 0 3px var(--gold-bright); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .table-row.gain-flash,
+    .podium-card.gain-flash {
+      animation: none;
+    }
   }
 
   /* Modal */

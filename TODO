@@ -29,3 +29,4 @@
 [P] Far funzionare accedi con google
 [] generazione codice QR
 [] lettura codice QR sia da fotocamera che direttamente da sito
+[] Schermata sposi per modificare orari/timer della partita (api.updateEvent esiste ma non è usata; backend con blocco e live già pronti)

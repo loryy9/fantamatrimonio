@@ -354,6 +354,16 @@ export const api = {
     return await request(`/dashboard/events/${eventId}/submissions`);
   },
 
+  // Dalla dashboard: il token di gioco ignora event_id, serve quello dell'account.
+  async updateDashboardEvent(eventId, payload) {
+    const accountToken = localStorage.getItem('fm_jwt_token');
+    return await request(`/events/me?event_id=${encodeURIComponent(eventId)}`, {
+      method: 'PATCH',
+      headers: accountToken ? { Authorization: `Bearer ${accountToken}` } : {},
+      body: JSON.stringify(payload)
+    });
+  },
+
   // Admin Endpoints
   async adminLogin(username, password) {
     return await request('/admin/login', {

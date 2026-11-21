@@ -8,6 +8,7 @@
   import { live } from '../lib/live.svelte.js';
   import { formatName } from '../lib/formatters.js';
   import { copyToClipboard } from '../lib/clipboard.js';
+  import GameTimerCard from './GameTimerCard.svelte';
 
   const requestedEventId = page.url.searchParams.get('event');
   // Cambia solo il ?event= nell'URL, senza scroll né nuova voce nella cronologia
@@ -199,6 +200,13 @@
         </div>
       </div>
     </div>
+
+    {#if eventDetail.is_couple}
+      <GameTimerCard
+        event={eventDetail.event}
+        onSaved={(updated) => { eventDetail.event = { ...eventDetail.event, ...updated }; }}
+      />
+    {/if}
 
     <!-- Statistiche compatte a 3 colonne orizzontali -->
     <div class="detail-stats-grid">

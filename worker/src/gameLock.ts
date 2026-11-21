@@ -39,3 +39,19 @@ export async function assertChallengesEditable(db: Db, eventId: string): Promise
   const event = await db.queryOne("SELECT id, enable_timer, start_time FROM events WHERE id = $1", [eventId]);
   if (event && (await loadGameStarted(db, event))) throw new ApiError(409, GAME_STARTED_MESSAGE);
 }
+
+export const START_IN_FUTURE_MESSAGE =
+  "La partita è già iniziata: l'orario di inizio non può essere spostato nel futuro.";
+
+/**
+ * A partita iniziata il timer resta modificabile (prolungare, chiudere, attivare o disattivare),
+ * ma l'inizio non puo' tornare nel futuro: rimetterebbe in pausa una partita gia' in corso.
+ */
+export function startMovedToFuture(
+  merged: { enable_timer: boolean; start_time: Date | null },
+  gameStarted: boolean,
+  now: Date,
+): boolean {
+  if (!gameStarted || !merged.enable_timer || !merged.start_time) return false;
+  return new Date(merged.start_time).getTime() > now.getTime();
+}

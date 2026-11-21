@@ -14,7 +14,7 @@ import { decodeJwt, isJwt, requireCouple, requireUser } from "../auth";
 import type { Row } from "../db";
 import type { Env, AppEnv } from "../env";
 import { ApiError } from "../errors";
-import { GAME_STARTED_MESSAGE, loadGameStarted } from "../gameLock";
+import { START_IN_FUTURE_MESSAGE, loadGameStarted, startMovedToFuture } from "../gameLock";
 import { closeEventLive, publish } from "../live/publish";
 import { generateInviteCode } from "../invite";
 import { accountOut, eventOut, userOut } from "../serializers";
@@ -177,22 +177,26 @@ router.patch("/me", requireCouple, async (c) => {
   const updates = setFields(data, raw, ["spouse1_name", "spouse2_name", "enable_timer", "start_time", "end_time"]);
   if (Object.keys(updates).length === 0) return c.json(eventOut(event));
 
-  // A partita iniziata solo l'orario di inizio e il timer sono bloccati (end_time e nomi restano modificabili).
-  if (("start_time" in updates || "enable_timer" in updates) && (await loadGameStarted(db, event))) {
-    throw new ApiError(409, GAME_STARTED_MESSAGE);
-  }
-
   for (const field of ["spouse1_name", "spouse2_name", "enable_timer"]) {
     if (field in updates && updates[field] == null) {
       throw new ApiError(422, `Il campo '${field}' non può essere nullo.`);
     }
   }
 
-  const mergedTimer = "enable_timer" in updates ? updates.enable_timer : event.enable_timer;
+  const mergedTimer = !!("enable_timer" in updates ? updates.enable_timer : event.enable_timer);
   const mergedStart = ("start_time" in updates ? updates.start_time : event.start_time) as Date | null;
   const mergedEnd = ("end_time" in updates ? updates.end_time : event.end_time) as Date | null;
   if (mergedTimer && mergedStart && mergedEnd && mergedEnd.getTime() <= mergedStart.getTime()) {
     throw new ApiError(422, "L'orario di fine deve essere successivo a quello di inizio.");
+  }
+
+  // A partita iniziata il timer resta gestibile (prolungare, attivare, disattivare),
+  // ma l'inizio non puo' tornare nel futuro.
+  if (
+    ("start_time" in updates || "enable_timer" in updates) &&
+    startMovedToFuture({ enable_timer: mergedTimer, start_time: mergedStart }, await loadGameStarted(db, event), new Date())
+  ) {
+    throw new ApiError(409, START_IN_FUTURE_MESSAGE);
   }
 
   // I nomi colonna provengono dalla allowlist sopra: mai da input utente.

@@ -159,6 +159,13 @@ export const api = {
     });
   },
 
+  async resetPassword(email, code, password) {
+    return await request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, password })
+    });
+  },
+
   // ── Auth (login social: Google / Facebook) ────────────────────────────────
   async loginSocial(provider, token) {
     return await request('/auth/social', {

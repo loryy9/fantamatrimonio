@@ -370,6 +370,16 @@ class AppState {
     }
   }
 
+  async resetPassword(email, code, password, opts = {}) {
+    try {
+      const res = await api.resetPassword(email, code, password);
+      await this._completeAccountAuth(res, { ...opts, toast: 'Password aggiornata: sei dentro!' });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message || 'Impossibile aggiornare la password' };
+    }
+  }
+
   async loginSocial(provider, token, opts = {}) {
     try {
       const res = await api.loginSocial(provider, token);

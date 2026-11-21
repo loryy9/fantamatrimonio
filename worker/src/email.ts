@@ -228,6 +228,7 @@ const PURPOSE_LABELS: Record<string, string> = {
   register_account: "registrazione account",
   upgrade_account: "registrazione del tuo profilo",
   join_guest: "partecipazione al matrimonio",
+  reset_password: "reimpostazione della password",
 };
 
 /** Invia il codice di verifica a 6 cifre. */

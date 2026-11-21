@@ -60,6 +60,9 @@ export async function createAndSendCode(
   return { success: true, message: `Codice di verifica inviato a ${norm}`, expires_in_minutes: 15 };
 }
 
+/** Scopi con un numero massimo di tentativi errati: superato il limite il codice attivo viene invalidato. */
+const MAX_ATTEMPTS: Record<string, number> = { reset_password: 5 };
+
 /** Verifica che il codice sia valido, non scaduto e non gia' usato. Se `markUsed`, lo consuma. */
 export async function verifyCode(
   db: Db,
@@ -78,7 +81,18 @@ export async function verifyCode(
      ORDER BY created_at DESC LIMIT 1`,
     [norm, clean, purpose],
   );
-  if (!row) return false;
+  if (!row) {
+    const max = MAX_ATTEMPTS[purpose];
+    if (max) {
+      await db.execute(
+        `UPDATE email_verification_codes
+         SET attempts = attempts + 1, used_at = CASE WHEN attempts + 1 >= $3 THEN NOW() ELSE used_at END
+         WHERE email = $1 AND purpose = $2 AND used_at IS NULL AND expires_at > NOW()`,
+        [norm, purpose, max],
+      );
+    }
+    return false;
+  }
 
   if (markUsed) {
     await db.execute("UPDATE email_verification_codes SET used_at = NOW() WHERE id = $1", [row.id]);

@@ -4,6 +4,7 @@
  * POST /api/auth/send-verification-code / verify-code -> OTP email
  * POST /api/auth/register              -> registrazione (nome, cognome, email, password, nickname facoltativo)
  * POST /api/auth/login-secure          -> login email + password -> JWT
+ * POST /api/auth/reset-password        -> nuova password con il codice OTP ricevuto via email -> JWT
  * POST /api/auth/social                -> login/registrazione con Google o Facebook -> JWT
  * POST /api/auth/join                  -> l'account entra in un matrimonio con il codice invito
  * POST /api/auth/refresh               -> refresh del token di sessione
@@ -51,6 +52,7 @@ const RegisterRequest = z.object({
   verification_code: str,
 });
 const LoginSecureRequest = z.object({ email: z.string(), password: z.string() });
+const ResetPasswordRequest = z.object({ email: z.string(), code: z.string(), password: z.string() });
 const SocialRequest = z.object({
   provider: z.enum(["google", "facebook"]),
   token: z.string().min(1),
@@ -209,6 +211,17 @@ router.post("/send-verification-code", async (c) => {
   const db = c.get("db");
   const { data: body } = await parseJson(c, SendVerificationCodeRequest);
   const email = normalizeEmail(body.email);
+  if (body.purpose === "reset_password") {
+    // Risposta identica che l'account esista o no: non riveliamo quali email sono registrate.
+    const generic = {
+      success: true,
+      message: `Se ${email} è associata a un account, riceverai un codice a 6 cifre. Controlla anche lo Spam.`,
+      expires_in_minutes: 15,
+    };
+    if (!(await db.queryOne("SELECT id FROM accounts WHERE email = $1", [email]))) return c.json(generic);
+    await createAndSendCode(db, c.get("cfg"), email, body.purpose);
+    return c.json(generic);
+  }
   if (body.purpose === "register_couple" || body.purpose === "register_account") {
     const existing = await db.queryOne("SELECT id, password_hash FROM accounts WHERE email = $1", [email]);
     if (existing && body.purpose === "register_account") {
@@ -306,6 +319,37 @@ router.post("/login-secure", async (c) => {
   if (!account || !(await verifyPassword(body.password, account.password_hash))) {
     throw new ApiError(401, "Email o password non corretti.");
   }
+
+  return c.json({
+    jwt: await createJwt(cfg, String(account.id)),
+    account: accountOut(account),
+    events: (await accountEvents(db, account.id)).map((e) => eventOut(e)),
+  });
+});
+
+/**
+ * Recupero password: con il codice ricevuto via email imposta una nuova password e accede.
+ * Funziona anche per gli account creati con Google/Facebook (aggiunge la password).
+ */
+router.post("/reset-password", async (c) => {
+  const db = c.get("db");
+  const cfg = c.get("cfg");
+  const { data: body } = await parseJson(c, ResetPasswordRequest);
+
+  const email = normalizeEmail(body.email);
+  if (!email || !email.includes("@")) throw new ApiError(422, "Inserisci un indirizzo email valido.");
+  if (!body.password || body.password.length < 6) {
+    throw new ApiError(422, "La password deve contenere almeno 6 caratteri.");
+  }
+  if (!(await verifyCode(db, email, body.code, "reset_password", true))) {
+    throw new ApiError(400, "Codice di verifica non valido o scaduto. Richiedine uno nuovo.");
+  }
+
+  const account = await db.queryOne(
+    "UPDATE accounts SET password_hash = $1, is_verified = TRUE WHERE email = $2 RETURNING *",
+    [await hashPassword(body.password), email],
+  );
+  if (!account) throw new ApiError(404, "Nessun account associato a questa email.");
 
   return c.json({
     jwt: await createJwt(cfg, String(account.id)),

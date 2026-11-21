@@ -138,7 +138,8 @@ CREATE TABLE IF NOT EXISTS email_verification_codes (
     purpose     TEXT        NOT NULL DEFAULT 'registration',
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at  TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '15 minutes'),
-    used_at     TIMESTAMPTZ
+    used_at     TIMESTAMPTZ,
+    attempts    INTEGER     NOT NULL DEFAULT 0 -- tentativi errati (limitati per reset_password)
 );
 
 CREATE INDEX IF NOT EXISTS idx_email_verification_codes 

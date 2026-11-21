@@ -73,7 +73,11 @@
         return;
       }
       codeSent = true;
-      notify(`Codice a 6 cifre inviato a ${cleanEmail}! Controlla la posta (incluso Spam).`, 'success');
+      // Per il recupero password il server non rivela se l'email è registrata: mostriamo il suo messaggio.
+      const sentMessage = purpose === 'reset_password' && res.message
+        ? res.message
+        : `Codice a 6 cifre inviato a ${cleanEmail}! Controlla la posta (incluso Spam).`;
+      notify(sentMessage, 'success');
       startCountdown(25);
     } catch (err) {
       notify(err.message || 'Errore durante l\'invio del codice. Riprova.', 'error');
@@ -106,6 +110,20 @@
     }
   }
 
+  // Invio nei campi email/codice non deve inviare il form che contiene questo componente:
+  // finché l'email non è verificata, Invio richiede (o verifica) il codice.
+  function handleEmailKeydown(e) {
+    if (e.key !== 'Enter' || verified) return;
+    e.preventDefault();
+    if (!disabled && !sending && countdown <= 0) handleSendCode(false);
+  }
+
+  function handleCodeKeydown(e) {
+    if (e.key !== 'Enter' || verified) return;
+    e.preventDefault();
+    if (!sending) handleVerifyCode();
+  }
+
   function handleCodeInput(e) {
     const clean = e.target.value.replace(/\D/g, '').slice(0, 6);
     verificationCode = clean;
@@ -129,6 +147,7 @@
         class="input-field email-input"
         value={email}
         oninput={handleEmailInput}
+        onkeydown={handleEmailKeydown}
         placeholder={placeholder}
         required={required}
         disabled={disabled}
@@ -186,6 +205,7 @@
           class="input-field otp-input"
           value={verificationCode}
           oninput={handleCodeInput}
+          onkeydown={handleCodeKeydown}
           placeholder="••••••"
           required
           disabled={disabled || verified}

@@ -20,7 +20,7 @@
   // schermata corrente invece di andare alla dashboard. `intro` sostituisce il titolo di default.
   let { embedded = false, intro = null, joinMode = false, initialMode = 'login' } = $props();
 
-  let mode = $state(initialMode); // 'login' | 'register'
+  let mode = $state(initialMode); // 'login' | 'register' | 'reset'
   let isSubmitting = $state(false);
 
   let email = $state('');
@@ -34,6 +34,21 @@
   let regConfirm = $state('');
   let regVerificationCode = $state('');
   let regEmailVerified = $state(false);
+
+  let resetEmail = $state('');
+  let resetCode = $state('');
+  let resetVerified = $state(false);
+  let resetPassword = $state('');
+  let resetConfirm = $state('');
+
+  function openReset() {
+    resetEmail = email.trim();
+    resetCode = '';
+    resetVerified = false;
+    resetPassword = '';
+    resetConfirm = '';
+    mode = 'reset';
+  }
 
   // Codice matrimonio: richiesto solo dalla registrazione dentro "entra con codice".
   const needsCode = $derived(embedded && joinMode);
@@ -99,6 +114,34 @@
     try {
       const res = await appState.loginSecure(email.trim(), password, opts);
       if (!res.success) appState.showToast(res.error, 'error');
+    } finally {
+      isSubmitting = false;
+    }
+  }
+
+  async function handleReset(e) {
+    e.preventDefault();
+    if (!resetVerified) return;
+    if (resetPassword.length < 6) {
+      appState.showToast('La password deve essere di almeno 6 caratteri.', 'error');
+      return;
+    }
+    if (resetPassword !== resetConfirm) {
+      appState.showToast('Le password non coincidono.', 'error');
+      return;
+    }
+    isSubmitting = true;
+    try {
+      const res = await appState.resetPassword(resetEmail.trim(), resetCode.trim(), resetPassword, opts);
+      if (!res.success) {
+        appState.showToast(res.error, 'error');
+        // Codice consumato o scaduto: si riparte dall'invio di un nuovo codice.
+        resetVerified = false;
+        resetCode = '';
+        return;
+      }
+      email = resetEmail.trim();
+      mode = 'login';
     } finally {
       isSubmitting = false;
     }
@@ -173,13 +216,15 @@
       </div>
     {:else if mode === 'login'}
       <PageIntro before="Bentornato al" accent="Fanta Matrimonio" lead="Accedi per partecipare ai matrimoni, vedere le tue foto, i quiz e i tuoi punteggi." />
+    {:else if mode === 'reset'}
+      <PageIntro before="Recupera la tua" accent="password" lead="Ti mandiamo un codice a 6 cifre via email: inseriscilo e scegli una nuova password." />
     {:else}
       <PageIntro before="Crea il tuo" accent="account" lead="Ti serve una volta sola: con lo stesso account entri in tutti i matrimoni, come invitato o come sposo." />
     {/if}
   </div>
 
   <div class="auth-card secure-form">
-    <h2 class="form-title font-serif">{mode === 'login' ? 'Accedi' : 'Registrati'}</h2>
+    <h2 class="form-title font-serif">{mode === 'login' ? 'Accedi' : mode === 'reset' ? 'Recupera password' : 'Registrati'}</h2>
 
     {#if mode === 'register' && needsCode}
       <div class="input-group code-group">
@@ -205,7 +250,9 @@
       </div>
     {/if}
 
-    <SocialButtons onToken={handleSocial} busy={socialBusy || isSubmitting} label={mode === 'login' ? 'Accedi con' : 'Registrati con'} />
+    {#if mode !== 'reset'}
+      <SocialButtons onToken={handleSocial} busy={socialBusy || isSubmitting} label={mode === 'login' ? 'Accedi con' : 'Registrati con'} />
+    {/if}
 
     {#if mode === 'login'}
       <form class="secure-form" onsubmit={handleLogin} transition:slide|local={cardTransition}>
@@ -217,9 +264,38 @@
         <div class="input-group">
           <label for="secPassword" class="input-label">Password</label>
           <input id="secPassword" type="password" class="input-field" placeholder="La tua password" bind:value={password} autocomplete="current-password" required />
+          <button type="button" class="link-btn forgot-link" onclick={openReset}>Password dimenticata?</button>
         </div>
 
         {@render submitButton('Accedi', 'Accesso in corso...')}
+      </form>
+    {:else if mode === 'reset'}
+      <form class="secure-form" onsubmit={handleReset} transition:slide|local={cardTransition}>
+        <EmailVerificationField
+          bind:email={resetEmail}
+          bind:verificationCode={resetCode}
+          bind:verified={resetVerified}
+          purpose="reset_password"
+          label="Email del tuo account"
+          placeholder="es. giulia@email.com"
+          disabled={isSubmitting}
+        />
+
+        {#if resetVerified}
+          <div class="verified-fields" transition:slide|local={cardTransition}>
+            <div class="input-group">
+              <label for="resetPassword" class="input-label">Nuova password</label>
+              <input id="resetPassword" type="password" class="input-field" placeholder="Almeno 6 caratteri" bind:value={resetPassword} autocomplete="new-password" minlength="6" required disabled={isSubmitting} />
+            </div>
+
+            <div class="input-group">
+              <label for="resetConfirm" class="input-label">Conferma nuova password</label>
+              <input id="resetConfirm" type="password" class="input-field" placeholder="Ripeti la password" bind:value={resetConfirm} autocomplete="new-password" required disabled={isSubmitting} />
+            </div>
+
+            {@render submitButton('Salva e accedi', 'Salvataggio in corso...')}
+          </div>
+        {/if}
       </form>
     {:else}
       <form class="secure-form" onsubmit={handleRegister} transition:slide|local={cardTransition}>
@@ -271,6 +347,9 @@
       {#if mode === 'login'}
         Non hai ancora un account?
         <button type="button" class="link-btn" onclick={() => (mode = 'register')}>Registrati</button>
+      {:else if mode === 'reset'}
+        Ti sei ricordato la password?
+        <button type="button" class="link-btn" onclick={() => (mode = 'login')}>Torna all'accesso</button>
       {:else}
         Hai già un account?
         <button type="button" class="link-btn" onclick={() => (mode = 'login')}>Accedi</button>
@@ -378,6 +457,12 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+  }
+
+  .forgot-link {
+    align-self: flex-end;
+    font-size: 0.85rem;
+    margin-top: 2px;
   }
 
   .optional {

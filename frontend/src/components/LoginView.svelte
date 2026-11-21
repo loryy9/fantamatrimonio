@@ -87,7 +87,7 @@
             inviteCode = scannedCode.trim().toUpperCase();
             duplicateNickError = "";
             checkPreview(inviteCode);
-            appState.showToast(`Codice ${inviteCode} rilevato!`, "success");
+            appState.showToast(`Codice ${inviteCode} rilevato`, "success");
         }
     }
 
@@ -101,7 +101,7 @@
                         inviteCode = match[0].toUpperCase();
                         checkPreview(inviteCode);
                         appState.showToast(
-                            `Codice ${inviteCode} incollato!`,
+                            `Codice ${inviteCode} incollato`,
                             "info",
                         );
                         return;
@@ -171,7 +171,7 @@
         <!-- Hero Header -->
         <div class="guest-hero">
             <div class="guest-intro-slot">
-                <PageIntro before="Entra nella" accent="festa" lead="Inserisci il codice del matrimonio per iniziare a giocare, scattare foto e votare con gli sposi." />
+                <PageIntro before="Entra nella" accent="festa" lead="Inserisci il codice del matrimonio per partecipare a sfide, quiz e galleria fotografica." />
             </div>
             <div class="spouse-card-slot">
                 <SpouseCard loggedIn />
@@ -307,8 +307,8 @@
                         />
                     </div>
                     <p class="field-hint">
-                        Come vuoi comparire nella classifica e sull'album di
-                        nozze. Se lo lasci vuoto usiamo il tuo nome.
+                        Il nome con cui comparirai in classifica e nella galleria.
+                        Se lo lasci vuoto useremo il tuo nome.
                     </p>
                 </div>
 

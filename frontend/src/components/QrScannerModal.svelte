@@ -51,7 +51,7 @@
   async function startCamera() {
     cameraError = '';
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      cameraError = 'La fotocamera diretta richiede una connessione sicura (HTTPS) o supporto browser. Puoi comunque scattare o caricare una foto del QR qui sotto!';
+      cameraError = 'La fotocamera diretta richiede una connessione sicura (HTTPS) o supporto browser. Puoi comunque scattare o caricare una foto del QR qui sotto.';
       return;
     }
 
@@ -190,7 +190,7 @@
             <rect width="6" height="6" x="3" y="15" rx="1"/>
             <path d="m15 15 3 3M15 21l6-6"/>
           </svg>
-          <span>Scansiona Codice QR</span>
+          <span>Scansiona il codice QR</span>
         </div>
         <button type="button" class="close-btn" onclick={onClose} aria-label="Chiudi">✕</button>
       </div>
@@ -224,7 +224,7 @@
               <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
               <circle cx="12" cy="13" r="3"/>
             </svg>
-            <span>{isDecoding ? 'Decodifica foto in corso...' : 'Scatta o Scegli foto del QR'}</span>
+            <span>{isDecoding ? 'Decodifica foto in corso...' : 'Scatta o scegli una foto del QR'}</span>
             <input
               bind:this={fileInputEl}
               type="file"

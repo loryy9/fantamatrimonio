@@ -286,7 +286,7 @@ class AppState {
       const name = this.user.first_name;
       const coupleNames = [this.event.spouse1_name, this.event.spouse2_name].filter(Boolean).join(' & ');
       const greeting = this.isCouple
-        ? (coupleNames ? `Bentornati ${coupleNames}!` : 'Bentornati Sposi!')
+        ? (coupleNames ? `Bentornati ${coupleNames}!` : 'Bentornati!')
         : (res.is_new ? `Benvenuto/a ${name}!` : `Bentornato/a ${name}!`);
       this.showToast(greeting, 'success');
 
@@ -373,7 +373,7 @@ class AppState {
   async resetPassword(email, code, password, opts = {}) {
     try {
       const res = await api.resetPassword(email, code, password);
-      await this._completeAccountAuth(res, { ...opts, toast: 'Password aggiornata: sei dentro!' });
+      await this._completeAccountAuth(res, { ...opts, toast: 'Password aggiornata, accesso effettuato' });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message || 'Impossibile aggiornare la password' };
@@ -396,7 +396,7 @@ class AppState {
   async register(fields, opts = {}) {
     try {
       const res = await api.register(fields);
-      await this._completeAccountAuth(res, { ...opts, toast: 'Account creato con successo!' });
+      await this._completeAccountAuth(res, { ...opts, toast: 'Account creato' });
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message || 'Errore nella registrazione' };

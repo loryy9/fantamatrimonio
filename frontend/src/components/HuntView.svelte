@@ -13,7 +13,7 @@
 
   function triggerUpload(challengeId) {
     if (eventTimer.status === 'ended') {
-      appState.showToast('Il tempo per completare le missioni è terminato!', 'info');
+      appState.showToast('Il tempo per completare le missioni è terminato.', 'info');
       return;
     }
     if (fileInputs[challengeId]) {
@@ -26,7 +26,7 @@
     if (!file) return;
 
     if (eventTimer.status === 'ended') {
-      appState.showToast('Il tempo per completare le missioni è terminato!', 'info');
+      appState.showToast('Il tempo per completare le missioni è terminato.', 'info');
       return;
     }
 
@@ -57,7 +57,7 @@
   <div class="page-header sticky-head">
     <h1 class="page-title font-serif">Caccia al Tesoro</h1>
     <p class="page-desc">
-      Trova i soggetti, scatta le foto richieste e conquista punti per scalare la classifica!
+      Scatta le foto richieste dalle missioni: ogni missione completata ti fa guadagnare punti in classifica.
     </p>
   </div>
 
@@ -67,16 +67,16 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       </div>
       <div class="ended-banner-text">
-        <strong>Tempo di gioco concluso!</strong>
-        <span>Puoi consultare le tue missioni e foto inviate. La caccia al tesoro è ora chiusa.</span>
+        <strong>Tempo di gioco concluso</strong>
+        <span>La caccia al tesoro è chiusa. Puoi ancora consultare le missioni e le foto inviate.</span>
       </div>
     </div>
   {/if}
 
   {#if eventTimer.status === 'before_start'}
     <LockedChallenges
-      title="Caccia al Tesoro Bloccata"
-      subtitle="Gli indizi e le missioni fotografiche saranno svelati all'inizio dei giochi."
+      title="Caccia al Tesoro non ancora disponibile"
+      subtitle="Le missioni fotografiche saranno visibili all'inizio dei giochi."
     />
   {:else}
     <div class="hunt-list">
@@ -101,7 +101,7 @@
             <div class="hunt-card-header">
               <span class="done-check" aria-label="Missione completata">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="done-icon"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                Fatta!
+                Completata
               </span>
             </div>
           {/if}
@@ -112,7 +112,7 @@
           {#if isDone}
             <div class="completed-box">
               <div class="completed-info">
-                <span>Foto inviata con successo!</span>
+                <span>Foto inviata</span>
                 <span class="points-awarded">+{submission.points_awarded || hunt.points} PT guadagnati</span>
               </div>
               {#if submission.photo_url}
@@ -137,7 +137,7 @@
                     <span>Ottimizzazione e invio...</span>
                   {:else}
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-                    <span>Scatta o Carica Foto</span>
+                    <span>Scatta o carica una foto</span>
                   {/if}
                 </button>
 

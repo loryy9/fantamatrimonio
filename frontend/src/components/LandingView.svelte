@@ -88,11 +88,11 @@
       <div class="hero-copy">
 
         <h1 class="landing-title font-serif">
-          Il vostro matrimonio, i vostri ricordi più veri.
+          Il vostro matrimonio, raccontato dagli invitati.
         </h1>
 
         <p class="landing-lead">
-          Scatta foto, sfida gli invitati e scopri chi conosce meglio gli sposi. Tutto dal tuo smartphone, senza scaricare app.
+          Galleria fotografica condivisa, missioni a tema e un quiz sugli sposi. Gli invitati partecipano dal proprio smartphone, senza installare nulla.
         </p>
 
         <!-- BOX ACCESSO RAPIDO OSPITI -->
@@ -101,7 +101,7 @@
             <strong class="card-step-title">HAI UN CODICE INVITO?</strong>
             <span class="pill-tag">Ospiti</span>
           </div>
-          <p class="quick-join-desc">Inserisci il codice stampato sul cartoncino o via WhatsApp</p>
+          <p class="quick-join-desc">Inserisci il codice ricevuto dagli sposi, sull'invito o via messaggio</p>
           
           <div class="quick-input-wrap">
             <input
@@ -132,7 +132,7 @@
           </div>
 
           <button type="button" class="pill-submit-btn" onclick={handleJoinWithCode}>
-            <span>Partecipa alla festa</span>
+            <span>Partecipa all'evento</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>
@@ -148,7 +148,7 @@
           </div>
           <div class="sposi-prompt-text">
             <strong>Siete i futuri sposi?</strong>
-            <span>Crea il fantamatrimonio in 2 min</span>
+            <span>Configurate il vostro evento in pochi minuti</span>
           </div>
           <button type="button" class="sposi-cta-btn" onclick={() => goto(ROUTES.create)}>
             Crea evento
@@ -210,32 +210,32 @@
   <!-- ===================== TRE PASSAGGI ===================== -->
   <section id="come-funziona" class="section-block">
     <div class="wrap">
-      <span class="section-eyebrow">SEMPLICITÀ ASSOLUTA</span>
-      <h2 class="section-heading font-serif">Tre passaggi, poi tocca alla festa</h2>
-      <p class="section-sub">Nessuna app da scaricare dagli store: tutto funziona dal browser in 5 secondi per giovani e nonni.</p>
+      <span class="section-eyebrow">COME FUNZIONA</span>
+      <h2 class="section-heading font-serif">Tre passaggi, poi pensate solo a festeggiare</h2>
+      <p class="section-sub">Non serve scaricare alcuna app: si partecipa dal browser del telefono, a qualsiasi età.</p>
 
       <div class="steps-flow">
         <div class="step-card">
           <div class="step-circle">1</div>
           <div class="step-card-body">
-            <h3>Create l'evento in 2 minuti</h3>
-            <p>Scegliete il nome degli sposi, personalizzate le missioni fotografiche e ricevete il vostro codice di accesso personalizzato.</p>
+            <h3>Create l'evento</h3>
+            <p>Inserite i vostri nomi, scegliete quiz e missioni fotografiche e ricevete un codice invito dedicato.</p>
           </div>
         </div>
 
         <div class="step-card">
           <div class="step-circle gold">2</div>
           <div class="step-card-body">
-            <h3>Condividete QR Code o codice</h3>
-            <p>Stampatelo sui segnatavoli col QR code o inviate il link via WhatsApp: gli invitati aprono la schermata di benvenuto con un click.</p>
+            <h3>Condividete il codice</h3>
+            <p>Stampate il QR code sui segnaposto o inviate il link agli invitati: basta aprirlo per partecipare.</p>
           </div>
         </div>
 
         <div class="step-card">
           <div class="step-circle wine">3</div>
           <div class="step-card-body">
-            <h3>Giocate, ridete e salvate tutto</h3>
-            <p>Foto caricate all'istante in alta risoluzione, quiz durante i tempi morti e podio finale proiettabile anche su maxischermo!</p>
+            <h3>Giocate e conservate i ricordi</h3>
+            <p>Le foto arrivano subito in galleria, il quiz anima i tempi morti e la classifica finale decreta il podio.</p>
           </div>
         </div>
       </div>
@@ -245,9 +245,9 @@
   <!-- ===================== QUATTRO MODALITÀ ===================== -->
   <section id="giochi" class="section-block">
     <div class="wrap">
-      <span class="section-eyebrow">COINVOLGIMENTO TOTALE</span>
+      <span class="section-eyebrow">LE ATTIVITÀ</span>
       <h2 class="section-heading font-serif">Quattro modalità di gioco</h2>
-      <p class="section-sub">Ognuno partecipa al proprio ritmo, dai più competitivi a chi ama solo guardare le foto.</p>
+      <p class="section-sub">Ognuno partecipa al proprio ritmo: c'è chi punta al podio e chi preferisce sfogliare le foto.</p>
 
       <div class="features-grid">
         <div class="feature-card">
@@ -256,8 +256,8 @@
               <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
             </svg>
           </div>
-          <h3>Galleria Fotografica Condivisa</h3>
-          <p>Basta selfie dispersi nelle chat private! Tutti gli scatti della giornata confluiscono in un cloud unico in alta qualità, scaricabile dagli sposi con un solo zip a fine festa.</p>
+          <h3>Galleria fotografica condivisa</h3>
+          <p>Le foto della giornata confluiscono in un'unica galleria in alta qualità, invece di restare disperse nelle chat. A fine evento gli sposi possono scaricarle tutte insieme.</p>
           <div class="feature-badge">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
             <span>Download in risoluzione originale per gli sposi</span>
@@ -270,10 +270,10 @@
               <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
             </svg>
           </div>
-          <h3>Caccia al Tesoro Fotografica</h3>
-          <p>Missioni esilaranti a tempo per tutto l'evento: "Scatta una foto con chi ha la cravatta più sobria", "Trova chi si è cambiato le scarpe" (+150 pt).</p>
+          <h3>Caccia al tesoro fotografica</h3>
+          <p>Missioni fotografiche da completare durante il ricevimento, come "Una foto con chi ha la cravatta più sobria" o "Trova chi si è cambiato le scarpe". Ogni missione vale punti.</p>
           <div class="feature-badge">
-            <span>✨ 30 sfide già pronte incluse</span>
+            <span>Sfide già pronte e personalizzabili</span>
           </div>
         </div>
 
@@ -283,10 +283,10 @@
               <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12" y1="17" y2="17.01"/>
             </svg>
           </div>
-          <h3>Il Grande Quiz sugli Sposi</h3>
-          <p>Mettete alla prova parenti e amici con aneddoti veri, prime storiche e curiosità sulla vostra storia d'amore. Punti raddoppiati per le risposte veloci!</p>
+          <h3>Il quiz sugli sposi</h3>
+          <p>Domande sulla vostra storia per mettere alla prova parenti e amici. Ogni risposta corretta fa guadagnare punti in classifica.</p>
           <div class="feature-badge">
-            <span>⚡️ Domande programmabili tra le portate del banchetto</span>
+            <span>Domande e risposte modificabili dagli sposi</span>
           </div>
         </div>
 
@@ -296,10 +296,10 @@
               <rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>
             </svg>
           </div>
-          <h3>Live Display &amp; Proiezione Sala</h3>
-          <p>Attivate con un tap la visualizzazione panoramica per videoproiettore: le foto degli ospiti compaiono sullo schermo in sala insieme al podio in costante ribaltamento.</p>
+          <h3>Proiezione in sala</h3>
+          <p>Una vista dedicata al videoproiettore mostra in sala le foto degli invitati e la classifica aggiornata in tempo reale.</p>
           <div class="feature-badge">
-            <span>📺 Compatibile con Smart TV, HDMI e videoproiettori</span>
+            <span>Compatibile con smart TV, HDMI e videoproiettori</span>
           </div>
         </div>
       </div>
@@ -315,9 +315,9 @@
             <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
           </svg>
         </div>
-        <h2 class="cta-title font-serif">Rendete unico il vostro giorno speciale</h2>
+        <h2 class="cta-title font-serif">Organizzate il vostro FantaMatrimonio</h2>
         <p class="cta-sub">
-          Configura le missioni in 2 minuti: i primi 20 invitati sono sempre gratuiti, nessun account richiesto per partecipare.
+          Bastano pochi minuti per configurare sfide e orari. Agli invitati serve solo il codice per partecipare.
         </p>
 
         <button type="button" class="cta-gold-btn" onclick={() => goto(ROUTES.create)}>
@@ -328,9 +328,9 @@
         </button>
 
         <div class="cta-guarantees">
-          <span>🛡️ Nessun dato rivenduto</span>
+          <span>Nessun dato ceduto a terzi</span>
           <span>•</span>
-          <span>⚡️ Setup in 1 minuto</span>
+          <span>Configurazione in pochi minuti</span>
         </div>
       </div>
     </div>

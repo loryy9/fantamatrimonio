@@ -76,7 +76,7 @@
       // Per il recupero password il server non rivela se l'email è registrata: mostriamo il suo messaggio.
       const sentMessage = purpose === 'reset_password' && res.message
         ? res.message
-        : `Codice a 6 cifre inviato a ${cleanEmail}! Controlla la posta (incluso Spam).`;
+        : `Abbiamo inviato un codice a 6 cifre a ${cleanEmail}. Controlla anche la cartella spam.`;
       notify(sentMessage, 'success');
       startCountdown(25);
     } catch (err) {
@@ -101,7 +101,7 @@
     try {
       await api.verifyCode(cleanEmail, cleanCode, purpose);
       verified = true;
-      notify('Email verificata! Ora puoi completare il modulo.', 'success');
+      notify('Email verificata. Ora puoi completare il modulo.', 'success');
     } catch (err) {
       verified = false;
       notify(err.message || 'Codice non valido o scaduto. Riprova.', 'error');

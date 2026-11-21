@@ -3,7 +3,7 @@
   import { appState } from '../lib/state.svelte.js';
   import { goto } from '$app/navigation';
 
-  let { title = 'Sfide Non Ancora Iniziate', subtitle = 'Questa sezione si sbloccherà automaticamente all\'inizio dei giochi.' } = $props();
+  let { title = 'Sfide non ancora disponibili', subtitle = 'Questa sezione si aprirà automaticamente all\'inizio dei giochi.' } = $props();
 </script>
 
 <div class="locked-container glass-card">
@@ -29,7 +29,7 @@
   {/if}
 
   <div class="countdown-box">
-    <div class="countdown-label-top">Tempo rimanente allo sblocco</div>
+    <div class="countdown-label-top">Apertura tra</div>
     <div class="countdown-timer-grid">
       <div class="countdown-unit">
         <span class="countdown-value font-serif">{eventTimer.toStart.hours}</span>
@@ -49,7 +49,7 @@
   </div>
 
   <p class="locked-hint">
-    Niente spoiler! Le attività e la galleria si sbloccheranno appena i giochi avranno inizio. Nel frattempo puoi dare un'occhiata alla classifica o rilassarti!
+    Niente spoiler: attività e galleria si apriranno all'inizio dei giochi. Nel frattempo puoi consultare la classifica.
   </p>
 
   <div class="locked-actions">
@@ -58,7 +58,7 @@
       Classifica
     </button>
     <button class="btn btn-primary" onclick={() => goto(appState.gameUrl('home'))}>
-      Torna alla Home →
+      Torna alla home
     </button>
   </div>
 </div>

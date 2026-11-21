@@ -150,7 +150,7 @@
   async function handleRegister(e) {
     e.preventDefault();
     if (needsCode && !eventPreview) {
-      appState.showToast('Inserisci un codice matrimonio valido: lo trovi sul segnaposto o te lo dà chi ti ha invitato.', 'error');
+      appState.showToast('Inserisci un codice matrimonio valido: lo trovi sul segnaposto o nell\'invito ricevuto.', 'error');
       return;
     }
     if (!regFirst.trim() || !regLast.trim()) {
@@ -209,17 +209,17 @@
   <div class="secure-intro" class:join-mode={!!intro}>
     {#if intro}
       <div class="page-intro-slot">
-        <PageIntro before="Entra nella" accent="festa" lead="Inserisci il codice del matrimonio per iniziare a giocare, scattare foto e votare con gli sposi." />
+        <PageIntro before="Entra nella" accent="festa" lead="Inserisci il codice del matrimonio per partecipare a sfide, quiz e galleria fotografica." />
       </div>
       <div class="spouse-card-slot">
         <SpouseCard onLogin={() => (mode = 'login')} />
       </div>
     {:else if mode === 'login'}
-      <PageIntro before="Bentornato al" accent="Fanta Matrimonio" lead="Accedi per partecipare ai matrimoni, vedere le tue foto, i quiz e i tuoi punteggi." />
+      <PageIntro before="Bentornato al" accent="Fanta Matrimonio" lead="Accedi per ritrovare i tuoi matrimoni, le foto e i punteggi." />
     {:else if mode === 'reset'}
       <PageIntro before="Recupera la tua" accent="password" lead="Ti mandiamo un codice a 6 cifre via email: inseriscilo e scegli una nuova password." />
     {:else}
-      <PageIntro before="Crea il tuo" accent="account" lead="Ti serve una volta sola: con lo stesso account entri in tutti i matrimoni, come invitato o come sposo." />
+      <PageIntro before="Crea il tuo" accent="account" lead="Basta registrarsi una volta: con lo stesso account partecipi a tutti i matrimoni, da invitato o da sposo." />
     {/if}
   </div>
 
@@ -348,7 +348,7 @@
         Non hai ancora un account?
         <button type="button" class="link-btn" onclick={() => (mode = 'register')}>Registrati</button>
       {:else if mode === 'reset'}
-        Ti sei ricordato la password?
+        Ricordi la password?
         <button type="button" class="link-btn" onclick={() => (mode = 'login')}>Torna all'accesso</button>
       {:else}
         Hai già un account?

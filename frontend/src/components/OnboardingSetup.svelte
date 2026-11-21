@@ -316,7 +316,7 @@
         }
         if (newChallenges.length) await api.createChallengesBulk(newChallenges);
         await appState.refreshChallenges();
-        appState.showToast("Sfide aggiornate con successo!", "success");
+        appState.showToast("Sfide aggiornate", "success");
         onComplete?.();
         return;
       }
@@ -389,7 +389,7 @@
       await appState.refreshChallenges();
 
       appState.showToast(
-        "Attività del matrimonio configurate con successo!",
+        "Attività del matrimonio configurate",
         "success",
       );
       if (onComplete) {
@@ -453,7 +453,7 @@
     <p class="page-lead">
       {editMode
         ? "Gestisci quiz, missioni fotografiche e momenti del matrimonio. Le modifiche saranno visibili agli invitati."
-        : "Abbiamo già preparato i quiz e le missioni più divertenti. Puoi scegliere quali includere, modificare le opzioni o indicare la risposta corretta. Potrai sempre modificarle dalla dashboard."}
+        : "Abbiamo preparato una selezione di quiz e missioni: scegli quali includere, modifica le opzioni e indica la risposta corretta. Potrai cambiarle in seguito dalla dashboard."}
     </p>
   </header>
 
@@ -572,8 +572,8 @@
       <div class="section-helper">
         <div class="helper-info">
           <strong>Quiz a risposta multipla:</strong> <br />gli invitati
-          accumulano punti indovinando la risposta corretta. Clicca sul pallino
-          verde per impostare la risposta esatta!
+          guadagnano punti indovinando la risposta. Tocca il pallino verde
+          per indicare quella corretta.
         </div>
         <button
           class="btn btn-secondary btn-sm"
@@ -697,8 +697,8 @@
     <div class="section-content">
       <div class="section-helper">
         <div class="helper-info">
-          <strong>Momenti migliori &amp; dediche:</strong><br /> aperte o pronostici
-          in cui gli invitati lasciano pensieri speciali, aneddoti o auguri per gli
+          <strong>Momenti migliori &amp; dediche:</strong><br /> domande aperte o pronostici
+          in cui gli invitati lasciano pensieri, aneddoti o auguri per gli
           sposi.
         </div>
         <button

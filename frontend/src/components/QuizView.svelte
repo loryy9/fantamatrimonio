@@ -18,7 +18,7 @@
 
   async function handleQuizAnswer(challengeId, optionId, quizPoints = 30) {
     if (eventTimer.status === 'ended') {
-      appState.showToast('Il tempo per rispondere ai quiz è terminato!', 'info');
+      appState.showToast('Il tempo per rispondere ai quiz è terminato.', 'info');
       return;
     }
     if (answeringId || appState.mySubmissionsByChallenge[challengeId] || quizResults[challengeId]) return;
@@ -58,12 +58,12 @@
 
   async function handleTextSubmit(challengeId, votePoints = 3, savedAnswer = '') {
     if (eventTimer.status === 'ended') {
-      appState.showToast('Il tempo per modificare i momenti è terminato!', 'info');
+      appState.showToast('Il tempo per modificare i momenti è terminato.', 'info');
       return;
     }
     const text = (textDrafts[challengeId] !== undefined ? textDrafts[challengeId] : (savedAnswer || '')).trim();
     if (!text) {
-      appState.showToast('Scrivi il tuo momento prima di salvare!', 'error');
+      appState.showToast('Scrivi una risposta prima di salvare.', 'error');
       return;
     }
 
@@ -74,9 +74,9 @@
       if (isFirstTime) {
         const pts = res.points_awarded || votePoints;
         if (pts > 0) appState.celebratePoints(pts);
-        else appState.showToast('Momento salvato!', 'success');
+        else appState.showToast('Risposta salvata', 'success');
       } else {
-        appState.showToast('Momento aggiornato con successo!', 'success');
+        appState.showToast('Risposta aggiornata', 'success');
       }
 
       await Promise.all([
@@ -94,7 +94,7 @@
 
   async function handleVote(challengeId, optionId, votePoints = 5) {
     if (eventTimer.status === 'ended') {
-      appState.showToast('Il tempo per votare è terminato!', 'info');
+      appState.showToast('Il tempo per votare è terminato.', 'info');
       return;
     }
     if (votingId) return;
@@ -102,7 +102,7 @@
     try {
       await api.submitVote(challengeId, optionId);
       if (votePoints > 0) appState.celebratePoints(votePoints);
-      else appState.showToast('Voto registrato con successo!', 'success');
+      else appState.showToast('Voto registrato', 'success');
       await Promise.all([
         appState.refreshUser(),
         appState.refreshMySubmissions(),
@@ -149,16 +149,16 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <div class="ended-banner-text">
-            <strong>Tempo per i quiz concluso!</strong>
-            <span>Puoi consultare le domande e le risposte date. I quiz sono ora chiusi.</span>
+            <strong>Quiz chiuso</strong>
+            <span>Il tempo per rispondere è terminato. Puoi ancora consultare domande e risposte date.</span>
           </div>
         </div>
       {/if}
 
       {#if eventTimer.status === 'before_start'}
         <LockedChallenges
-          title="Quiz sugli Sposi Bloccato"
-          subtitle="Le domande del quiz saranno svelate all'inizio dei giochi."
+          title="Quiz non ancora disponibile"
+          subtitle="Le domande saranno visibili all'inizio dei giochi."
         />
       {:else}
         <div class="cards-list">
@@ -255,16 +255,16 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <div class="ended-banner-text">
-            <strong>Tempo per Momenti Migliori concluso!</strong>
-            <span>Puoi visualizzare i pensieri e ricordi che hai condiviso. Le risposte sono ora in sola lettura.</span>
+            <strong>Momenti Migliori chiusi</strong>
+            <span>Puoi rileggere i ricordi che hai condiviso, ma non è più possibile modificarli.</span>
           </div>
         </div>
       {/if}
 
       {#if eventTimer.status === 'before_start'}
         <LockedChallenges
-          title="Momenti Migliori Bloccati"
-          subtitle="I Momenti Migliori della serata saranno sbloccati all'inizio dei giochi."
+          title="Momenti Migliori non ancora disponibili"
+          subtitle="Questa sezione sarà disponibile all'inizio dei giochi."
         />
       {:else}
         <div class="cards-list">

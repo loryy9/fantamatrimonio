@@ -21,7 +21,7 @@ export const PRESET_QUIZZES = [
   {
     id: 'pq_1',
     title: 'Dove si sono conosciuti gli sposi?',
-    description: 'Metti alla prova gli invitati sulla vostra storia d\'amore.',
+    description: 'Quanto conosci la storia degli sposi?',
     points: 30,
     type: 'quiz',
     active: true,
@@ -66,7 +66,7 @@ export const PRESET_QUIZZES = [
   {
     id: 'pq_4',
     title: 'Qual è la meta del loro viaggio di nozze?',
-    description: 'Riconosci dove voleranno gli sposi per la luna di miele?',
+    description: 'Sai dove andranno gli sposi in luna di miele?',
     points: 30,
     type: 'quiz',
     active: true,
@@ -114,7 +114,7 @@ export const PRESET_HUNTS = [
   {
     id: 'ph_1',
     title: 'Selfie con la sposa',
-    description: 'Cattura un sorriso splendente con la sposa!',
+    description: 'Un selfie insieme alla sposa.',
     points: 25,
     type: 'hunt',
     active: true
@@ -122,15 +122,15 @@ export const PRESET_HUNTS = [
   {
     id: 'ph_2',
     title: 'Selfie con lo sposo',
-    description: 'Uno scatto memorabile insieme allo sposo!',
+    description: 'Un selfie insieme allo sposo.',
     points: 25,
     type: 'hunt',
     active: true
   },
   {
     id: 'ph_3',
-    title: 'Brindisi caloroso al tavolo',
-    description: 'Bicchieri in alto e grida di auguri con i compagni di tavolo!',
+    title: 'Brindisi al tavolo',
+    description: 'Bicchieri in alto con i compagni di tavolo.',
     points: 20,
     type: 'hunt',
     active: true
@@ -138,7 +138,7 @@ export const PRESET_HUNTS = [
   {
     id: 'ph_4',
     title: 'L\'outfit più originale della festa',
-    description: 'Fotografa l\'invitato o l\'invitata con il look più stiloso o stravagante.',
+    description: 'Fotografa l\'invitato o l\'invitata con il look più elegante o stravagante.',
     points: 25,
     type: 'hunt',
     active: true
@@ -170,7 +170,7 @@ export const PRESET_HUNTS = [
   {
     id: 'ph_8',
     title: 'Il ballo più scatenato',
-    description: 'Immola la pista da ballo nel clou dei festeggiamenti!',
+    description: 'Fotografa chi si sta scatenando in pista.',
     points: 30,
     type: 'hunt',
     active: true
@@ -180,7 +180,7 @@ export const PRESET_HUNTS = [
 export const PRESET_MOMENTS = [
   {
     id: 'pm_1',
-    title: 'Un augurio o dedica speciale dal cuore per gli sposi',
+    title: 'Un augurio o una dedica per gli sposi',
     description: 'Lascia un pensiero o un ricordo che gli sposi leggeranno con emozione.',
     points: 10,
     type: 'vote',

@@ -277,7 +277,7 @@
       appState.galleryPhotos = [...optimisticEntries, ...appState.galleryPhotos];
 
       if (isEnded) {
-        appState.showToast(count === 1 ? 'Foto aggiunta alla galleria!' : `${count} foto aggiunte alla galleria!`, 'success');
+        appState.showToast(count === 1 ? 'Foto aggiunta alla galleria' : `${count} foto aggiunte alla galleria`, 'success');
       } else {
         appState.celebratePoints(pts);
       }
@@ -380,8 +380,8 @@
 >
   {#if eventTimer.status === 'before_start'}
     <LockedChallenges
-      title="Galleria Foto Bloccata"
-      subtitle="La galleria fotografica e la condivisione degli scatti saranno aperte all'inizio dei giochi."
+      title="Galleria non ancora disponibile"
+      subtitle="Potrai caricare e condividere le foto all'inizio dei giochi."
     />
   {:else}
     {#if selectedPhotos.length > 0}
@@ -445,7 +445,7 @@
         <input
           type="text"
           class="input-field"
-          placeholder="Aggiungi una dedica o una didascalia... (opzionale)"
+          placeholder="Aggiungi una didascalia o una dedica (facoltativa)"
           bind:value={caption}
           maxlength="200"
         />
@@ -458,7 +458,7 @@
             <div class="spinner"></div>
             <span>Ottimizzazione foto in corso...</span>
           {:else if eventTimer.status === 'ended'}
-            <span>Pubblica {selectedPhotos.length === 1 ? 'Foto' : `${selectedPhotos.length} Foto`} nella Galleria (0 PT)</span>
+            <span>Pubblica {selectedPhotos.length === 1 ? 'Foto' : `${selectedPhotos.length} Foto`} nella galleria (0 PT)</span>
           {:else}
             <span>Pubblica {selectedPhotos.length === 1 ? 'Foto' : `${selectedPhotos.length} Foto`} (+{selectedPhotos.length * 10} PT)</span>
           {/if}

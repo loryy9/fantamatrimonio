@@ -271,11 +271,11 @@
     if (!(await copyToClipboard(text))) return;
     copied = kind;
     setTimeout(() => { if (copied === kind) copied = ''; }, 2000);
-    appState.showToast('Copiato negli appunti!', 'success');
+    appState.showToast('Copiato negli appunti', 'success');
   }
 
   async function share() {
-    const text = `Partecipa al nostro Fanta Matrimonio! Codice invito: ${appState.pendingInvite}`;
+    const text = `Partecipa al nostro FantaMatrimonio. Codice invito: ${appState.pendingInvite}`;
     if (!navigator.share) return copy('link', inviteLink);
     try {
       await navigator.share({ title: 'Fanta Matrimonio', text, url: inviteLink });
@@ -318,7 +318,7 @@
           {appState.event?.spouse1_name || spouse1} &amp; {appState.event?.spouse2_name || spouse2}
         </h1>
         <p class="wizard-subtitle">
-          Condividete questo codice o il link con gli invitati per farli entrare al volo!
+          Condividete questo codice o il link con gli invitati: lo useranno per accedere al gioco.
         </p>
 
         <div class="code-big-display">{appState.pendingInvite}</div>
@@ -350,11 +350,11 @@
   <div class="create-layout" class:leaving={isLeavingCreatePage}>
     <div class="create-intro">
       {#if wizardStep === 1}
-        <PageIntro before="Chi sono i" accent="festeggiati?" lead="Questi nomi compariranno nell'app degli invitati, nelle classifiche delle sfide e nelle foto condivise." />
+        <PageIntro before="Chi sono i" accent="festeggiati?" lead="I vostri nomi compariranno nell'app degli invitati, in classifica e nella galleria." />
       {:else if isRegister}
-        <PageIntro before="Create il vostro" accent="account" lead="Serve a voi per gestire la festa: console di regia, classifica e foto restano sempre a vostra disposizione. Registrandovi creiamo subito il matrimonio." />
+        <PageIntro before="Create il vostro" accent="account" lead="Vi serve per gestire l'evento: sfide, classifica e foto restano sempre accessibili. Completata la registrazione, creeremo il matrimonio." />
       {:else}
-        <PageIntro before="Bentornati," accent="sposi" lead="Accedete con il vostro account: creeremo il matrimonio con quei dati." />
+        <PageIntro before="Bentornati," accent="sposi" lead="Accedete con il vostro account per completare la creazione del matrimonio." />
       {/if}
     </div>
 

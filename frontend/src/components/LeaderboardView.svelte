@@ -312,7 +312,7 @@
       </div>
 
       <div class="modal-body">
-        <h4 class="submissions-title">Attività e Punti Conquistati</h4>
+        <h4 class="submissions-title">Attività e punti ottenuti</h4>
         {#if !selectedUserDetail.submissions || selectedUserDetail.submissions.length === 0}
           <p class="no-subs">Nessuna attività registrata ancora.</p>
         {:else}

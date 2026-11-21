@@ -52,9 +52,9 @@
             <circle cx="15" cy="12" r="5"></circle>
           </svg>
         </div>
-        <h2 id="instructions-modal-title" class="modal-title font-serif">Benvenuti al FantaMatrimonio!</h2>
+        <h2 id="instructions-modal-title" class="modal-title font-serif">Benvenuti al FantaMatrimonio</h2>
         <div class="modal-subtitle">
-          {#if spouse1 && spouse2}Festa di <strong class="gold-gradient-text">{spouse1} & {spouse2}</strong>{:else}Il gioco del matrimonio{/if}
+          {#if spouse1 && spouse2}Matrimonio di <strong class="gold-gradient-text">{spouse1} & {spouse2}</strong>{:else}Il gioco del matrimonio{/if}
         </div>
       </div>
 
@@ -62,8 +62,8 @@
       <div class="modal-scroll-body">
         <!-- Intro text -->
         <p class="intro-text">
-          Durante la festa potrete completare sfide divertenti, rispondere a quiz e guadagnare punti.
-          <strong>Al termine, i primi 3 sul podio riceveranno fantastici premi!</strong>
+          Durante il ricevimento potrai completare sfide, rispondere al quiz e accumulare punti.
+          <strong>Al termine, i primi tre classificati riceveranno un premio.</strong>
         </p>
 
         <!-- Timing Banner -->
@@ -71,15 +71,15 @@
           <div class="timing-box">
             <div class="timing-header">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <strong>Orari delle Sfide</strong>
+              <strong>Orari delle sfide</strong>
             </div>
             <div class="timing-desc">
               {#if eventTimer.startTimeFormatted && eventTimer.endTimeFormatted}
-                Le sfide aprono alle <strong>{eventTimer.startTimeFormatted}</strong> e terminano alle <strong>{eventTimer.endTimeFormatted}</strong>! Fino all'orario di inizio puoi prepararti ed esplorare il sito.
+                Le sfide sono aperte dalle <strong>{eventTimer.startTimeFormatted}</strong> alle <strong>{eventTimer.endTimeFormatted}</strong>. Prima dell'apertura puoi già esplorare l'app.
               {:else if eventTimer.startTimeFormatted}
-                I giochi apriranno alle <strong>{eventTimer.startTimeFormatted}</strong>!
+                I giochi apriranno alle <strong>{eventTimer.startTimeFormatted}</strong>.
               {:else}
-                I giochi termineranno alle <strong>{eventTimer.endTimeFormatted}</strong>!
+                I giochi termineranno alle <strong>{eventTimer.endTimeFormatted}</strong>.
               {/if}
             </div>
           </div>
@@ -95,7 +95,7 @@
               </div>
               <div class="rule-text">
                 <strong>Galleria Condivisa</strong>
-                <span>Scatta selfie e foto della festa per condividerle (+10 PT cad.).</span>
+                <span>Condividi le tue foto della giornata (+10 PT per foto).</span>
               </div>
             </div>
 
@@ -105,7 +105,7 @@
               </div>
               <div class="rule-text">
                 <strong>Caccia al Tesoro</strong>
-                <span>Trova gli indizi, cerca gli invitati giusti e scatta la foto richiesta.</span>
+                <span>Completa le missioni scattando la foto richiesta.</span>
               </div>
             </div>
 
@@ -115,7 +115,7 @@
               </div>
               <div class="rule-text">
                 <strong>Quiz sugli Sposi</strong>
-                <span>Dimostra quanto conosci bene gli sposi (+30 PT per risposta esatta).</span>
+                <span>Metti alla prova quanto conosci gli sposi (+30 PT per risposta esatta).</span>
               </div>
             </div>
 
@@ -125,7 +125,7 @@
               </div>
               <div class="rule-text">
                 <strong>Momenti Migliori</strong>
-                <span>Scrivi e condividi i tuoi ricordi ed emozioni più belli (+3 PT).</span>
+                <span>Lascia un ricordo o un augurio per gli sposi (+3 PT).</span>
               </div>
             </div>
           </div>
@@ -135,7 +135,7 @@
       <!-- Action Button Footer (Sticky & always visible) -->
       <div class="modal-footer">
         <button class="confirm-btn" onclick={handleDismiss}>
-          Ho capito, iniziamo!
+          Ho capito, iniziamo
         </button>
       </div>
     </div>
